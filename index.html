@@ -511,6 +511,11 @@
         let isUIVisible = false;
         let idleTimeout;
         const videoElement = document.getElementById('live-video');
+        const playerWrapper = document.getElementById('player-wrapper');
+
+        // Proteção contra "toques fantasmas" no ecrã (Mobile)
+        let isTouchDevice = false;
+        window.addEventListener('touchstart', () => { isTouchDevice = true; }, {passive: true});
 
         function showUI() {
             const overlay = document.getElementById('video-ui-overlay');
@@ -519,6 +524,7 @@
                 overlay.classList.add('opacity-100');
                 isUIVisible = true;
                 document.body.style.cursor = 'default';
+                playerWrapper.classList.remove('video-idle');
                 resetIdleTimer();
             }
         }
@@ -532,13 +538,15 @@
                 isUIVisible = false;
                 if (!videoElement.paused) {
                     document.body.style.cursor = 'none';
+                    playerWrapper.classList.add('video-idle');
                 }
                 clearTimeout(idleTimeout);
             }
         }
 
         function handleHitboxClick(e) {
-            // Se o ecrã for tocado, esconde se estava visível, mostra se estava escondido.
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            // Se já está visível, o toque na tela esconde. Se está escondido, mostra.
             if (isUIVisible) {
                 hideUI();
             } else {
@@ -548,7 +556,7 @@
 
         function resetIdleTimer() {
             clearTimeout(idleTimeout);
-            // Só esconde sozinho se estiver a dar Play
+            // Só esconde sozinho se estiver a dar Play e a UI estiver visível
             if (isUIVisible && !videoElement.paused) {
                 idleTimeout = setTimeout(() => {
                     hideUI();
@@ -556,8 +564,9 @@
             }
         }
 
-        // Se mexeres o rato no PC, ele acorda sozinho
+        // Se mexeres o rato no PC, ele acorda sozinho. No telemóvel ignoramos isto!
         document.getElementById('unlocked-state').addEventListener('mousemove', () => {
+            if (isTouchDevice) return; // Se for mobile, deslizar o dedo não interfere.
             if (!isUIVisible) showUI();
             else resetIdleTimer();
         });
@@ -673,6 +682,7 @@
                 }
             } catch (e) {}
 
+            // Removi o antigo clique fantasma no vídeo que causava os bugs de Play/Pause.
             videoElement.addEventListener('play', () => { 
                 updatePlayPauseIcon(true); 
                 resetIdleTimer(); 
@@ -762,8 +772,9 @@
         }
 
         function togglePlay(e) { 
-            if(e) e.stopPropagation(); // Evita que o clique esconda os menus na hora
+            if(e) { e.preventDefault(); e.stopPropagation(); } // Garante que o clique fica SÓ no botão central
             videoElement.paused ? videoElement.play() : videoElement.pause(); 
+            resetIdleTimer();
         }
         
         function updatePlayPauseIcon(isPlaying) {
