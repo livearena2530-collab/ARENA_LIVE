@@ -67,13 +67,14 @@
         :fullscreen video { width: 100vw; height: 100vh; object-fit: contain !important; }
         .h-dvh-real { height: 100vh; height: 100dvh; }
         
-        input[type=range] {
+        /* Volume Slider */
+        input[type=range]#volume-slider {
             -webkit-appearance: none;
             appearance: none;
             border-radius: 8px;
             height: 4px;
         }
-        input[type=range]::-webkit-slider-thumb {
+        input[type=range]#volume-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
             height: 12px;
@@ -84,22 +85,22 @@
             box-shadow: 0 0 10px rgba(99, 102, 241, 0.8);
         }
 
+        /* Timeline Slider (Estilo YouTube) */
         input[type=range]#progress-bar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
             height: 14px;
             width: 14px;
+            background: #dc2626; /* Vermelho Youtube */
+            border-radius: 50%;
             opacity: 0; 
             transition: opacity 0.2s, transform 0.2s;
         }
-        .group\/timeline:hover input[type=range]#progress-bar::-webkit-slider-thumb {
+        .group\/timeline:hover input[type=range]#progress-bar::-webkit-slider-thumb,
+        input[type=range]#progress-bar:active::-webkit-slider-thumb {
             opacity: 1;
-            transform: scale(1.2);
+            transform: scale(1.3);
         }
-
-        .video-idle .player-ui-element {
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-        .video-idle { cursor: none; }
     </style>
 </head>
 <body class="min-h-dvh-real flex flex-col overflow-x-hidden selection:bg-indigo-500 selection:text-white">
@@ -191,7 +192,6 @@
                             </div>
                         </div>
 
-                        <!-- Botão Principal de Compra -->
                         <button id="btn-assistir" onclick="iniciarCompra()" class="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:via-purple-500 hover:to-indigo-500 text-white font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_30px_rgba(99,102,241,0.5)] text-xl group-hover:shadow-[0_0_50px_rgba(99,102,241,0.7)] bg-[length:200%_auto] animate-[gradient_3s_ease_infinite] relative z-20 cursor-pointer">
                             <i data-lucide="zap" class="w-6 h-6 fill-current"></i> GARANTIR O MEU ACESSO
                         </button>
@@ -217,9 +217,9 @@
 
     <!-- Vista Player -->
     <main id="view-player" class="hidden flex-col h-dvh-real pt-[72px] bg-black">
-        <div id="player-wrapper" class="relative w-full flex-1 flex flex-col bg-neutral-950 group overflow-hidden">
+        <div id="player-wrapper" class="relative w-full flex-1 flex flex-col bg-black overflow-hidden">
             
-            <div id="locked-state" class="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-black/90 backdrop-blur-md text-center">
+            <div id="locked-state" class="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 bg-black/90 backdrop-blur-md text-center">
                 <div class="relative z-30 glass-card p-8 sm:p-12 rounded-[2.5rem] max-w-md w-full shadow-2xl slide-up">
                     <button onclick="goHome()" class="absolute top-6 left-6 text-neutral-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-bold bg-white/5 px-3 py-2 rounded-xl">
                         <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
@@ -256,64 +256,82 @@
             </div>
 
             <!-- Player Desbloqueado -->
-            <div id="unlocked-state" class="hidden absolute inset-0 bg-black flex items-center justify-center z-10">
-                <button onclick="goHome()" class="player-ui-element absolute top-6 left-6 z-50 bg-black/60 hover:bg-black/90 border border-white/10 text-white px-4 py-2 rounded-xl backdrop-blur-md transition-opacity duration-500 flex items-center gap-2 font-bold text-sm opacity-100">
-                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Início
-                </button>
+            <div id="unlocked-state" class="hidden absolute inset-0 bg-black flex items-center justify-center z-10 overflow-hidden">
                 
-                <video id="live-video" playsinline class="w-full h-full object-contain cursor-pointer"></video>
+                <!-- Video Element -->
+                <video id="live-video" playsinline class="w-full h-full object-contain z-10"></video>
                 
-                <!-- Controlos Customizados -->
-                <div id="custom-controls" class="player-ui-element absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent transition-opacity duration-500 opacity-100 flex flex-col z-30">
+                <!-- Hitbox Invisível (Captura os toques na tela para mostrar/esconder botões) -->
+                <div id="ui-hitbox" class="absolute inset-0 z-20 cursor-pointer" onclick="handleHitboxClick(event)"></div>
+
+                <!-- OVERLAY DOS CONTROLOS (Estilo YouTube) -->
+                <div id="video-ui-overlay" class="absolute inset-0 z-30 flex flex-col justify-between opacity-0 transition-opacity duration-300 pointer-events-none">
                     
-                    <div class="w-full flex items-center gap-3 mb-4 group/timeline">
-                        <span id="current-time" class="text-white text-[10px] sm:text-xs font-mono drop-shadow-md w-14 text-center">00:00</span>
-                        <div class="relative flex-1 flex items-center">
-                            <div class="absolute left-0 right-0 h-1.5 bg-white/20 rounded-full pointer-events-none"></div>
-                            <div id="progress-fill" class="absolute left-0 h-1.5 bg-indigo-500 rounded-full pointer-events-none transition-all duration-75" style="width: 0%;"></div>
-                            <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" class="w-full h-1.5 bg-transparent appearance-none cursor-pointer z-10 focus:outline-none" style="background: transparent;" oninput="scrubVideo(this)" onchange="seekVideo(this)">
-                        </div>
-                        <span id="total-time" class="text-white text-[10px] sm:text-xs font-mono drop-shadow-md w-14 text-center">00:00</span>
+                    <!-- Fundo escurecido suave para ler os ícones brancos -->
+                    <div class="absolute inset-0 bg-black/40 pointer-events-none"></div>
+
+                    <!-- Topo -->
+                    <div class="relative p-4 sm:p-6 w-full flex justify-between items-start pointer-events-auto">
+                        <button onclick="goHome()" class="bg-black/60 hover:bg-black/90 border border-white/10 text-white px-4 py-2.5 rounded-xl backdrop-blur-md transition-transform active:scale-95 flex items-center gap-2 font-bold text-sm shadow-xl">
+                            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                        </button>
                     </div>
 
-                    <div class="flex items-center justify-between w-full">
-                        <div class="flex items-center gap-4 sm:gap-6">
-                            <button onclick="togglePlay()" id="btn-play-pause" class="text-white hover:text-indigo-400 transition-colors transform hover:scale-110 active:scale-95">
-                                <i data-lucide="pause" id="icon-play-pause" class="w-8 h-8 fill-current"></i>
-                            </button>
-                            
-                            <div class="flex items-center gap-3 group/volume cursor-pointer">
-                                <button onclick="toggleMute()" id="btn-mute" class="text-white hover:text-indigo-400 transition-colors">
-                                    <i data-lucide="volume-2" id="icon-mute" class="w-6 h-6"></i>
-                                </button>
-                                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1" class="w-0 sm:group-hover/volume:w-24 opacity-0 sm:group-hover/volume:opacity-100 transition-all duration-300 origin-left bg-white/20" oninput="changeVolume(this.value)">
-                            </div>
+                    <!-- Centro (Botão Play/Pause Gigante) -->
+                    <div class="relative flex-1 flex items-center justify-center pointer-events-none">
+                        <button onclick="togglePlay(event)" class="text-white hover:scale-110 active:scale-95 transition-transform bg-black/40 p-5 rounded-full backdrop-blur-sm pointer-events-auto shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                            <i data-lucide="pause" id="icon-center-play-pause" class="w-14 h-14 fill-current"></i>
+                        </button>
+                    </div>
 
-                            <span id="btn-live" onclick="jumpToLive()" class="cursor-pointer hover:bg-red-500/20 transition-colors text-red-500 font-black text-[10px] sm:text-xs flex items-center gap-1.5 tracking-widest px-2.5 py-1 rounded bg-red-500/10 border border-red-500/20 active:scale-95">
-                                <span id="dot-live" class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span> AO VIVO
-                            </span>
-                        </div>
+                    <!-- Base (Timeline e Ações) -->
+                    <div class="relative w-full bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 sm:p-6 pointer-events-auto">
                         
-                        <div class="flex items-center gap-4 sm:gap-6">
-                            
-                            <div class="relative">
-                                <button onclick="toggleQualityMenu()" class="text-white hover:text-indigo-400 transition-colors transform hover:scale-110 active:scale-95">
-                                    <i data-lucide="settings" class="w-6 h-6"></i>
-                                </button>
-                                <div id="quality-menu" class="hidden absolute bottom-full right-0 mb-4 bg-neutral-900 border border-white/10 rounded-xl flex flex-col min-w-[120px] overflow-hidden shadow-2xl">
-                                    <button onclick="setQuality(-1)" class="px-4 py-3 text-sm font-bold text-white hover:bg-indigo-600 text-left border-b border-white/5 transition-colors">Auto</button>
-                                    <div id="quality-levels" class="flex flex-col"></div>
-                                </div>
+                        <div class="w-full flex items-center gap-3 mb-2 group/timeline">
+                            <span id="current-time" class="text-white text-[10px] sm:text-xs font-mono drop-shadow-md w-12 text-center">00:00</span>
+                            <div class="relative flex-1 flex items-center">
+                                <div class="absolute left-0 right-0 h-1 bg-white/30 rounded-full pointer-events-none"></div>
+                                <div id="progress-fill" class="absolute left-0 h-1 bg-red-600 rounded-full pointer-events-none transition-all duration-75" style="width: 0%;"></div>
+                                <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" class="w-full h-1 bg-transparent appearance-none cursor-pointer z-10 focus:outline-none" oninput="scrubVideo(this)" onchange="seekVideo(this)">
                             </div>
+                            <span id="total-time" class="text-white text-[10px] sm:text-xs font-mono drop-shadow-md w-12 text-center">00:00</span>
+                        </div>
 
-                            <button onclick="toggleFullScreen()" class="text-white hover:text-indigo-400 transition-colors transform hover:scale-110 active:scale-95">
-                                <i data-lucide="maximize" class="w-6 h-6"></i>
-                            </button>
+                        <div class="flex items-center justify-between w-full mt-3">
+                            <div class="flex items-center gap-4 sm:gap-6">
+                                <div class="flex items-center gap-3 group/volume cursor-pointer">
+                                    <button onclick="toggleMute()" id="btn-mute" class="text-white hover:text-indigo-400 transition-colors">
+                                        <i data-lucide="volume-2" id="icon-mute" class="w-6 h-6"></i>
+                                    </button>
+                                    <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1" class="hidden sm:block w-0 sm:group-hover/volume:w-24 opacity-0 sm:group-hover/volume:opacity-100 transition-all duration-300 origin-left bg-white/20" oninput="changeVolume(this.value)">
+                                </div>
+
+                                <span id="btn-live" onclick="jumpToLive(event)" class="cursor-pointer hover:bg-red-500/20 transition-colors text-red-500 font-black text-[10px] sm:text-xs flex items-center gap-1.5 tracking-widest px-2.5 py-1.5 rounded bg-red-500/10 border border-red-500/20 active:scale-95">
+                                    <span id="dot-live" class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span> AO VIVO
+                                </span>
+                            </div>
+                            
+                            <div class="flex items-center gap-4 sm:gap-6">
+                                <div class="relative">
+                                    <button onclick="toggleQualityMenu(event)" class="text-white hover:text-indigo-400 transition-colors transform hover:scale-110 active:scale-95">
+                                        <i data-lucide="settings" class="w-6 h-6"></i>
+                                    </button>
+                                    <div id="quality-menu" class="hidden absolute bottom-full right-0 mb-4 bg-neutral-900 border border-white/10 rounded-xl flex flex-col min-w-[120px] overflow-hidden shadow-2xl">
+                                        <button onclick="setQuality(-1)" class="px-4 py-3 text-sm font-bold text-white hover:bg-indigo-600 text-left border-b border-white/5 transition-colors">Auto</button>
+                                        <div id="quality-levels" class="flex flex-col"></div>
+                                    </div>
+                                </div>
+
+                                <button onclick="toggleFullScreen(event)" class="text-white hover:text-indigo-400 transition-colors transform hover:scale-110 active:scale-95">
+                                    <i data-lucide="maximize" class="w-6 h-6"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div id="video-loading" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 hidden z-20 backdrop-blur-sm pointer-events-none">
+                <!-- Loader -->
+                <div id="video-loading" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 hidden z-50 backdrop-blur-sm pointer-events-none">
                     <div class="relative w-16 h-16">
                         <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
                         <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -437,17 +455,15 @@
     </div>
 
     <script>
-        // Inicializa Ícones
         try { lucide.createIcons(); } catch(e){}
 
-        // Notificações Toast
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             let bgClass = type === 'error' ? 'bg-red-600' : (type === 'warning' ? 'bg-amber-600' : 'bg-emerald-600');
             let icon = type === 'error' ? 'alert-circle' : (type === 'warning' ? 'info' : 'check-circle');
 
-            toast.className = `${bgClass} text-white px-5 py-3.5 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] text-sm font-bold flex items-center gap-3 slide-down-toast transition-all duration-300 pointer-events-auto border border-white/20`;
+            toast.className = `${bgClass} text-white px-5 py-3.5 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] text-sm font-bold flex items-center gap-3 slide-down-toast transition-all duration-300 pointer-events-auto border border-white/20 z-[999]`;
             toast.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5 flex-shrink-0"></i> <span>${message}</span>`;
             
             container.appendChild(toast);
@@ -460,7 +476,6 @@
             }, 4000);
         }
 
-        // TENTA LIGAR O FIREBASE EM SEGURANÇA
         let db = null;
         try {
             const firebaseConfig = {
@@ -473,9 +488,7 @@
             };
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
-        } catch(e) {
-            console.error("Firebase bloqueado ou com erro. A aguardar conexão direta.");
-        }
+        } catch(e) {}
 
         window.API_URL = "";
         window.VIDEO_URL = "";
@@ -494,38 +507,67 @@
             max_buffer: 10
         };
 
-        // ==== AUTO-HIDE CONTROLS ====
+        // ==== LÓGICA DA INTERFACE DO PLAYER (TIPO YOUTUBE) ====
+        let isUIVisible = false;
         let idleTimeout;
-        let isLiveStateRed = null; 
-        const playerWrapper = document.getElementById('player-wrapper');
-        let lastWakeUpTime = 0; // Proteção contra o duplo clique fantasma no telemóvel
+        const videoElement = document.getElementById('live-video');
 
-        function resetIdleTimer() {
-            if (playerWrapper.classList.contains('video-idle')) {
-                lastWakeUpTime = Date.now();
-                playerWrapper.classList.remove('video-idle');
-            }
-            
-            clearTimeout(idleTimeout);
-            
-            if (videoElement && !videoElement.paused) {
-                idleTimeout = setTimeout(() => {
-                    playerWrapper.classList.add('video-idle');
-                    document.getElementById('quality-menu').classList.add('hidden');
-                }, 3000);
+        function showUI() {
+            const overlay = document.getElementById('video-ui-overlay');
+            if(overlay) {
+                overlay.classList.remove('opacity-0', 'pointer-events-none');
+                overlay.classList.add('opacity-100');
+                isUIVisible = true;
+                document.body.style.cursor = 'default';
+                resetIdleTimer();
             }
         }
 
-        playerWrapper.addEventListener('mousemove', resetIdleTimer);
-        playerWrapper.addEventListener('touchstart', resetIdleTimer);
+        function hideUI() {
+            const overlay = document.getElementById('video-ui-overlay');
+            if(overlay) {
+                overlay.classList.add('opacity-0', 'pointer-events-none');
+                overlay.classList.remove('opacity-100');
+                document.getElementById('quality-menu').classList.add('hidden');
+                isUIVisible = false;
+                if (!videoElement.paused) {
+                    document.body.style.cursor = 'none';
+                }
+                clearTimeout(idleTimeout);
+            }
+        }
+
+        function handleHitboxClick(e) {
+            // Se o ecrã for tocado, esconde se estava visível, mostra se estava escondido.
+            if (isUIVisible) {
+                hideUI();
+            } else {
+                showUI();
+            }
+        }
+
+        function resetIdleTimer() {
+            clearTimeout(idleTimeout);
+            // Só esconde sozinho se estiver a dar Play
+            if (isUIVisible && !videoElement.paused) {
+                idleTimeout = setTimeout(() => {
+                    hideUI();
+                }, 3500); // 3.5 segundos até sumir
+            }
+        }
+
+        // Se mexeres o rato no PC, ele acorda sozinho
+        document.getElementById('unlocked-state').addEventListener('mousemove', () => {
+            if (!isUIVisible) showUI();
+            else resetIdleTimer();
+        });
+        // ========================================================
 
         let deviceId = localStorage.getItem('arenaLiveDeviceId');
         if (!deviceId) {
             deviceId = 'DEV-' + Math.random().toString(36).substring(2, 15);
             localStorage.setItem('arenaLiveDeviceId', deviceId);
         }
-
-        const videoElement = document.getElementById('live-video');
 
         // ==== LÓGICA DA LINHA DE TEMPO ====
         const progressBar = document.getElementById('progress-bar');
@@ -571,15 +613,12 @@
                     if (videoElement.currentTime < (videoElement.duration - 5)) isLiveEdge = false;
                 }
 
-                if (isLiveStateRed !== isLiveEdge) {
-                    isLiveStateRed = isLiveEdge;
-                    if (isLiveEdge) {
-                        btnLive.className = "cursor-pointer hover:bg-red-500/20 transition-colors text-red-500 font-black text-[10px] sm:text-xs flex items-center gap-1.5 tracking-widest px-2.5 py-1 rounded bg-red-500/10 border border-red-500/20 active:scale-95";
-                        dotLive.className = "w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]";
-                    } else {
-                        btnLive.className = "cursor-pointer hover:bg-white/20 transition-colors text-neutral-400 font-black text-[10px] sm:text-xs flex items-center gap-1.5 tracking-widest px-2.5 py-1 rounded bg-white/10 border border-white/20 active:scale-95";
-                        dotLive.className = "w-2 h-2 bg-neutral-400 rounded-full";
-                    }
+                if (isLiveEdge) {
+                    btnLive.className = "cursor-pointer hover:bg-red-500/20 transition-colors text-red-500 font-black text-[10px] sm:text-xs flex items-center gap-1.5 tracking-widest px-2.5 py-1 rounded bg-red-500/10 border border-red-500/20 active:scale-95";
+                    dotLive.className = "w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]";
+                } else {
+                    btnLive.className = "cursor-pointer hover:bg-white/20 transition-colors text-neutral-400 font-black text-[10px] sm:text-xs flex items-center gap-1.5 tracking-widest px-2.5 py-1 rounded bg-white/10 border border-white/20 active:scale-95";
+                    dotLive.className = "w-2 h-2 bg-neutral-400 rounded-full";
                 }
             }
         });
@@ -597,6 +636,7 @@
             if (videoElement.duration && isFinite(videoElement.duration)) {
                 currentTimeDisplay.textContent = formatTime((percent / 100) * videoElement.duration);
             }
+            resetIdleTimer();
         }
 
         function seekVideo(slider) {
@@ -604,6 +644,7 @@
             if (videoElement.duration && isFinite(videoElement.duration)) {
                 videoElement.currentTime = (slider.value / 100) * videoElement.duration;
             }
+            resetIdleTimer();
         }
 
         // CARREGAMENTO DA APP
@@ -630,35 +671,29 @@
                         }
                     }
                 }
-            } catch (e) { 
-                console.error("Erro na sincronização.");
-            }
+            } catch (e) {}
 
-            videoElement.addEventListener('click', () => {
-                // Se a barra acabou de acordar (há menos de 300ms), ignora o clique para não pausar o vídeo
-                if (Date.now() - lastWakeUpTime < 300) {
-                    return;
-                }
-
-                if (playerWrapper.classList.contains('video-idle')) {
-                    resetIdleTimer();
-                } else {
-                    togglePlay();
-                    resetIdleTimer();
-                }
+            videoElement.addEventListener('play', () => { 
+                updatePlayPauseIcon(true); 
+                resetIdleTimer(); 
             });
-            videoElement.addEventListener('play', () => { updatePlayPauseIcon(true); resetIdleTimer(); });
-            videoElement.addEventListener('pause', () => { updatePlayPauseIcon(false); resetIdleTimer(); });
+            videoElement.addEventListener('pause', () => { 
+                updatePlayPauseIcon(false); 
+                showUI(); 
+                clearTimeout(idleTimeout); 
+            });
             videoElement.addEventListener('volumechange', () => {
                 document.getElementById('volume-slider').value = videoElement.volume;
-                updateMuteIcon(videoElement.muted || videoElement.volume === 0);
+                const icon = document.getElementById('icon-mute');
+                if(icon) {
+                    icon.setAttribute('data-lucide', (videoElement.muted || videoElement.volume === 0) ? 'volume-x' : 'volume-2');
+                    lucide.createIcons();
+                }
             });
         };
 
-        // --- VALIDAÇÃO CPF COM "BATOTA" ---
         function isValidCPF(cpf) {
             cpf = cpf.replace(/[^\d]+/g, ''); 
-            // BATOTA PARA TESTES: Se digitares tudo zeros, ele aceita!
             if (cpf === '00000000000') return true; 
             
             if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false; 
@@ -726,22 +761,34 @@
             currentTicketNome = "";
         }
 
-        function togglePlay() { videoElement.paused ? videoElement.play() : videoElement.pause(); }
-        function updatePlayPauseIcon(isPlaying) {
-            document.getElementById('icon-play-pause').setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
-            lucide.createIcons();
+        function togglePlay(e) { 
+            if(e) e.stopPropagation(); // Evita que o clique esconda os menus na hora
+            videoElement.paused ? videoElement.play() : videoElement.pause(); 
         }
-        function toggleMute() {
+        
+        function updatePlayPauseIcon(isPlaying) {
+            const icon = document.getElementById('icon-center-play-pause');
+            if (icon) {
+                icon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+                lucide.createIcons();
+            }
+        }
+
+        function toggleMute(e) {
+            if(e) e.stopPropagation();
             videoElement.muted = !videoElement.muted;
             if(!videoElement.muted && videoElement.volume === 0) videoElement.volume = 1;
+            resetIdleTimer();
         }
-        function updateMuteIcon(isMuted) {
-            document.getElementById('icon-mute').setAttribute('data-lucide', isMuted ? 'volume-x' : 'volume-2');
-            lucide.createIcons();
+
+        function changeVolume(val) { 
+            videoElement.volume = val; 
+            videoElement.muted = (val == 0); 
+            resetIdleTimer();
         }
-        function changeVolume(val) { videoElement.volume = val; videoElement.muted = (val == 0); }
         
-        function jumpToLive() {
+        function jumpToLive(e) {
+            if(e) e.stopPropagation();
             if (videoElement) {
                 if (hlsInstance && hlsInstance.liveSyncPosition !== null) {
                     videoElement.currentTime = hlsInstance.liveSyncPosition;
@@ -754,38 +801,35 @@
             }
         }
         
-        async function toggleFullScreen() {
+        async function toggleFullScreen(e) {
+            if(e) e.stopPropagation();
             const wrapper = document.getElementById('unlocked-state');
             if (!document.fullscreenElement) {
                 try {
-                    if (wrapper.requestFullscreen) {
-                        await wrapper.requestFullscreen();
-                    } else if (wrapper.webkitRequestFullscreen) {
-                        await wrapper.webkitRequestFullscreen();
-                    }
-                    if (screen.orientation && screen.orientation.lock) {
-                        await screen.orientation.lock('landscape').catch(e => {});
-                    }
+                    if (wrapper.requestFullscreen) await wrapper.requestFullscreen();
+                    else if (wrapper.webkitRequestFullscreen) await wrapper.webkitRequestFullscreen();
+                    if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(e => {});
                 } catch (e) {}
             } else {
                 try {
-                    if (document.exitFullscreen) {
-                        await document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        await document.webkitExitFullscreen();
-                    }
-                    if (screen.orientation && screen.orientation.unlock) {
-                        screen.orientation.unlock();
-                    }
+                    if (document.exitFullscreen) await document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+                    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
                 } catch (e) {}
             }
+            resetIdleTimer();
         }
         
-        function toggleQualityMenu() { document.getElementById('quality-menu').classList.toggle('hidden'); }
+        function toggleQualityMenu(e) { 
+            if(e) e.stopPropagation();
+            document.getElementById('quality-menu').classList.toggle('hidden'); 
+            resetIdleTimer();
+        }
+
         function setQuality(levelIndex) {
             if(hlsInstance) {
                 hlsInstance.currentLevel = levelIndex;
-                toggleQualityMenu();
+                document.getElementById('quality-menu').classList.add('hidden');
                 showToast(levelIndex === -1 ? "Qualidade: Automática" : `Qualidade: ${hlsInstance.levels[levelIndex].height}p`, "info");
             }
         }
@@ -814,9 +858,7 @@
                     }
                 }
 
-                if (data.video_config) {
-                    videoConfig = data.video_config;
-                }
+                if (data.video_config) videoConfig = data.video_config;
 
                 if (data.ingressos_restantes !== undefined) {
                     const counterText = document.getElementById('tickets-remaining-text');
@@ -924,9 +966,6 @@
             }
         }
 
-        // =========================================================================
-        // GERAÇÃO INTELIGENTE DE TICKET
-        // =========================================================================
         async function generateTicket() {
             const nome = document.getElementById('nome-input').value.trim();
             const cpf = document.getElementById('cpf-input').value;
@@ -1146,6 +1185,8 @@
             document.getElementById('unlocked-state').classList.remove('hidden');
             document.getElementById('unlocked-state').classList.add('fade-in');
             
+            showUI(); // Mostra logo as definições quando arranca
+            
             const loading = document.getElementById('video-loading');
             loading.classList.remove('hidden');
 
@@ -1177,7 +1218,7 @@
                         const btn = document.createElement('button');
                         btn.className = 'px-4 py-3 text-sm font-bold text-white hover:bg-indigo-600 text-left border-b border-white/5 transition-colors';
                         btn.innerText = `${level.height}p`;
-                        btn.onclick = () => setQuality(index);
+                        btn.onclick = (e) => { e.stopPropagation(); setQuality(index); }
                         qualityContainer.appendChild(btn);
                     });
                 });
@@ -1186,7 +1227,7 @@
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.warn("OBS Desconectado ou falha de rede. A tentar recuperar sinal...");
+                                console.warn("OBS Desconectado. A tentar recuperar sinal...");
                                 showToast("Sinal perdido! A tentar reconectar automaticamente...", "warning");
                                 hlsInstance.startLoad();
                                 break;
