@@ -498,9 +498,14 @@
         let idleTimeout;
         let isLiveStateRed = null; 
         const playerWrapper = document.getElementById('player-wrapper');
+        let lastWakeUpTime = 0; // Proteção contra o duplo clique fantasma no telemóvel
 
         function resetIdleTimer() {
-            playerWrapper.classList.remove('video-idle');
+            if (playerWrapper.classList.contains('video-idle')) {
+                lastWakeUpTime = Date.now();
+                playerWrapper.classList.remove('video-idle');
+            }
+            
             clearTimeout(idleTimeout);
             
             if (videoElement && !videoElement.paused) {
@@ -512,9 +517,7 @@
         }
 
         playerWrapper.addEventListener('mousemove', resetIdleTimer);
-        playerWrapper.addEventListener('mousedown', resetIdleTimer);
         playerWrapper.addEventListener('touchstart', resetIdleTimer);
-        playerWrapper.addEventListener('click', resetIdleTimer);
 
         let deviceId = localStorage.getItem('arenaLiveDeviceId');
         if (!deviceId) {
@@ -632,10 +635,16 @@
             }
 
             videoElement.addEventListener('click', () => {
+                // Se a barra acabou de acordar (há menos de 300ms), ignora o clique para não pausar o vídeo
+                if (Date.now() - lastWakeUpTime < 300) {
+                    return;
+                }
+
                 if (playerWrapper.classList.contains('video-idle')) {
                     resetIdleTimer();
                 } else {
                     togglePlay();
+                    resetIdleTimer();
                 }
             });
             videoElement.addEventListener('play', () => { updatePlayPauseIcon(true); resetIdleTimer(); });
