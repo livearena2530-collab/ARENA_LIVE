@@ -217,7 +217,8 @@
     </div>
 
     <!-- Vista Player (Dividida entre Vídeo e Chat) - TOTALMENTE REFORMULADA PARA TECLADO MOBILE -->
-    <main id="view-player" class="hidden fixed inset-0 flex-col lg:flex-row bg-black z-50">
+    <!-- CORREÇÃO AQUI: Mudamos de "inset-0" para "top-0 left-0 w-full" para não haver conflitos de altura -->
+    <main id="view-player" class="hidden fixed top-0 left-0 w-full flex-col lg:flex-row bg-black z-50">
         
         <div id="player-wrapper" class="relative w-full flex-1 flex flex-col bg-black overflow-hidden transition-all shrink-0">
             
@@ -536,24 +537,39 @@
         };
 
         // ==== REDIMENSIONAMENTO INTELIGENTE DE ECRÃ (TIPO YOUTUBE) ====
+        function adjustPlayerHeight() {
+            const vp = document.getElementById('view-player');
+            if (vp && !vp.classList.contains('hidden')) {
+                // A magia está aqui: usa a altura exata da janela visível (sem o teclado)
+                let currentHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                vp.style.height = currentHeight + 'px';
+                vp.style.top = '0px'; // Força a ficar sempre colado ao topo!
+                window.scrollTo(0, 0); // Previne o scroll nativo do navegador
+                document.body.scrollTop = 0;
+            }
+        }
+
         if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', function() {
-                const vp = document.getElementById('view-player');
-                if (vp && !vp.classList.contains('hidden')) {
-                    // Quando o teclado sobe, ajusta o player ao espaço exato sem dar scroll no site
-                    vp.style.height = window.visualViewport.height + 'px';
-                    vp.style.top = window.visualViewport.offsetTop + 'px';
+            window.visualViewport.addEventListener('resize', adjustPlayerHeight);
+            window.visualViewport.addEventListener('scroll', () => {
+                // Se a pessoa tentar fazer scroll quando o teclado abrir, bloqueamos!
+                if (!document.getElementById('view-player').classList.contains('hidden')) {
                     window.scrollTo(0, 0);
+                    document.body.scrollTop = 0;
                 }
             });
+        } else {
+            window.addEventListener('resize', adjustPlayerHeight);
         }
 
         function forceScrollToTop() {
             setTimeout(() => {
                 window.scrollTo(0,0);
+                document.body.scrollTop = 0;
+                adjustPlayerHeight();
                 const chatMsgs = document.getElementById('chat-messages');
-                chatMsgs.scrollTop = chatMsgs.scrollHeight;
-            }, 100);
+                if(chatMsgs) chatMsgs.scrollTop = chatMsgs.scrollHeight;
+            }, 50);
         }
 
         // ==== CHAT AO VIVO (Lógica) ====
@@ -1123,7 +1139,10 @@
             
             // Tira os bloqueios de ecrã impostos no mobile
             document.body.style.position = '';
-            document.body.style.inset = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.width = '';
+            document.body.style.height = '';
             document.body.style.overflow = '';
             document.body.style.backgroundColor = '#050505';
             
@@ -1144,9 +1163,12 @@
         }
 
         function openPlayer() {
-            // ENGANHAR O NAVEGADOR: Força a página a colar-se ao tamanho da janela (Anti-Scroll de Teclado)
+            // ENGANAR O NAVEGADOR: Força a página a colar-se ao tamanho da janela (Anti-Scroll de Teclado)
             document.body.style.position = 'fixed';
-            document.body.style.inset = '0';
+            document.body.style.top = '0';
+            document.body.style.left = '0';
+            document.body.style.width = '100%';
+            document.body.style.height = '100%';
             document.body.style.overflow = 'hidden';
             document.body.style.backgroundColor = '#000';
             
@@ -1157,11 +1179,8 @@
             vp.classList.remove('hidden');
             vp.classList.add('flex', 'lg:flex-row');
             
-            // Força a altura se a API do VisualViewport existir (Excecional para iOS/Chrome modernos)
-            if(window.visualViewport) {
-                vp.style.height = window.visualViewport.height + 'px';
-                vp.style.top = window.visualViewport.offsetTop + 'px';
-            }
+            // Ativa o redimensionamento exato
+            adjustPlayerHeight();
         }
         
         function iniciarCompra() {
