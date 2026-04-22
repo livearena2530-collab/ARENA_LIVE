@@ -945,13 +945,66 @@
             }
         }
 
+        // NOVO: Controlador de Estado e Mensagens de Erro
+        function setStatus(isOnline, msg = "Offline") {
+            const status = document.getElementById('connection-status');
+            if (!status) return;
+            if(isOnline) {
+                status.innerHTML = '<span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> Servidor Ativo';
+                status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-emerald-400 uppercase bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 backdrop-blur-md";
+            } else {
+                status.innerHTML = `<span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span> ${msg}`;
+                status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-red-500 uppercase bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20 backdrop-blur-md cursor-pointer";
+            }
+        }
+
+        // NOVO: Modo Desenvolvedor (3 cliques no Logótipo para forçar os links)
+        let devClickCount = 0;
+        let devClickTimer;
+        function checkDevMode(e) {
+            devClickCount++;
+            clearTimeout(devClickTimer);
+            devClickTimer = setTimeout(() => devClickCount = 0, 1000);
+            
+            if(devClickCount >= 3) {
+                devClickCount = 0;
+                const api = prompt("⚙️ MODO DESENVOLVEDOR ⚙️\n\nO Firebase falhou?\nCopia o link da API (que está verde no teu Python) e cola aqui:", window.API_URL || "");
+                if(api) {
+                    const vid = prompt("Agora, copia e cola o link do VÍDEO (que está verde no Python):", window.VIDEO_URL || "");
+                    if(vid) {
+                        window.API_URL = api.replace(/\/$/, ""); // Remove barras no fim
+                        window.VIDEO_URL = vid;
+                        localStorage.setItem('dev_api_url', window.API_URL);
+                        localStorage.setItem('dev_video_url', window.VIDEO_URL);
+                        showToast("Links forçados manualmente!", "success");
+                        fetchEventDetails();
+                    }
+                }
+            }
+        }
+
         async function fetchEventDetails() {
-            if (!window.API_URL) return;
+            if (!window.API_URL) {
+                setStatus(false, "A aguardar Links...");
+                return;
+            }
             try {
                 const noCache = new Date().getTime();
-                const res = await fetch(`${window.API_URL}/api/evento?_t=${noCache}`);
-                if (!res.ok) throw new Error("Erro servidor");
+                const cleanApiUrl = window.API_URL.replace(/\/$/, ""); // Limpa barras
+                
+                // Tentativa de saltar o ecrã de bloqueio do Cloudflare
+                const res = await fetch(`${cleanApiUrl}/api/evento?_t=${noCache}`, {
+                    headers: { 
+                        'Accept': 'application/json',
+                        'Bypass-Tunnel-Reminder': 'true' 
+                    }
+                });
+                
+                if (!res.ok) throw new Error("Cloudflare Bloqueou ou Servidor Offline");
+                
                 const data = await res.json();
+                
+                setStatus(true); // TUDO VERDE E A FUNCIONAR!
                 
                 if (data.titulo_evento) {
                     document.getElementById('event-title-display').innerText = data.titulo_evento;
@@ -993,20 +1046,19 @@
                         btnAssistir.className = "w-full bg-neutral-800 text-neutral-400 font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 text-xl cursor-not-allowed";
                         
                         if(btnComprar) {
-                            btnComprar.onclick = () => showToast("As vendas para este evento estão encerradas!", "error");
-                            btnComprar.innerHTML = '<i data-lucide="x-circle" class="w-5 h-5"></i> VENDAS ENCERRADAS';
-                            btnComprar.className = "w-full bg-neutral-800 text-neutral-400 font-bold py-4 px-6 rounded-xl mb-8 flex justify-center items-center gap-2 cursor-not-allowed";
+                            btnComprar.onclick = openCheckout;
+                            btnComprar.innerHTML = '<i data-lucide="unlock" class="w-5 h-5"></i> COMPRAR / DESBLOQUEAR';
+                            btnComprar.className = "w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold py-4 px-6 rounded-xl mb-8 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.5)] active:scale-95 flex justify-center items-center gap-2 relative z-20 cursor-pointer";
                         }
                         try { lucide.createIcons(); } catch(e){}
-                    } else {
-                        counterText.innerText = `CORRE! FALTAM APENAS ${data.ingressos_restantes} INGRESSOS`;
-                        urgencyContainer.className = "w-full bg-gradient-to-r from-red-600/20 to-orange-500/20 border border-red-500/30 rounded-xl p-4 mb-8 flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(239,68,68,0.15)] relative overflow-hidden transition-all";
-                        counterText.className = "text-red-400 font-black text-lg uppercase tracking-wide drop-shadow-md";
-                        if(urgencyIcon) {
-                            urgencyIcon.setAttribute('data-lucide', 'flame');
-                            urgencyIcon.className = "w-6 h-6 text-red-500 animate-bounce";
-                        }
-                        
+                    }
+                }
+            } catch(e) { 
+                setStatus(false, "Erro de API (Cloudflare)"); 
+                console.error("Falha ao comunicar com a API:", e);
+            }
+        }
+
         function updatePriceDisplay(valor) {
             const numValor = parseFloat(valor.toString().replace(',', '.'));
             if (!isNaN(numValor)) {
@@ -1044,52 +1096,66 @@
             openCheckout();
         }
 
-        function openCheckout() {
-            document.getElementById('checkout-modal').classList.remove('hidden');
-            document.getElementById('step-form').classList.remove('hidden');
-            document.getElementById('step-payment').classList.add('hidden');
-            document.getElementById('step-conflict').classList.add('hidden');
-            setTimeout(() => document.getElementById('nome-input').focus(), 100);
-        }
-
-        function closeModal() { document.getElementById('checkout-modal').classList.add('hidden'); }
-        function showLogoutButton() { document.getElementById('btn-logout').classList.remove('hidden'); document.getElementById('btn-logout').classList.add('flex'); }
-        function logout() { localStorage.removeItem('arenaLiveTicket'); pararChat(); showToast("A desconectar...", "warning"); setTimeout(() => location.reload(), 1500); }
-
-        function maskCPFOnly(input) {
-            let v = input.value.replace(/\D/g, ''); if (v.length > 11) v = v.substring(0, 11);
-            v = v.replace(/(\d{3})(\d)/, '$1.$2'); v = v.replace(/(\d{3})(\d)/, '$1.$2');
-            input.value = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-        }
-
-        function maskCpfOrCode(input) {
-            let v = input.value;
-            if (/^\d/.test(v)) {
-                v = v.replace(/\D/g, ''); if (v.length > 11) v = v.substring(0, 11);
-                v = v.replace(/(\d{3})(\d)/, '$1.$2'); v = v.replace(/(\d{3})(\d)/, '$1.$2');
-                input.value = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        function seekVideo(slider) {
+            isSeeking = false;
+            if (videoElement.duration && isFinite(videoElement.duration)) {
+                videoElement.currentTime = (slider.value / 100) * videoElement.duration;
             }
+            resetIdleTimer();
         }
 
-        async function generateTicket() {
-            const nome = document.getElementById('nome-input').value.trim();
-            const cpf = document.getElementById('cpf-input').value;
+        window.onload = function() {
+            // Verifica se tu já colaste os links manualmente antes
+            const savedApi = localStorage.getItem('dev_api_url');
+            const savedVid = localStorage.getItem('dev_video_url');
             
-            if (nome.length < 3) return showToast("Por favor, insere um nome válido.", "error");
-            if (!isValidCPF(cpf)) return showToast("CPF Inválido.", "error");
-            if (!window.API_URL) return showToast("A aguardar sincronização com o sistema...", "warning");
-            
-            const btnGerar = document.getElementById('btn-gerar-pix');
-            const originalBtnHtml = btnGerar.innerHTML;
-            
-            try {
-                btnGerar.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> PROCESSANDO...';
-                btnGerar.disabled = true;
+            if(savedApi && savedVid) {
+                window.API_URL = savedApi;
+                window.VIDEO_URL = savedVid;
+                showToast("Modo Desenvolvedor Ativo", "warning");
+                fetchEventDetails();
+            }
 
-                const res = await fetch(`${window.API_URL}/api/gerar_ingresso`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ nome: nome, cpf: cpf, device_id: deviceId })
-                });
+            try {
+                if(db) {
+                    db.collection('configuracoes').doc('links').onSnapshot(async (doc) => {
+                        if (doc.exists && !savedApi) { // Só usa o Firebase se não tiver links manuais
+                            window.API_URL = doc.data().api_url;
+                            window.VIDEO_URL = doc.data().video_url;
+                            
+                            await fetchEventDetails();
+                            if(!eventDetailsInterval) eventDetailsInterval = setInterval(fetchEventDetails, 15000);
+
+                            const saved = localStorage.getItem('arenaLiveTicket');
+                            if(saved && !currentTicketCode) { 
+                                document.getElementById('existing-ticket-input').value = saved;
+                                showLogoutButton();
+                                checkExistingTicket(saved, true);
+                            }
+                        }
+                    });
+                }
+            } catch (e) { }
+
+            // POLÍCIA DE CONEXÃO
+            setInterval(() => {
+                if(db && !window.API_URL && !savedApi) {
+                    db.collection('configuracoes').doc('links').get().then(doc => {
+                        if(doc.exists) {
+                            window.API_URL = doc.data().api_url;
+                            window.VIDEO_URL = doc.data().video_url;
+                            fetchEventDetails();
+                        }
+                    }).catch(e=>{});
+                } else {
+                    fetchEventDetails();
+                }
+            }, 3000);
+
+            videoElement.addEventListener('play', () => { 
+                updatePlayPauseIcon(true); 
+                resetIdleTimer(); 
+            });
                 
                 if (!res.ok) {
                     btnGerar.innerHTML = originalBtnHtml; btnGerar.disabled = false;
