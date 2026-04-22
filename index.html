@@ -13,95 +13,6 @@
     
     <!-- Biblioteca HLS.js -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
-    <!-- PREPARAÇÃO CHROMECAST (Tem de vir antes do script para não travar o site) -->
-    <script>
-        window.__onGCastApiAvailable = function(isAvailable) {
-            if (isAvailable) {
-                try {
-                    cast.framework.CastContext.getInstance().setOptions({
-                        receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-                        autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
-                    });
-
-                    // NOVO: Controlador Remoto para sincronizar o telemóvel com a TV
-                    var remotePlayer = new cast.framework.RemotePlayer();
-                    var remotePlayerController = new cast.framework.RemotePlayerController(remotePlayer);
-
-                    // Escuta se a TV conectou ou desconectou
-                    remotePlayerController.addEventListener(
-                        cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
-                        function() {
-                            const vid = document.getElementById('live-video');
-                            const loadingUI = document.getElementById('video-loading');
-                            const loadingText = document.querySelector('#video-loading p');
-                            
-                            if (remotePlayer.isConnected) {
-                                // TV Conectou: Pausa no telemóvel e mostra aviso
-                                if(vid && !vid.paused) vid.pause();
-                                if(loadingUI && loadingText) {
-                                    loadingUI.classList.remove('hidden');
-                                    loadingText.innerText = "📺 A transmitir para a TV...";
-                                }
-                            } else {
-                                // TV Desconectou: Volta a dar play no telemóvel
-                                if(vid && vid.paused) vid.play();
-                                if(loadingUI && loadingText) {
-                                    loadingUI.classList.add('hidden');
-                                    loadingText.innerText = "A ligar ao Stream...";
-                                }
-                            }
-                        }
-                    );
-
-                    cast.framework.CastContext.getInstance().addEventListener(
-                        cast.framework.CastContext.EventType.SESSION_STATE_CHANGED,
-                        function(event) {
-                            if (event.sessionState === cast.framework.SessionState.SESSION_STARTED ||
-                                event.sessionState === cast.framework.SessionState.SESSION_RESUMED) {
-                                
-                                if(!window.VIDEO_URL) return;
-                                
-                                var castSession = cast.framework.CastContext.getInstance().getCurrentSession();
-                                var mediaInfo = new chrome.cast.media.MediaInfo(window.VIDEO_URL, 'application/x-mpegURL');
-                                
-                                mediaInfo.streamType = chrome.cast.media.StreamType.LIVE;
-                                mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-                                mediaInfo.metadata.metadataType = chrome.cast.media.MetadataType.GENERIC;
-                                
-                                var titleElem = document.getElementById('event-title-display');
-                                mediaInfo.metadata.title = titleElem ? titleElem.innerText : "ArenaLive PPV";
-                                
-                                var imgDisplay = document.getElementById('team-a-img-display');
-                                if (imgDisplay && imgDisplay.src) {
-                                    mediaInfo.metadata.images = [{'url': imgDisplay.src}];
-                                }
-
-                                var request = new chrome.cast.media.LoadRequest(mediaInfo);
-                                request.autoplay = true;
-
-                                castSession.loadMedia(request).then(
-                                    function() { 
-                                        if(typeof showToast === 'function') showToast("Ligado à TV com sucesso!", "success");
-                                    },
-                                    function(errorCode) { 
-                                        console.error("Erro Cast: ", errorCode); 
-                                        if(typeof showToast === 'function') showToast("A TV rejeitou o vídeo. Verifica o CORS e o Formato no OBS (Usa H.264/AAC).", "error");
-                                        // Força a desconexão se a TV rejeitar o formato
-                                        cast.framework.CastContext.getInstance().endCurrentSession(true);
-                                    }
-                                );
-                            } else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
-                                if(typeof showToast === 'function') showToast("Desconectado da TV.", "info");
-                            }
-                        }
-                    );
-                } catch(e) { console.log("Cast setup ignorado no ambiente atual."); }
-            }
-        };
-    </script>
-    <!-- Google Cast SDK (Chromecast) -->
-    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -189,15 +100,6 @@
             pointer-events: none !important;
         }
         .video-idle { cursor: none; }
-
-        google-cast-launcher {
-            cursor: pointer;
-            width: 24px;
-            height: 24px;
-            --connected-color: #ef4444; 
-            --disconnected-color: #ffffff; 
-        }
-        google-cast-launcher:hover { --disconnected-color: #818cf8; }
     </style>
 </head>
 <body class="min-h-dvh-real flex flex-col overflow-x-hidden selection:bg-indigo-500 selection:text-white">
@@ -394,9 +296,6 @@
                         
                         <div class="flex items-center gap-4 sm:gap-6">
                             
-                            <!-- BOTÃO CHROMECAST OFICIAL -->
-                            <google-cast-launcher class="hover:scale-110 transition-transform active:scale-95"></google-cast-launcher>
-
                             <div class="relative">
                                 <button onclick="toggleQualityMenu()" class="text-white hover:text-indigo-400 transition-colors transform hover:scale-110 active:scale-95">
                                     <i data-lucide="settings" class="w-6 h-6"></i>
@@ -454,8 +353,7 @@
                     <input type="text" id="nome-input" placeholder="O teu nome e apelido" class="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white mb-4 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-center text-lg">
 
                     <label class="block text-xs text-neutral-500 font-black mb-2 uppercase tracking-wide">O TEU CPF</label>
-                    <!-- Adicionado um aviso subtil para os teus testes -->
-                    <input type="text" id="cpf-input" placeholder="000.000.000-00 (Dica: Tudo zero aceita teste)" oninput="maskCPFOnly(this)" class="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white mb-6 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-mono text-center text-lg">
+                    <input type="text" id="cpf-input" placeholder="000.000.000-00 (000 p/ testes)" oninput="maskCPFOnly(this)" class="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white mb-6 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-mono text-center text-lg">
                     
                     <button id="btn-gerar-pix" onclick="generateTicket()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 py-4 rounded-xl font-bold text-white hover:from-indigo-500 hover:to-indigo-400 transition-all active:scale-95 shadow-[0_0_15px_rgba(99,102,241,0.3)] flex justify-center items-center gap-2 relative z-20 cursor-pointer">
                         GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>
@@ -562,7 +460,7 @@
             }, 4000);
         }
 
-        // TENTA LIGAR O FIREBASE EM SEGURANÇA (Se falhar, não bloqueia o site)
+        // TENTA LIGAR O FIREBASE EM SEGURANÇA
         let db = null;
         try {
             const firebaseConfig = {
