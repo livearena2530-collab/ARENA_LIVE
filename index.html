@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ArenaLive PPV - Premium Streaming</title>
-    <link rel="shortcut icon" href="log.ico" type="image/x-icon">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,6 +13,9 @@
     
     <!-- Biblioteca HLS.js -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    
+    <!-- Google Cast SDK (Chromecast) -->
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     
     <!-- Firebase SDK (Versão Compatível) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -65,7 +67,7 @@
             max-height: 100vh;
             background-color: #000; 
             outline: none; 
-            object-fit: contain !important; /* Força a manter as proporções originais */
+            object-fit: contain !important;
         }
         :-webkit-full-screen video { width: 100vw; height: 100vh; object-fit: contain !important; }
         :fullscreen video { width: 100vw; height: 100vh; object-fit: contain !important; }
@@ -109,6 +111,18 @@
         .video-idle {
             cursor: none;
         }
+
+        /* Botão Customizado Chromecast */
+        google-cast-launcher {
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            --connected-color: #ef4444; /* Vermelho como o 'Ao Vivo' */
+            --disconnected-color: #ffffff; /* Branco */
+        }
+        google-cast-launcher:hover {
+            --disconnected-color: #818cf8; /* Indigo hover */
+        }
     </style>
 </head>
 <body class="min-h-dvh-real flex flex-col overflow-x-hidden selection:bg-indigo-500 selection:text-white">
@@ -138,7 +152,7 @@
         </div>
     </header>
 
-    <!-- Vista Home -->
+    <!-- NOVA Vista Home (ULTRA CHAMATIVA) -->
     <div id="view-home" class="flex-1 w-full fade-in pb-20 pt-[72px]">
         <div class="relative w-full min-h-[85vh] flex flex-col items-center justify-start pb-16 bg-neutral-950 overflow-hidden pt-8 sm:pt-12">
             
@@ -158,7 +172,7 @@
                     ArenaLive Premium
                 </h1>
 
-                <!-- Equipas -->
+                <!-- Equipas (Lado a Lado no Mobile) -->
                 <div class="flex flex-row items-center justify-center w-full mb-12 gap-1 sm:gap-12 md:gap-20">
                     <div class="flex flex-col items-center relative w-[40%] sm:w-auto">
                         <div class="absolute inset-0 bg-indigo-500 rounded-full blur-[40px] opacity-20"></div>
@@ -230,7 +244,7 @@
 
     <!-- Vista Player -->
     <main id="view-player" class="hidden flex-col h-dvh-real pt-[72px] bg-black">
-        <div id="player-wrapper" class="relative w-full flex-1 flex flex-col bg-neutral-950 overflow-hidden">
+        <div id="player-wrapper" class="relative w-full flex-1 flex flex-col bg-neutral-950 group overflow-hidden">
             
             <!-- Estado Bloqueado (Checkout) -->
             <div id="locked-state" class="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-black/90 backdrop-blur-md text-center">
@@ -289,7 +303,7 @@
                             <!-- Preenchimento da barra (roxo) -->
                             <div id="progress-fill" class="absolute left-0 h-1.5 bg-indigo-500 rounded-full pointer-events-none transition-all duration-75" style="width: 0%;"></div>
                             <!-- O Range Input Invisível mas funcional -->
-                            <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" class="w-full h-1.5 bg-transparent appearance-none cursor-pointer z-10 focus:outline-none" style="background: transparent;">
+                            <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" class="w-full h-1.5 bg-transparent appearance-none cursor-pointer z-10 focus:outline-none" style="background: transparent;" oninput="scrubVideo(this)" onchange="seekVideo(this)">
                         </div>
                         <span id="total-time" class="text-white text-[10px] sm:text-xs font-mono drop-shadow-md w-14 text-center">00:00</span>
                     </div>
@@ -314,6 +328,10 @@
                         </div>
                         
                         <div class="flex items-center gap-4 sm:gap-6">
+                            
+                            <!-- BOTÃO CHROMECAST OFICIAL -->
+                            <google-cast-launcher class="hover:scale-110 transition-transform active:scale-95"></google-cast-launcher>
+
                             <div class="relative">
                                 <button onclick="toggleQualityMenu()" class="text-white hover:text-indigo-400 transition-colors transform hover:scale-110 active:scale-95">
                                     <i data-lucide="settings" class="w-6 h-6"></i>
@@ -342,127 +360,55 @@
         </div>
     </main>
 
-    <!-- Modal Checkout / Conflito -->
-    <div id="checkout-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 hidden">
-        <div class="bg-neutral-900 border border-white/10 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col slide-up relative">
-            
-            <div class="bg-gradient-to-r from-neutral-800 to-neutral-900 px-6 py-5 flex justify-between items-center border-b border-white/5">
-                <button onclick="closeModal()" class="text-neutral-400 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5">
-                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
-                </button>
-                <h3 class="font-bold flex items-center gap-2 text-white text-sm">
-                    Liberação VIP
-                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
-                </h3>
-            </div>
-            
-            <div class="p-6 sm:p-8">
-                <!-- Passo 1: Formulário de Compra -->
-                <div id="step-form" class="fade-in">
-                    <p class="text-neutral-400 text-sm mb-6 leading-relaxed">Para gerar o teu ingresso VIP, introduz os teus dados. <strong class="text-white">Eles serão usados para recuperar o acesso caso feches a página.</strong></p>
-                    
-                    <!-- Aviso de Validade -->
-                    <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-6 text-left flex items-start gap-3">
-                        <i data-lucide="alert-circle" class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5"></i>
-                        <p class="text-[10px] sm:text-xs text-amber-200/80 leading-relaxed font-medium">
-                            <strong class="text-amber-500">Aviso Importante:</strong> Este ingresso é válido <strong class="text-white">APENAS para o jogo de hoje</strong>. O acesso expira automaticamente e será bloqueado assim que a transmissão oficial terminar.
-                        </p>
-                    </div>
-
-                    <!-- CAMPO: NOME -->
-                    <label class="block text-xs text-neutral-500 font-black mb-2 uppercase tracking-wide">O TEU NOME</label>
-                    <input type="text" id="nome-input" placeholder="O teu nome e apelido" class="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white mb-4 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-center text-lg">
-
-                    <label class="block text-xs text-neutral-500 font-black mb-2 uppercase tracking-wide">O TEU CPF</label>
-                    <input type="text" id="cpf-input" placeholder="000.000.000-00" oninput="maskCPFOnly(this)" class="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white mb-6 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-mono text-center text-lg">
-                    
-                    <button id="btn-gerar-pix" onclick="generateTicket()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 py-4 rounded-xl font-bold text-white hover:from-indigo-500 hover:to-indigo-400 transition-all active:scale-95 shadow-[0_0_15px_rgba(99,102,241,0.3)] flex justify-center items-center gap-2">
-                        GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>
-                    </button>
-                </div>
-
-                <!-- Passo 2: Pagamento e QR Code -->
-                <div id="step-payment" class="hidden text-center fade-in">
-                    <div id="timer-container" class="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 flex items-center justify-between">
-                        <div class="flex items-center gap-2 text-red-400">
-                            <i data-lucide="timer" class="w-5 h-5 animate-pulse"></i>
-                            <span class="text-[10px] font-bold uppercase tracking-wider">O código expira em:</span>
-                        </div>
-                        <span id="payment-timer" class="text-xl font-mono font-black text-red-400">10:00</span>
-                    </div>
-
-                    <h4 id="ticket-price-display" class="text-4xl font-black mb-1 text-white">R$ --,--</h4>
-                    <p class="text-xs text-neutral-400 mb-6 px-4">Faz o pagamento via QR Code ou Copia e Cola para ativar o teu acesso.</p>
-                    
-                    <div id="qr-wrapper" class="bg-white p-3 rounded-2xl mb-6 inline-block glow-qr relative transition-opacity duration-300">
-                        <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-indigo-500 rounded-tl-xl -translate-x-1 -translate-y-1"></div>
-                        <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-indigo-500 rounded-tr-xl translate-x-1 -translate-y-1"></div>
-                        <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-indigo-500 rounded-bl-xl -translate-x-1 translate-y-1"></div>
-                        <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-indigo-500 rounded-br-xl translate-x-1 translate-y-1"></div>
-                        <img id="qr-code-img" class="w-36 h-36" alt="QR PIX">
-                        
-                        <div id="expired-overlay" class="hidden absolute inset-0 bg-white/90 backdrop-blur-sm rounded-xl flex-col items-center justify-center text-center z-10">
-                            <i data-lucide="x-circle" class="w-10 h-10 text-red-600 mb-2"></i>
-                            <p class="text-black font-black text-sm uppercase">EXPIRADO</p>
-                        </div>
-                    </div>
-
-                    <div class="w-full text-left mb-6">
-                        <label class="block text-[10px] text-neutral-500 font-bold mb-2 uppercase tracking-wider pl-1">Pix Copia e Cola:</label>
-                        <div class="flex items-center bg-black border border-white/10 rounded-xl overflow-hidden p-1 focus-within:border-indigo-500 transition-colors relative">
-                            <input type="text" id="pix-copy-input" class="bg-transparent text-white text-xs px-3 py-3 w-full outline-none font-mono opacity-70" readonly>
-                            <button id="btn-copy-pix" onclick="copyPixText()" class="bg-neutral-800 hover:bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap active:scale-95 z-20 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <i data-lucide="copy" class="w-4 h-4"></i> Copiar
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Indicador de verificação automática (ASAAS / Mercado Pago) -->
-                    <div class="flex flex-col items-center justify-center gap-2 mb-6">
-                        <div class="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/20">
-                            <div class="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-                            <span class="text-xs font-bold uppercase tracking-wide">A aguardar pagamento...</span>
-                        </div>
-                        <p class="text-[10px] text-neutral-500">O vídeo será libertado automaticamente.</p>
-                    </div>
-
-                    <button id="btn-gerar-novo" onclick="resetPayment()" class="hidden w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold items-center justify-center gap-2 transition-all active:scale-95 mb-4">
-                        <i data-lucide="refresh-cw" class="w-5 h-5"></i> GERAR NOVO PIX
-                    </button>
-
-                    <div class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 mb-4">
-                        <p class="text-[10px] text-indigo-400 font-bold mb-1 uppercase tracking-wider">O TEU CÓDIGO VIP</p>
-                        <h4 id="ticket-code-display" class="text-2xl font-black text-white tracking-[0.2em] font-mono">---</h4>
-                    </div>
-
-                    <button onclick="sendTelegram()" class="w-full bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95">
-                        <i data-lucide="send" class="w-5 h-5"></i> SUPORTE / DÚVIDAS
-                    </button>
-                </div>
-
-                <!-- Passo 3: Conflito de Sessão (Anti-Partilha) -->
-                <div id="step-conflict" class="hidden text-center fade-in py-6">
-                    <div class="mx-auto w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
-                        <i data-lucide="alert-triangle" class="w-8 h-8 text-red-500"></i>
-                    </div>
-                    <h2 class="text-xl font-black text-white mb-2">Sessão em Uso!</h2>
-                    <p class="text-sm text-neutral-400 mb-8">Este ingresso já está a ser utilizado noutro ecrã ou dispositivo. Gostarias de derrubar o outro acesso e entrar por aqui?</p>
-                    
-                    <button onclick="forcarAcesso()" class="w-full bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl font-bold transition-all active:scale-95 mb-3 shadow-[0_0_15px_rgba(220,38,38,0.4)]">
-                        SIM, FORÇAR ACESSO
-                    </button>
-                    <button onclick="resetPayment()" class="w-full text-neutral-400 hover:text-white py-2 font-bold text-sm transition-colors">
-                        Cancelar
-                    </button>
-                </div>
-
-            </div>
-        </div>
-    </div>
-
     <script>
         // Inicializa Ícones
         try { lucide.createIcons(); } catch(e){}
+
+        // ==== LÓGICA GOOGLE CHROMECAST ====
+        window.__onGCastApiAvailable = function(isAvailable) {
+            if (isAvailable) {
+                // Inicializa a configuração do Cast
+                cast.framework.CastContext.getInstance().setOptions({
+                    receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+                });
+
+                // Escuta eventos para saber quando o utilizador clica e se liga à TV
+                cast.framework.CastContext.getInstance().addEventListener(
+                    cast.framework.CastContext.EventType.SESSION_STATE_CHANGED,
+                    function(event) {
+                        if (event.sessionState === cast.framework.SessionState.SESSION_STARTED ||
+                            event.sessionState === cast.framework.SessionState.SESSION_RESUMED) {
+                            
+                            if(!VIDEO_URL) return;
+                            
+                            var castSession = cast.framework.CastContext.getInstance().getCurrentSession();
+                            var mediaInfo = new chrome.cast.media.MediaInfo(VIDEO_URL, 'application/x-mpegURL');
+                            
+                            // Adiciona Metadados para aparecer bonito na TV
+                            mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
+                            mediaInfo.metadata.title = document.getElementById('event-title-display').innerText || "ArenaLive PPV";
+                            var imgDisplay = document.getElementById('team-a-img-display');
+                            if (imgDisplay && imgDisplay.src) {
+                                mediaInfo.metadata.images = [{'url': imgDisplay.src}];
+                            }
+
+                            var request = new chrome.cast.media.LoadRequest(mediaInfo);
+                            castSession.loadMedia(request).then(
+                                function() { 
+                                    showToast("A transmitir para a TV!", "success");
+                                    if(videoElement && !videoElement.paused) videoElement.pause(); 
+                                },
+                                function(errorCode) { console.error("Erro ao enviar para TV: " + errorCode); }
+                            );
+                        } else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
+                            showToast("Desconectado da TV.", "info");
+                        }
+                    }
+                );
+            }
+        };
+        // ==================================
 
         // Notificações Toast
         function showToast(message, type = 'success') {
@@ -504,7 +450,6 @@
         let currentTicketCode = "";
         let currentTicketCpf = "";
         let currentTicketNome = "";
-        let adminContact = "SeuUsuarioTelegram";
         let hlsInstance = null;
         
         // ==== CONFIGURAÇÃO DE VÍDEO (Vinda do Painel) ====
@@ -517,31 +462,27 @@
 
         // ==== AUTO-HIDE CONTROLS (ESTILO YOUTUBE) ====
         let idleTimeout;
-        let isLiveStateRed = null; // Para otimizar o botão AO VIVO
+        let isLiveStateRed = null; 
         const playerWrapper = document.getElementById('player-wrapper');
 
         function resetIdleTimer() {
             playerWrapper.classList.remove('video-idle');
             clearTimeout(idleTimeout);
             
-            // Esconde apenas se o vídeo estiver tocando
             if (videoElement && !videoElement.paused) {
                 idleTimeout = setTimeout(() => {
                     playerWrapper.classList.add('video-idle');
-                    // Oculta também o menu de qualidades caso esteja aberto
                     document.getElementById('quality-menu').classList.add('hidden');
                 }, 3000);
             }
         }
 
-        // Acordar os controles com mouse ou toque
         playerWrapper.addEventListener('mousemove', resetIdleTimer);
         playerWrapper.addEventListener('mousedown', resetIdleTimer);
         playerWrapper.addEventListener('touchstart', resetIdleTimer);
         playerWrapper.addEventListener('click', resetIdleTimer);
         // ==============================================
 
-        // Identificador Único do Dispositivo
         let deviceId = localStorage.getItem('arenaLiveDeviceId');
         if (!deviceId) {
             deviceId = 'DEV-' + Math.random().toString(36).substring(2, 15);
@@ -566,7 +507,6 @@
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
-        // Atualiza a barra enquanto o vídeo toca
         videoElement.addEventListener('timeupdate', () => {
             if (!isSeeking) {
                 const current = videoElement.currentTime;
@@ -579,27 +519,23 @@
                     progressBar.value = percent;
                     progressFill.style.width = `${percent}%`;
                 } else {
-                    // É uma transmissão ao vivo sem limite
                     progressBar.value = 100;
                     progressFill.style.width = `100%`;
                     totalTimeDisplay.textContent = "AO VIVO";
                 }
             }
 
-            // Atualiza visualmente o botão "AO VIVO" para saber se estamos no tempo real
             const btnLive = document.getElementById('btn-live');
             const dotLive = document.getElementById('dot-live');
             if (btnLive && dotLive) {
                 let isLiveEdge = true;
                 
-                // Se o utilizador estiver atrasado mais de 5 segundos, desliga o botão vermelho
                 if (hlsInstance && hlsInstance.liveSyncPosition !== null) {
                     if (videoElement.currentTime < (hlsInstance.liveSyncPosition - 5)) isLiveEdge = false;
                 } else if (videoElement.duration && isFinite(videoElement.duration)) {
                     if (videoElement.currentTime < (videoElement.duration - 5)) isLiveEdge = false;
                 }
 
-                // Só altera as classes se o estado mudou, para não pesar o navegador
                 if (isLiveStateRed !== isLiveEdge) {
                     isLiveStateRed = isLiveEdge;
                     if (isLiveEdge) {
@@ -613,14 +549,12 @@
             }
         });
 
-        // Quando o vídeo carrega, descobre a duração
         videoElement.addEventListener('loadedmetadata', () => {
             if (videoElement.duration && isFinite(videoElement.duration)) {
                 totalTimeDisplay.textContent = formatTime(videoElement.duration);
             }
         });
 
-        // Quando o utilizador arrasta a barra
         function scrubVideo(slider) {
             isSeeking = true;
             const percent = slider.value;
@@ -630,7 +564,6 @@
             }
         }
 
-        // Quando o utilizador larga a barra
         function seekVideo(slider) {
             isSeeking = false;
             if (videoElement.duration && isFinite(videoElement.duration)) {
@@ -639,7 +572,6 @@
         }
         // ==============================================
 
-        // Carregamento da Aplicação
         window.onload = async function() {
             try {
                 const doc = await db.collection('configuracoes').doc('links').get();
@@ -665,9 +597,7 @@
                 console.error("Erro na sincronização.");
             }
 
-            // Eventos do Player (Play/Pause/Volume e Auto-Hide UI)
             videoElement.addEventListener('click', () => {
-                // Se os controles estiverem escondidos, o clique apenas mostra os controles (Modo YouTube)
                 if (playerWrapper.classList.contains('video-idle')) {
                     resetIdleTimer();
                 } else {
@@ -682,7 +612,6 @@
             });
         };
 
-        // Validação Matemática de CPF
         function isValidCPF(cpf) {
             cpf = cpf.replace(/[^\d]+/g, ''); 
             if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false; 
@@ -702,7 +631,6 @@
             return true;
         }
 
-        // Cronómetro de Urgência
         function startPaymentTimer(durationInSeconds) {
             let timer = durationInSeconds;
             const display = document.getElementById('payment-timer');
@@ -751,7 +679,6 @@
             currentTicketNome = "";
         }
 
-        // Controlos do Player Personalizado
         function togglePlay() { videoElement.paused ? videoElement.play() : videoElement.pause(); }
         function updatePlayPauseIcon(isPlaying) {
             document.getElementById('icon-play-pause').setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
@@ -767,7 +694,6 @@
         }
         function changeVolume(val) { videoElement.volume = val; videoElement.muted = (val == 0); }
         
-        // FUNÇÃO NOVA: Saltar para transmissão AO VIVO
         function jumpToLive() {
             if (videoElement) {
                 if (hlsInstance && hlsInstance.liveSyncPosition !== null) {
@@ -777,11 +703,10 @@
                 }
                 if (videoElement.paused) videoElement.play();
                 showToast("Sincronizado com a transmissão em tempo real!", "info");
-                resetIdleTimer(); // Mostra os comandos imediatamente
+                resetIdleTimer();
             }
         }
         
-        // Ecrã Inteiro com Rotação Automática (Mobile)
         async function toggleFullScreen() {
             const wrapper = document.getElementById('unlocked-state');
             if (!document.fullscreenElement) {
@@ -824,7 +749,6 @@
             }
         }
 
-        // Comunicação com API Python
         async function fetchEventDetails() {
             if (!API_URL) return;
             try {
@@ -849,7 +773,6 @@
                     }
                 }
 
-                // --- GUARDA A CONFIGURAÇÃO DO VÍDEO VINDA DO PAINEL ---
                 if (data.video_config) {
                     videoConfig = data.video_config;
                 }
@@ -859,8 +782,8 @@
                     const urgencyContainer = document.getElementById('ticket-urgency-container');
                     const urgencyIcon = document.getElementById('urgency-icon');
                     
-                    const btnAssistir = document.getElementById('btn-assistir'); // O da Home
-                    const btnComprar = document.getElementById('btn-comprar'); // O do Modal
+                    const btnAssistir = document.getElementById('btn-assistir');
+                    const btnComprar = document.getElementById('btn-comprar'); 
                     
                     if (data.ingressos_restantes <= 0) {
                         counterText.innerText = "INGRESSOS ESGOTADOS";
@@ -1085,7 +1008,6 @@
                     localStorage.setItem('arenaLiveTicket', data.codigo); showLogoutButton();
                     if(!silent) showToast("Acesso libertado! Bom evento.", "success");
                     
-                    // LOGIN AUTOMÁTICO: Oculta a Home e abre o Player diretamente!
                     openPlayer(); 
                     unlockContent();
                     iniciarPolling(data.codigo);
@@ -1189,20 +1111,17 @@
             loading.classList.remove('hidden');
 
             if (Hls.isSupported()) {
-                // Se já existir uma instância (ex: após refresh), destrói para limpar
                 if(hlsInstance) { hlsInstance.destroy(); }
                 
                 hlsInstance = new Hls({
-                    // ==== MODO DINÂMICO (Lê o que meteres no teu painel Python) ====
                     lowLatencyMode: videoConfig.low_latency, 
                     liveSyncDurationCount: videoConfig.sync_duration, 
                     liveMaxLatencyDurationCount: videoConfig.max_latency, 
                     maxBufferLength: videoConfig.max_buffer, 
                     maxMaxBufferLength: videoConfig.max_buffer * 2,
                     
-                    // Configurações Anti-Quebra do OBS (Mantidas)
                     manifestLoadingTimeOut: 20000,
-                    manifestLoadingMaxRetry: 10, // Tenta religar 10 vezes antes de desistir
+                    manifestLoadingMaxRetry: 10,
                     manifestLoadingRetryDelay: 1000
                 });
                 
@@ -1224,14 +1143,13 @@
                     });
                 });
                 
-                // PILOTO AUTOMÁTICO DE RECONEXÃO
                 hlsInstance.on(Hls.Events.ERROR, function (event, data) {
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
                                 console.warn("OBS Desconectado ou falha de rede. A tentar recuperar sinal...");
                                 showToast("Sinal perdido! A tentar reconectar automaticamente...", "warning");
-                                hlsInstance.startLoad(); // Força HLS a continuar a tentar ler o stream
+                                hlsInstance.startLoad();
                                 break;
                             case Hls.ErrorTypes.MEDIA_ERROR:
                                 console.warn("Erro no vídeo, a reparar...");
@@ -1240,7 +1158,7 @@
                             default:
                                 hlsInstance.destroy();
                                 showToast("Erro grave. A reiniciar player...", "error");
-                                setTimeout(() => unlockContent(), 3000); // Reset forçado ao player
+                                setTimeout(() => unlockContent(), 3000);
                                 break;
                         }
                     }
