@@ -510,9 +510,14 @@
                 messagingSenderId: "673030693927",
                 appId: "1:673030693927:web:0f171630912d6dabe25a02"
             };
-            firebase.initializeApp(firebaseConfig);
+            // Evita reinicializações duplas
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
             db = firebase.firestore();
-        } catch(e) {}
+        } catch(e) {
+            console.error("Firebase bloqueado ou com erro. A aguardar conexão direta.");
+        }
 
         window.API_URL = "";
         window.VIDEO_URL = "";
@@ -765,30 +770,36 @@
             resetIdleTimer();
         }
 
-        window.onload = async function() {
+        window.onload = function() {
             try {
                 if(db) {
-                    const doc = await db.collection('configuracoes').doc('links').get();
-                    if (doc.exists) {
-                        window.API_URL = doc.data().api_url;
-                        window.VIDEO_URL = doc.data().video_url;
-                        
-                        const status = document.getElementById('connection-status');
-                        status.innerHTML = '<span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> Servidor Ativo';
-                        status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-emerald-400 uppercase bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 backdrop-blur-md";
-                        
-                        await fetchEventDetails();
-                        eventDetailsInterval = setInterval(fetchEventDetails, 15000);
+                    // NOVO: Ouve as atualizações do banco em TEMPO REAL
+                    db.collection('configuracoes').doc('links').onSnapshot(async (doc) => {
+                        if (doc.exists) {
+                            window.API_URL = doc.data().api_url;
+                            window.VIDEO_URL = doc.data().video_url;
+                            
+                            const status = document.getElementById('connection-status');
+                            status.innerHTML = '<span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> Servidor Ativo';
+                            status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-emerald-400 uppercase bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 backdrop-blur-md";
+                            
+                            await fetchEventDetails();
+                            if(!eventDetailsInterval) eventDetailsInterval = setInterval(fetchEventDetails, 15000);
 
-                        const saved = localStorage.getItem('arenaLiveTicket');
-                        if(saved) {
-                            document.getElementById('existing-ticket-input').value = saved;
-                            showLogoutButton();
-                            checkExistingTicket(saved, true);
+                            const saved = localStorage.getItem('arenaLiveTicket');
+                            if(saved && !currentTicketCode) { // Só valida se ainda não tiver ticket
+                                document.getElementById('existing-ticket-input').value = saved;
+                                showLogoutButton();
+                                checkExistingTicket(saved, true);
+                            }
                         }
-                    }
+                    });
+                } else {
+                    showToast("Erro ao ligar ao banco de dados.", "error");
                 }
-            } catch (e) {}
+            } catch (e) { 
+                console.error("Erro na sincronização:", e);
+            }
 
             videoElement.addEventListener('play', () => { 
                 updatePlayPauseIcon(true); 
