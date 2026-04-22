@@ -24,6 +24,36 @@
                         autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
                     });
 
+                    // NOVO: Controlador Remoto para sincronizar o telemóvel com a TV
+                    var remotePlayer = new cast.framework.RemotePlayer();
+                    var remotePlayerController = new cast.framework.RemotePlayerController(remotePlayer);
+
+                    // Escuta se a TV conectou ou desconectou
+                    remotePlayerController.addEventListener(
+                        cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
+                        function() {
+                            const vid = document.getElementById('live-video');
+                            const loadingUI = document.getElementById('video-loading');
+                            const loadingText = document.querySelector('#video-loading p');
+                            
+                            if (remotePlayer.isConnected) {
+                                // TV Conectou: Pausa no telemóvel e mostra aviso
+                                if(vid && !vid.paused) vid.pause();
+                                if(loadingUI && loadingText) {
+                                    loadingUI.classList.remove('hidden');
+                                    loadingText.innerText = "📺 A transmitir para a TV...";
+                                }
+                            } else {
+                                // TV Desconectou: Volta a dar play no telemóvel
+                                if(vid && vid.paused) vid.play();
+                                if(loadingUI && loadingText) {
+                                    loadingUI.classList.add('hidden');
+                                    loadingText.innerText = "A ligar ao Stream...";
+                                }
+                            }
+                        }
+                    );
+
                     cast.framework.CastContext.getInstance().addEventListener(
                         cast.framework.CastContext.EventType.SESSION_STATE_CHANGED,
                         function(event) {
@@ -35,9 +65,7 @@
                                 var castSession = cast.framework.CastContext.getInstance().getCurrentSession();
                                 var mediaInfo = new chrome.cast.media.MediaInfo(window.VIDEO_URL, 'application/x-mpegURL');
                                 
-                                // CORREÇÃO 1: Avisar a TV obrigatoriamente que é uma transmissão AO VIVO
                                 mediaInfo.streamType = chrome.cast.media.StreamType.LIVE;
-                                
                                 mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
                                 mediaInfo.metadata.metadataType = chrome.cast.media.MetadataType.GENERIC;
                                 
@@ -50,18 +78,17 @@
                                 }
 
                                 var request = new chrome.cast.media.LoadRequest(mediaInfo);
-                                // CORREÇÃO 2: Forçar a TV a dar Play imediatamente
                                 request.autoplay = true;
 
                                 castSession.loadMedia(request).then(
                                     function() { 
-                                        if(typeof showToast === 'function') showToast("A transmitir para a TV!", "success");
-                                        const vid = document.getElementById('live-video');
-                                        if(vid && !vid.paused) vid.pause(); 
+                                        if(typeof showToast === 'function') showToast("Ligado à TV com sucesso!", "success");
                                     },
                                     function(errorCode) { 
                                         console.error("Erro Cast: ", errorCode); 
-                                        if(typeof showToast === 'function') showToast("A TV bloqueou o sinal (Possível erro de CORS no servidor de vídeo).", "error");
+                                        if(typeof showToast === 'function') showToast("A TV rejeitou o vídeo. Verifica o CORS e o Formato no OBS (Usa H.264/AAC).", "error");
+                                        // Força a desconexão se a TV rejeitar o formato
+                                        cast.framework.CastContext.getInstance().endCurrentSession(true);
                                     }
                                 );
                             } else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
