@@ -2,7 +2,8 @@
 <html lang="pt-pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- NOVO: interactive-widget ajuda os navegadores modernos a encolherem a tela com o teclado -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
     <title>ArenaLive PPV - Premium Streaming</title>
     
     <!-- Tailwind CSS -->
@@ -103,13 +104,13 @@
         }
     </style>
 </head>
-<body class="min-h-dvh-real flex flex-col overflow-x-hidden selection:bg-indigo-500 selection:text-white">
+<body class="min-h-dvh-real flex flex-col overflow-x-hidden selection:bg-indigo-500 selection:text-white bg-[#050505]">
 
     <div id="toast-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999] flex flex-col gap-3 pointer-events-none w-full max-w-sm px-4"></div>
 
-    <header class="fixed top-0 w-full border-b border-white/5 glass z-40 px-4 sm:px-8 h-[72px] flex items-center justify-between">
+    <header id="main-header" class="fixed top-0 w-full border-b border-white/5 glass z-40 px-4 sm:px-8 h-[72px] flex items-center justify-between transition-all">
         <div class="flex items-center gap-6">
-            <button onclick="goHome()" class="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95">
+            <button onclick="goHome(); checkDevMode(event);" class="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95">
                 <div class="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-2 rounded-xl shadow-lg shadow-indigo-500/30">
                     <i data-lucide="play" class="w-5 h-5 fill-current"></i>
                 </div>
@@ -215,12 +216,13 @@
         </div>
     </div>
 
-    <!-- Vista Player (Dividida entre Vídeo e Chat) -->
-    <main id="view-player" class="hidden flex-col lg:flex-row h-dvh-real pt-[72px] bg-black">
-        <div id="player-wrapper" class="relative w-full flex-1 flex flex-col bg-black overflow-hidden transition-all">
+    <!-- Vista Player (Dividida entre Vídeo e Chat) - TOTALMENTE REFORMULADA PARA TECLADO MOBILE -->
+    <main id="view-player" class="hidden fixed inset-0 flex-col lg:flex-row bg-black z-50">
+        
+        <div id="player-wrapper" class="relative w-full flex-1 flex flex-col bg-black overflow-hidden transition-all shrink-0">
             
-            <div id="locked-state" class="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 bg-black/90 backdrop-blur-md text-center">
-                <div class="relative z-30 glass-card p-8 sm:p-12 rounded-[2.5rem] max-w-md w-full shadow-2xl slide-up">
+            <div id="locked-state" class="absolute inset-0 z-40 flex flex-col items-center justify-start sm:justify-center p-6 bg-black/90 backdrop-blur-md text-center overflow-y-auto pt-12 sm:pt-6">
+                <div class="relative z-30 glass-card p-8 sm:p-12 rounded-[2.5rem] max-w-md w-full shadow-2xl slide-up my-auto">
                     <button onclick="goHome()" class="absolute top-6 left-6 text-neutral-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-bold bg-white/5 px-3 py-2 rounded-xl">
                         <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
                     </button>
@@ -258,13 +260,10 @@
             <!-- Player Desbloqueado -->
             <div id="unlocked-state" class="hidden absolute inset-0 bg-black flex items-center justify-center z-10 overflow-hidden">
                 
-                <!-- Video Element -->
                 <video id="live-video" playsinline class="w-full h-full object-contain z-10"></video>
                 
-                <!-- Hitbox Invisível (MOSTRA os botões) -->
                 <div id="ui-hitbox" class="absolute inset-0 z-20 cursor-pointer" onclick="showUI(event)"></div>
 
-                <!-- OVERLAY DOS CONTROLOS (ESCONDE os botões) -->
                 <div id="video-ui-overlay" class="absolute inset-0 z-30 flex flex-col justify-between opacity-0 transition-opacity duration-300 pointer-events-none cursor-pointer" onclick="hideUI(event)">
                     
                     <div class="absolute inset-0 bg-black/40 pointer-events-none"></div>
@@ -340,7 +339,7 @@
         </div>
 
         <!-- ABA DO CHAT AO VIVO -->
-        <div id="chat-container" class="hidden flex-col w-full lg:w-[400px] bg-neutral-900 border-t lg:border-t-0 lg:border-l border-white/10 h-[45vh] lg:h-full shrink-0 relative z-20">
+        <div id="chat-container" class="hidden flex-col w-full lg:w-[400px] bg-neutral-900 border-t lg:border-t-0 lg:border-l border-white/10 flex-1 min-h-0 relative z-20 transition-all">
             <!-- Header do Chat -->
             <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-neutral-950 shrink-0">
                 <h3 class="text-white font-bold text-sm flex items-center gap-2">
@@ -357,7 +356,8 @@
 
             <!-- Input do Chat -->
             <div class="p-3 bg-neutral-950 border-t border-white/5 flex items-center gap-2 shrink-0">
-                <input type="text" id="chat-input" placeholder="Conversar publicamente..." class="flex-1 bg-neutral-800 text-white rounded-full px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-neutral-500" maxlength="200" onkeypress="if(event.key === 'Enter') enviarMensagemChat()">
+                <!-- O input anula o auto-scroll nativo do navegador para o teclado não quebrar a tela -->
+                <input type="text" id="chat-input" placeholder="Conversar publicamente..." class="flex-1 bg-neutral-800 text-white rounded-full px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-neutral-500" maxlength="200" onkeypress="if(event.key === 'Enter') enviarMensagemChat()" onfocus="forceScrollToTop()">
                 <button onclick="enviarMensagemChat()" id="btn-send-chat" class="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center text-white shrink-0 active:scale-95 transition-transform disabled:opacity-50">
                     <i data-lucide="send" class="w-4 h-4 -ml-0.5"></i>
                 </button>
@@ -510,9 +510,13 @@
                 messagingSenderId: "673030693927",
                 appId: "1:673030693927:web:0f171630912d6dabe25a02"
             };
-            firebase.initializeApp(firebaseConfig);
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
             db = firebase.firestore();
-        } catch(e) {}
+        } catch(e) {
+            console.error("Firebase bloqueado ou com erro. A aguardar conexão direta.");
+        }
 
         window.API_URL = "";
         window.VIDEO_URL = "";
@@ -530,6 +534,27 @@
             max_latency: 4,
             max_buffer: 10
         };
+
+        // ==== REDIMENSIONAMENTO INTELIGENTE DE ECRÃ (TIPO YOUTUBE) ====
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', function() {
+                const vp = document.getElementById('view-player');
+                if (vp && !vp.classList.contains('hidden')) {
+                    // Quando o teclado sobe, ajusta o player ao espaço exato sem dar scroll no site
+                    vp.style.height = window.visualViewport.height + 'px';
+                    vp.style.top = window.visualViewport.offsetTop + 'px';
+                    window.scrollTo(0, 0);
+                }
+            });
+        }
+
+        function forceScrollToTop() {
+            setTimeout(() => {
+                window.scrollTo(0,0);
+                const chatMsgs = document.getElementById('chat-messages');
+                chatMsgs.scrollTop = chatMsgs.scrollHeight;
+            }, 100);
+        }
 
         // ==== CHAT AO VIVO (Lógica) ====
         let lastChatId = 0;
@@ -765,30 +790,182 @@
             resetIdleTimer();
         }
 
-        window.onload = async function() {
-            try {
-                if(db) {
-                    const doc = await db.collection('configuracoes').doc('links').get();
-                    if (doc.exists) {
-                        window.API_URL = doc.data().api_url;
-                        window.VIDEO_URL = doc.data().video_url;
-                        
-                        const status = document.getElementById('connection-status');
-                        status.innerHTML = '<span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> Servidor Ativo';
-                        status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-emerald-400 uppercase bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 backdrop-blur-md";
-                        
-                        await fetchEventDetails();
-                        eventDetailsInterval = setInterval(fetchEventDetails, 15000);
+        // NOVO: Controlador de Estado e Mensagens de Erro
+        function setStatus(isOnline, msg = "Offline") {
+            const status = document.getElementById('connection-status');
+            if (!status) return;
+            if(isOnline) {
+                status.innerHTML = '<span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> Servidor Ativo';
+                status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-emerald-400 uppercase bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 backdrop-blur-md";
+            } else {
+                status.innerHTML = `<span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span> ${msg}`;
+                status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-red-500 uppercase bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20 backdrop-blur-md cursor-pointer";
+            }
+        }
 
-                        const saved = localStorage.getItem('arenaLiveTicket');
-                        if(saved) {
-                            document.getElementById('existing-ticket-input').value = saved;
-                            showLogoutButton();
-                            checkExistingTicket(saved, true);
-                        }
+        let devClickCount = 0;
+        let devClickTimer;
+        function checkDevMode(e) {
+            devClickCount++;
+            clearTimeout(devClickTimer);
+            devClickTimer = setTimeout(() => devClickCount = 0, 1000);
+            
+            if(devClickCount >= 3) {
+                devClickCount = 0;
+                const api = prompt("⚙️ MODO DESENVOLVEDOR ⚙️\n\nO Firebase falhou?\nCopia o link da API (que está verde no teu Python) e cola aqui:", window.API_URL || "");
+                if(api) {
+                    const vid = prompt("Agora, copia e cola o link do VÍDEO (que está verde no Python):", window.VIDEO_URL || "");
+                    if(vid) {
+                        window.API_URL = api.replace(/\/$/, ""); 
+                        window.VIDEO_URL = vid;
+                        localStorage.setItem('dev_api_url', window.API_URL);
+                        localStorage.setItem('dev_video_url', window.VIDEO_URL);
+                        showToast("Links forçados manualmente!", "success");
+                        fetchEventDetails();
                     }
                 }
-            } catch (e) {}
+            }
+        }
+
+        async function fetchEventDetails() {
+            if (!window.API_URL) {
+                setStatus(false, "A aguardar Links...");
+                return;
+            }
+            try {
+                const noCache = new Date().getTime();
+                const cleanApiUrl = window.API_URL.replace(/\/$/, ""); 
+                
+                const res = await fetch(`${cleanApiUrl}/api/evento?_t=${noCache}`, {
+                    headers: { 
+                        'Accept': 'application/json',
+                        'Bypass-Tunnel-Reminder': 'true' 
+                    }
+                });
+                
+                if (!res.ok) throw new Error("Cloudflare Bloqueou ou Servidor Offline");
+                
+                const data = await res.json();
+                
+                setStatus(true); 
+                
+                if (data.titulo_evento) {
+                    document.getElementById('event-title-display').innerText = data.titulo_evento;
+                    document.getElementById('team-a-name-display').innerText = data.time_a_nome;
+                    document.getElementById('team-b-name-display').innerText = data.time_b_nome;
+                    if (data.time_a_img) document.getElementById('team-a-img-display').src = data.time_a_img;
+                    if (data.time_b_img) document.getElementById('team-b-img-display').src = data.time_b_img;
+                    document.getElementById('lock-event-subtitle').innerText = `${data.time_a_nome} vs ${data.time_b_nome}`;
+                }
+                
+                if (data.valor) {
+                    const numValor = parseFloat(data.valor.toString().replace(',', '.'));
+                    if (!isNaN(numValor)) {
+                        document.getElementById('home-price-display').innerText = numValor.toFixed(2).replace('.', ',');
+                    }
+                }
+
+                if (data.video_config) videoConfig = data.video_config;
+
+                if (data.ingressos_restantes !== undefined) {
+                    const counterText = document.getElementById('tickets-remaining-text');
+                    const urgencyContainer = document.getElementById('ticket-urgency-container');
+                    const urgencyIcon = document.getElementById('urgency-icon');
+                    
+                    const btnAssistir = document.getElementById('btn-assistir');
+                    const btnComprar = document.getElementById('btn-comprar'); 
+                    
+                    if (data.ingressos_restantes <= 0) {
+                        counterText.innerText = "INGRESSOS ESGOTADOS";
+                        urgencyContainer.className = "w-full bg-neutral-900 border border-white/10 rounded-xl p-4 mb-8 flex items-center justify-center gap-3 relative overflow-hidden transition-all";
+                        counterText.className = "text-neutral-400 font-black text-lg uppercase tracking-wide drop-shadow-md";
+                        if(urgencyIcon) {
+                            urgencyIcon.setAttribute('data-lucide', 'x-circle');
+                            urgencyIcon.className = "w-6 h-6 text-neutral-500";
+                        }
+                        
+                        btnAssistir.innerHTML = '<i data-lucide="lock" class="w-6 h-6"></i> VENDAS ENCERRADAS';
+                        btnAssistir.onclick = () => showToast("As vendas para este evento estão encerradas!", "error");
+                        btnAssistir.className = "w-full bg-neutral-800 text-neutral-400 font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 text-xl cursor-not-allowed";
+                        
+                        if(btnComprar) {
+                            btnComprar.onclick = () => showToast("As vendas para este evento estão encerradas!", "error");
+                            btnComprar.innerHTML = '<i data-lucide="x-circle" class="w-5 h-5"></i> VENDAS ENCERRADAS';
+                            btnComprar.className = "w-full bg-neutral-800 text-neutral-400 font-bold py-4 px-6 rounded-xl mb-8 flex justify-center items-center gap-2 cursor-not-allowed";
+                        }
+                        try { lucide.createIcons(); } catch(e){}
+                    } else {
+                        counterText.innerText = `CORRE! FALTAM APENAS ${data.ingressos_restantes} INGRESSOS`;
+                        urgencyContainer.className = "w-full bg-gradient-to-r from-red-600/20 to-orange-500/20 border border-red-500/30 rounded-xl p-4 mb-8 flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(239,68,68,0.15)] relative overflow-hidden transition-all";
+                        counterText.className = "text-red-400 font-black text-lg uppercase tracking-wide drop-shadow-md";
+                        if(urgencyIcon) {
+                            urgencyIcon.setAttribute('data-lucide', 'flame');
+                            urgencyIcon.className = "w-6 h-6 text-red-500 animate-bounce";
+                        }
+                        
+                        btnAssistir.innerHTML = '<i data-lucide="zap" class="w-6 h-6 fill-current"></i> GARANTIR O MEU ACESSO';
+                        btnAssistir.onclick = iniciarCompra;
+                        btnAssistir.className = "w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:via-purple-500 hover:to-indigo-500 text-white font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_30px_rgba(99,102,241,0.5)] text-xl group-hover:shadow-[0_0_50px_rgba(99,102,241,0.7)] bg-[length:200%_auto] animate-[gradient_3s_ease_infinite] relative z-20 cursor-pointer";
+                        
+                        if(btnComprar) {
+                            btnComprar.onclick = openCheckout;
+                            btnComprar.innerHTML = '<i data-lucide="unlock" class="w-5 h-5"></i> COMPRAR / DESBLOQUEAR';
+                            btnComprar.className = "w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold py-4 px-6 rounded-xl mb-8 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.5)] active:scale-95 flex justify-center items-center gap-2 relative z-20 cursor-pointer";
+                        }
+                        try { lucide.createIcons(); } catch(e){}
+                    }
+                }
+            } catch(e) { 
+                setStatus(false, "Erro de API (Cloudflare)"); 
+                console.error("Falha ao comunicar com a API:", e);
+            }
+        }
+
+        window.onload = function() {
+            const savedApi = localStorage.getItem('dev_api_url');
+            const savedVid = localStorage.getItem('dev_video_url');
+            
+            if(savedApi && savedVid) {
+                window.API_URL = savedApi;
+                window.VIDEO_URL = savedVid;
+                showToast("Modo Desenvolvedor Ativo", "warning");
+                fetchEventDetails();
+            }
+
+            try {
+                if(db) {
+                    db.collection('configuracoes').doc('links').onSnapshot(async (doc) => {
+                        if (doc.exists && !savedApi) { 
+                            window.API_URL = doc.data().api_url;
+                            window.VIDEO_URL = doc.data().video_url;
+                            
+                            await fetchEventDetails();
+                            if(!eventDetailsInterval) eventDetailsInterval = setInterval(fetchEventDetails, 15000);
+
+                            const saved = localStorage.getItem('arenaLiveTicket');
+                            if(saved && !currentTicketCode) { 
+                                document.getElementById('existing-ticket-input').value = saved;
+                                showLogoutButton();
+                                checkExistingTicket(saved, true);
+                            }
+                        }
+                    });
+                }
+            } catch (e) { }
+
+            setInterval(() => {
+                if(db && !window.API_URL && !savedApi) {
+                    db.collection('configuracoes').doc('links').get().then(doc => {
+                        if(doc.exists) {
+                            window.API_URL = doc.data().api_url;
+                            window.VIDEO_URL = doc.data().video_url;
+                            fetchEventDetails();
+                        }
+                    }).catch(e=>{});
+                } else {
+                    fetchEventDetails();
+                }
+            }, 3000);
 
             videoElement.addEventListener('play', () => { 
                 updatePlayPauseIcon(true); 
@@ -934,98 +1111,57 @@
             }
         }
 
-        async function fetchEventDetails() {
-            if (!window.API_URL) return;
-            try {
-                const noCache = new Date().getTime();
-                const res = await fetch(`${window.API_URL}/api/evento?_t=${noCache}`);
-                if (!res.ok) throw new Error("Erro servidor");
-                const data = await res.json();
-                
-                if (data.titulo_evento) {
-                    document.getElementById('event-title-display').innerText = data.titulo_evento;
-                    document.getElementById('team-a-name-display').innerText = data.time_a_nome;
-                    document.getElementById('team-b-name-display').innerText = data.time_b_nome;
-                    if (data.time_a_img) document.getElementById('team-a-img-display').src = data.time_a_img;
-                    if (data.time_b_img) document.getElementById('team-b-img-display').src = data.time_b_img;
-                    document.getElementById('lock-event-subtitle').innerText = `${data.time_a_nome} vs ${data.time_b_nome}`;
-                }
-                
-                if (data.valor) {
-                    const numValor = parseFloat(data.valor.toString().replace(',', '.'));
-                    if (!isNaN(numValor)) {
-                        document.getElementById('home-price-display').innerText = numValor.toFixed(2).replace('.', ',');
-                    }
-                }
-
-                if (data.video_config) videoConfig = data.video_config;
-
-                if (data.ingressos_restantes !== undefined) {
-                    const counterText = document.getElementById('tickets-remaining-text');
-                    const urgencyContainer = document.getElementById('ticket-urgency-container');
-                    const urgencyIcon = document.getElementById('urgency-icon');
-                    
-                    const btnAssistir = document.getElementById('btn-assistir');
-                    const btnComprar = document.getElementById('btn-comprar'); 
-                    
-                    if (data.ingressos_restantes <= 0) {
-                        counterText.innerText = "INGRESSOS ESGOTADOS";
-                        urgencyContainer.className = "w-full bg-neutral-900 border border-white/10 rounded-xl p-4 mb-8 flex items-center justify-center gap-3 relative overflow-hidden transition-all";
-                        counterText.className = "text-neutral-400 font-black text-lg uppercase tracking-wide drop-shadow-md";
-                        if(urgencyIcon) {
-                            urgencyIcon.setAttribute('data-lucide', 'x-circle');
-                            urgencyIcon.className = "w-6 h-6 text-neutral-500";
-                        }
-                        
-                        btnAssistir.innerHTML = '<i data-lucide="lock" class="w-6 h-6"></i> VENDAS ENCERRADAS';
-                        btnAssistir.onclick = () => showToast("As vendas para este evento estão encerradas!", "error");
-                        btnAssistir.className = "w-full bg-neutral-800 text-neutral-400 font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 text-xl cursor-not-allowed";
-                        
-                        if(btnComprar) {
-                            btnComprar.onclick = () => showToast("As vendas para este evento estão encerradas!", "error");
-                            btnComprar.innerHTML = '<i data-lucide="x-circle" class="w-5 h-5"></i> VENDAS ENCERRADAS';
-                            btnComprar.className = "w-full bg-neutral-800 text-neutral-400 font-bold py-4 px-6 rounded-xl mb-8 flex justify-center items-center gap-2 cursor-not-allowed";
-                        }
-                        try { lucide.createIcons(); } catch(e){}
-                    } else {
-                        counterText.innerText = `CORRE! FALTAM APENAS ${data.ingressos_restantes} INGRESSOS`;
-                        urgencyContainer.className = "w-full bg-gradient-to-r from-red-600/20 to-orange-500/20 border border-red-500/30 rounded-xl p-4 mb-8 flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(239,68,68,0.15)] relative overflow-hidden transition-all";
-                        counterText.className = "text-red-400 font-black text-lg uppercase tracking-wide drop-shadow-md";
-                        if(urgencyIcon) {
-                            urgencyIcon.setAttribute('data-lucide', 'flame');
-                            urgencyIcon.className = "w-6 h-6 text-red-500 animate-bounce";
-                        }
-                        
-                        btnAssistir.innerHTML = '<i data-lucide="zap" class="w-6 h-6 fill-current"></i> GARANTIR O MEU ACESSO';
-                        btnAssistir.onclick = iniciarCompra;
-                        btnAssistir.className = "w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:via-purple-500 hover:to-indigo-500 text-white font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_30px_rgba(99,102,241,0.5)] text-xl group-hover:shadow-[0_0_50px_rgba(99,102,241,0.7)] bg-[length:200%_auto] animate-[gradient_3s_ease_infinite] relative z-20 cursor-pointer";
-                        
-                        if(btnComprar) {
-                            btnComprar.onclick = openCheckout;
-                            btnComprar.innerHTML = '<i data-lucide="unlock" class="w-5 h-5"></i> COMPRAR / DESBLOQUEAR';
-                            btnComprar.className = "w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold py-4 px-6 rounded-xl mb-8 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.5)] active:scale-95 flex justify-center items-center gap-2 relative z-20 cursor-pointer";
-                        }
-                        try { lucide.createIcons(); } catch(e){}
-                    }
-                }
-            } catch(e) { console.error("Falha ao atualizar evento."); }
+        function updatePriceDisplay(valor) {
+            const numValor = parseFloat(valor.toString().replace(',', '.'));
+            if (!isNaN(numValor)) {
+                document.getElementById('ticket-price-display').innerText = `R$ ${numValor.toFixed(2).replace('.', ',')}`;
+            }
         }
 
         function goHome() {
             if (videoElement) videoElement.pause();
+            
+            // Tira os bloqueios de ecrã impostos no mobile
+            document.body.style.position = '';
+            document.body.style.inset = '';
+            document.body.style.overflow = '';
+            document.body.style.backgroundColor = '#050505';
+            
+            document.getElementById('main-header').classList.remove('hidden');
+            
+            const wrapper = document.getElementById('player-wrapper');
+            wrapper.classList.remove('shrink-0', 'aspect-video', 'lg:aspect-auto', 'lg:flex-1');
+            wrapper.classList.add('flex-1');
+
             document.getElementById('view-player').classList.add('hidden');
             document.getElementById('view-player').classList.remove('flex', 'lg:flex-row');
             document.getElementById('view-home').classList.remove('hidden');
+            
             closeModal();
             pararChat();
             fetchEventDetails();
+            window.scrollTo(0,0);
         }
 
         function openPlayer() {
+            // ENGANHAR O NAVEGADOR: Força a página a colar-se ao tamanho da janela (Anti-Scroll de Teclado)
+            document.body.style.position = 'fixed';
+            document.body.style.inset = '0';
+            document.body.style.overflow = 'hidden';
+            document.body.style.backgroundColor = '#000';
+            
+            document.getElementById('main-header').classList.add('hidden');
             document.getElementById('view-home').classList.add('hidden');
-            document.getElementById('view-player').classList.remove('hidden');
-            document.getElementById('view-player').classList.add('flex', 'lg:flex-row');
-            window.scrollTo(0,0);
+            
+            const vp = document.getElementById('view-player');
+            vp.classList.remove('hidden');
+            vp.classList.add('flex', 'lg:flex-row');
+            
+            // Força a altura se a API do VisualViewport existir (Excecional para iOS/Chrome modernos)
+            if(window.visualViewport) {
+                vp.style.height = window.visualViewport.height + 'px';
+                vp.style.top = window.visualViewport.offsetTop + 'px';
+            }
         }
         
         function iniciarCompra() {
@@ -1177,7 +1313,7 @@
                         document.getElementById('step-conflict').classList.remove('hidden');
                     }
                 } else if (res.ok && data.status === 'aprovado') {
-                    currentTicketCode = data.codigo; // MUITO IMPORTANTE para o CHAT funcionar após refresh
+                    currentTicketCode = data.codigo;
                     localStorage.setItem('arenaLiveTicket', data.codigo); showLogoutButton();
                     if(!silent) showToast("Acesso libertado! Bom evento.", "success");
                     
@@ -1281,8 +1417,13 @@
             document.getElementById('unlocked-state').classList.remove('hidden');
             document.getElementById('unlocked-state').classList.add('fade-in');
             
+            // Fixa o vídeo em 16:9 no topo. Como o site agora está com "position: fixed", o chat apenas encolhe.
+            const wrapper = document.getElementById('player-wrapper');
+            wrapper.classList.remove('flex-1');
+            wrapper.classList.add('shrink-0', 'aspect-video', 'lg:aspect-auto', 'lg:flex-1');
+            
             showUI(); 
-            iniciarChat(); // ARRANCAR O CHAT
+            iniciarChat();
             
             const loading = document.getElementById('video-loading');
             loading.classList.remove('hidden');
@@ -1296,7 +1437,6 @@
                     liveMaxLatencyDurationCount: videoConfig.max_latency, 
                     maxBufferLength: videoConfig.max_buffer, 
                     maxMaxBufferLength: videoConfig.max_buffer * 2,
-                    
                     manifestLoadingTimeOut: 20000,
                     manifestLoadingMaxRetry: 10,
                     manifestLoadingRetryDelay: 1000
