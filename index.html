@@ -35,24 +35,37 @@
                                 var castSession = cast.framework.CastContext.getInstance().getCurrentSession();
                                 var mediaInfo = new chrome.cast.media.MediaInfo(window.VIDEO_URL, 'application/x-mpegURL');
                                 
+                                // CORREÇÃO 1: Avisar a TV obrigatoriamente que é uma transmissão AO VIVO
+                                mediaInfo.streamType = chrome.cast.media.StreamType.LIVE;
+                                
                                 mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-                                mediaInfo.metadata.title = document.getElementById('event-title-display').innerText || "ArenaLive PPV";
+                                mediaInfo.metadata.metadataType = chrome.cast.media.MetadataType.GENERIC;
+                                
+                                var titleElem = document.getElementById('event-title-display');
+                                mediaInfo.metadata.title = titleElem ? titleElem.innerText : "ArenaLive PPV";
+                                
                                 var imgDisplay = document.getElementById('team-a-img-display');
                                 if (imgDisplay && imgDisplay.src) {
                                     mediaInfo.metadata.images = [{'url': imgDisplay.src}];
                                 }
 
                                 var request = new chrome.cast.media.LoadRequest(mediaInfo);
+                                // CORREÇÃO 2: Forçar a TV a dar Play imediatamente
+                                request.autoplay = true;
+
                                 castSession.loadMedia(request).then(
                                     function() { 
-                                        showToast("A transmitir para a TV!", "success");
+                                        if(typeof showToast === 'function') showToast("A transmitir para a TV!", "success");
                                         const vid = document.getElementById('live-video');
                                         if(vid && !vid.paused) vid.pause(); 
                                     },
-                                    function(errorCode) { console.error("Erro Cast: " + errorCode); }
+                                    function(errorCode) { 
+                                        console.error("Erro Cast: ", errorCode); 
+                                        if(typeof showToast === 'function') showToast("A TV bloqueou o sinal (Possível erro de CORS no servidor de vídeo).", "error");
+                                    }
                                 );
                             } else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
-                                showToast("Desconectado da TV.", "info");
+                                if(typeof showToast === 'function') showToast("Desconectado da TV.", "info");
                             }
                         }
                     );
