@@ -13,10 +13,6 @@
     
     <!-- Biblioteca HLS.js -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
@@ -518,15 +514,9 @@
     <script>
         try { lucide.createIcons(); } catch(e){}
 
-        // FORMATO OBRIGATÓRIO PARA A INJEÇÃO DO PYTHON FUNCIONAR!
-        const firebaseConfig = {
-  apiKey: "AIzaSyAdObOIqqxEoTDOhETxUD5A8KWwq2QUVlQ",
-  authDomain: "arena-live-v1.firebaseapp.com",
-  projectId: "arena-live-v1",
-  storageBucket: "arena-live-v1.firebasestorage.app",
-  messagingSenderId: "416707033471",
-  appId: "1:416707033471:web:be71a5277ba6556e00c24a"
-};
+        // ESTAS VARIÁVEIS SÃO INJETADAS PELO PYTHON (ABA: Configurar Domínio)
+        window.API_URL = "";
+        window.VIDEO_URL = "";
 
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
@@ -547,18 +537,6 @@
             }, 4000);
         }
 
-        let db = null;
-        try {
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            db = firebase.firestore();
-        } catch(e) {
-            console.error("Firebase bloqueado ou com erro. A aguardar conexão direta.");
-        }
-
-        window.API_URL = "";
-        window.VIDEO_URL = "";
         let checkInterval = null;
         let countdownInterval = null;
         let eventDetailsInterval = null;
@@ -568,7 +546,7 @@
         let hlsInstance = null;
         let eventTargetDate = null;
         let countdownTimer = null;
-        window.STATUS_PLAYER = 'auto'; // Nova variável global para controlar o override
+        window.STATUS_PLAYER = 'auto'; 
         
         let videoConfig = {
             low_latency: true,
@@ -867,7 +845,7 @@
             
             if(devClickCount >= 3) {
                 devClickCount = 0;
-                const api = prompt("⚙️ MODO DESENVOLVEDOR ⚙️\n\nO Firebase falhou?\nCopia o link da API (que está verde no teu Python) e cola aqui:", window.API_URL || "");
+                const api = prompt("⚙️ MODO DESENVOLVEDOR ⚙️\n\nCopia o link da API (que está verde no teu Python) e cola aqui:", window.API_URL || "");
                 if(api) {
                     const vid = prompt("Agora, copia e cola o link do VÍDEO (que está verde no Python):", window.VIDEO_URL || "");
                     if(vid) {
@@ -884,7 +862,7 @@
 
         async function fetchEventDetails() {
             if (!window.API_URL) {
-                setStatus(false, "A aguardar Links...");
+                setStatus(false, "A aguardar Ligações...");
                 return;
             }
             try {
@@ -997,43 +975,26 @@
                 window.API_URL = savedApi;
                 window.VIDEO_URL = savedVid;
                 showToast("Modo Desenvolvedor Ativo", "warning");
-                fetchEventDetails();
             }
 
-            try {
-                if(db) {
-                    db.collection('configuracoes').doc('links').onSnapshot(async (doc) => {
-                        if (doc.exists && !savedApi) { 
-                            window.API_URL = doc.data().api_url;
-                            window.VIDEO_URL = doc.data().video_url;
-                            
-                            await fetchEventDetails();
-                            if(!eventDetailsInterval) eventDetailsInterval = setInterval(fetchEventDetails, 5000); // Polling reduzido para 5s
+            // Iniciar fluxo principal dependendo da API
+            if (window.API_URL) {
+                fetchEventDetails();
+                if(!eventDetailsInterval) eventDetailsInterval = setInterval(fetchEventDetails, 5000);
 
-                            const saved = localStorage.getItem('arenaLiveTicket');
-                            if(saved && !currentTicketCode) { 
-                                document.getElementById('existing-ticket-input').value = saved;
-                                showLogoutButton();
-                                checkExistingTicket(saved, true);
-                            }
-                        }
-                    });
+                const saved = localStorage.getItem('arenaLiveTicket');
+                if(saved && !currentTicketCode) { 
+                    document.getElementById('existing-ticket-input').value = saved;
+                    showLogoutButton();
+                    checkExistingTicket(saved, true);
                 }
-            } catch (e) { }
-
-            setInterval(() => {
-                if(db && !window.API_URL && !savedApi) {
-                    db.collection('configuracoes').doc('links').get().then(doc => {
-                        if(doc.exists) {
-                            window.API_URL = doc.data().api_url;
-                            window.VIDEO_URL = doc.data().video_url;
-                            fetchEventDetails();
-                        }
-                    }).catch(e=>{});
-                } else {
-                    fetchEventDetails();
-                }
-            }, 5000);
+            } else {
+                showToast("A aguardar ligação ao servidor...", "warning");
+                // Caso a página carregue mais rápido que a injeção ou falhe, tentar ligar
+                if(!eventDetailsInterval) eventDetailsInterval = setInterval(() => {
+                    if(window.API_URL) fetchEventDetails();
+                }, 5000);
+            }
 
             videoElement.addEventListener('play', () => { updatePlayPauseIcon(true); resetIdleTimer(); });
             videoElement.addEventListener('pause', () => { updatePlayPauseIcon(false); showUI(); clearTimeout(idleTimeout); });
@@ -1280,13 +1241,13 @@
             
             if (nome.length < 3) return showToast("Por favor, insere um nome válido.", "error");
             if (!isValidCPF(cpf)) return showToast("CPF Inválido.", "error");
-            if (!window.API_URL) return showToast("A aguardar sincronização com o sistema...", "warning");
+            if (!window.API_URL) return showToast("A aguardar ligação com o sistema...", "warning");
             
             const btnGerar = document.getElementById('btn-gerar-pix');
             const originalBtnHtml = btnGerar.innerHTML;
             
             try {
-                btnGerar.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> PROCESSANDO...';
+                btnGerar.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> A PROCESSAR...';
                 btnGerar.disabled = true;
 
                 const res = await fetch(`${window.API_URL}/api/gerar_ingresso`, {
@@ -1445,7 +1406,7 @@
                         if (res.status === 404) {
                             clearInterval(checkInterval);
                             localStorage.removeItem('arenaLiveTicket');
-                            showToast("O evento foi encerrado! Redirecionando...", "warning");
+                            showToast("O evento foi encerrado! A redirecionar...", "warning");
                             setTimeout(() => location.reload(), 3000);
                         }
                         return;
@@ -1530,12 +1491,12 @@
                 liveVideo.classList.add('hidden');
                 videoUiOverlay.classList.add('hidden');
                 uiHitbox.classList.add('hidden');
-                videoLoading.classList.add('hidden'); // <-- CORREÇÃO: Esconde a rodinha de loading sempre!
+                videoLoading.classList.add('hidden'); 
                 if(liveVideo) liveVideo.pause();
                 
                 // Continua a atualizar o contador só para efeito visual, se houver data
                 if (eventTargetDate) iniciarContagemRegressiva(true);
-                else document.getElementById('countdown-container').classList.add('opacity-0'); // Se não houver data, esconde os números
+                else document.getElementById('countdown-container').classList.add('opacity-0');
 
             } else {
                 // MODO: AUTOMÁTICO (Baseado no Calendário)
@@ -1563,7 +1524,7 @@
                 document.getElementById('live-video').classList.add('hidden');
                 document.getElementById('video-ui-overlay').classList.add('hidden');
                 document.getElementById('ui-hitbox').classList.add('hidden');
-                document.getElementById('video-loading').classList.add('hidden'); // <-- CORREÇÃO: Esconde o loading aqui também
+                document.getElementById('video-loading').classList.add('hidden');
             }
 
             if(countdownTimer) clearInterval(countdownTimer);
