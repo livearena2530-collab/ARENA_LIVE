@@ -264,8 +264,8 @@
             <!-- Player Desbloqueado -->
             <div id="unlocked-state" class="hidden absolute inset-0 bg-black flex items-center justify-center z-10 overflow-hidden">
                 
-                <!-- TELA DE ESPERA PRÉ-JOGO -->
-                <div id="waiting-screen" class="hidden absolute inset-0 z-[45] flex-col items-center justify-center bg-black/95 backdrop-blur-md transition-opacity duration-500">
+                <!-- TELA DE ESPERA PRÉ-JOGO (Z-INDEX SUPER ALTO PARA NÃO SER TAPADO) -->
+                <div id="waiting-screen" class="hidden absolute inset-0 z-[60] flex-col items-center justify-center bg-black/95 backdrop-blur-md transition-opacity duration-500">
                     <div class="absolute inset-0 bg-gradient-to-t from-indigo-900/20 via-black to-black pointer-events-none"></div>
                     <div class="relative z-10 flex flex-col items-center">
                         <div class="relative w-24 h-24 sm:w-32 sm:h-32 mb-6 sm:mb-8">
@@ -1505,6 +1505,7 @@
             const liveVideo = document.getElementById('live-video');
             const videoUiOverlay = document.getElementById('video-ui-overlay');
             const uiHitbox = document.getElementById('ui-hitbox');
+            const videoLoading = document.getElementById('video-loading');
 
             if (window.STATUS_PLAYER === 'live') {
                 // MODO: FORÇAR AO VIVO
@@ -1524,6 +1525,7 @@
                 liveVideo.classList.add('hidden');
                 videoUiOverlay.classList.add('hidden');
                 uiHitbox.classList.add('hidden');
+                videoLoading.classList.add('hidden'); // <-- CORREÇÃO: Esconde a rodinha de loading sempre!
                 if(liveVideo) liveVideo.pause();
                 
                 // Continua a atualizar o contador só para efeito visual, se houver data
@@ -1556,6 +1558,7 @@
                 document.getElementById('live-video').classList.add('hidden');
                 document.getElementById('video-ui-overlay').classList.add('hidden');
                 document.getElementById('ui-hitbox').classList.add('hidden');
+                document.getElementById('video-loading').classList.add('hidden'); // <-- CORREÇÃO: Esconde o loading aqui também
             }
 
             if(countdownTimer) clearInterval(countdownTimer);
