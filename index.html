@@ -264,6 +264,34 @@
             <!-- Player Desbloqueado -->
             <div id="unlocked-state" class="hidden absolute inset-0 bg-black flex items-center justify-center z-10 overflow-hidden">
                 
+                <!-- TELA DE ESPERA PRÉ-JOGO -->
+                <div id="waiting-screen" class="hidden absolute inset-0 z-[45] flex-col items-center justify-center bg-black/95 backdrop-blur-md">
+                    <div class="absolute inset-0 bg-gradient-to-t from-indigo-900/20 via-black to-black pointer-events-none"></div>
+                    <div class="relative z-10 flex flex-col items-center">
+                        <div class="relative w-24 h-24 sm:w-32 sm:h-32 mb-6 sm:mb-8">
+                            <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
+                            <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                            <i data-lucide="clock" class="absolute inset-0 m-auto w-8 h-8 sm:w-10 sm:h-10 text-indigo-400"></i>
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-2 text-center drop-shadow-lg px-4">A Transmissão Começa Em Breve</h2>
+                        <p class="text-xs sm:text-sm text-neutral-400 mb-8 text-center max-w-md px-6 leading-relaxed">O teu acesso VIP já está garantido! Prepara os petiscos, o vídeo será ativado automaticamente quando o contador chegar a zero.</p>
+                        <div class="flex gap-3 sm:gap-4 text-center">
+                            <div class="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-5 min-w-[70px] sm:min-w-[90px] shadow-2xl backdrop-blur-md">
+                                <span id="count-h" class="text-3xl sm:text-5xl font-black text-white tracking-tighter">00</span>
+                                <p class="text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase mt-1 tracking-widest">Horas</p>
+                            </div>
+                            <div class="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-5 min-w-[70px] sm:min-w-[90px] shadow-2xl backdrop-blur-md">
+                                <span id="count-m" class="text-3xl sm:text-5xl font-black text-white tracking-tighter">00</span>
+                                <p class="text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase mt-1 tracking-widest">Minutos</p>
+                            </div>
+                            <div class="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-5 min-w-[70px] sm:min-w-[90px] shadow-2xl backdrop-blur-md">
+                                <span id="count-s" class="text-3xl sm:text-5xl font-black text-white tracking-tighter">00</span>
+                                <p class="text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase mt-1 tracking-widest">Segundos</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <video id="live-video" playsinline class="w-full h-full object-contain z-10"></video>
                 
                 <div id="ui-hitbox" class="absolute inset-0 z-20 cursor-pointer" onclick="showUI(event)"></div>
@@ -487,13 +515,13 @@
 
         // FORMATO OBRIGATÓRIO PARA A INJEÇÃO DO PYTHON FUNCIONAR!
         const firebaseConfig = {
-  apiKey: "AIzaSyA41lYESoJYN4StI-5RP5XbCbBmx1iZQ-s",
-  authDomain: "arena-live123.firebaseapp.com",
-  projectId: "arena-live123",
-  storageBucket: "arena-live123.firebasestorage.app",
-  messagingSenderId: "521369268311",
-  appId: "1:521369268311:web:43a3016a9178f566bfb312"
-};
+            apiKey: "AIzaSyBY2isbrcA3ZGSJLsq5w9pZxOad__PkmfQ",
+            authDomain: "arenalive-b3664-442de.firebaseapp.com",
+            projectId: "arenalive-b3664-442de",
+            storageBucket: "arenalive-b3664-442de.firebasestorage.app",
+            messagingSenderId: "673030693927",
+            appId: "1:673030693927:web:0f171630912d6dabe25a02"
+        };
 
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
@@ -533,6 +561,8 @@
         let currentTicketCpf = "";
         let currentTicketNome = "";
         let hlsInstance = null;
+        let eventTargetDate = null;
+        let countdownTimer = null;
         
         let videoConfig = {
             low_latency: true,
@@ -888,6 +918,17 @@
                     if (!isNaN(numValor)) {
                         document.getElementById('home-price-display').innerText = numValor.toFixed(2).replace('.', ',');
                     }
+                }
+
+                if (data.data_hora_evento) {
+                    const parts = data.data_hora_evento.split(/[\s/:]+/);
+                    if(parts.length >= 5) {
+                        eventTargetDate = new Date(parts[2], parts[1] - 1, parts[0], parts[3], parts[4]);
+                    } else {
+                        eventTargetDate = null;
+                    }
+                } else {
+                    eventTargetDate = null;
                 }
 
                 if (data.video_config) videoConfig = data.video_config;
@@ -1465,7 +1506,50 @@
             
             showUI(); 
             iniciarChat();
-            
+
+            if (eventTargetDate && new Date() < eventTargetDate) {
+                iniciarContagemRegressiva();
+            } else {
+                iniciarVideoHLS();
+            }
+        }
+
+        function iniciarContagemRegressiva() {
+            const waitingScreen = document.getElementById('waiting-screen');
+            waitingScreen.classList.remove('hidden');
+            waitingScreen.classList.add('flex');
+            document.getElementById('live-video').classList.add('hidden');
+            document.getElementById('video-ui-overlay').classList.add('hidden');
+            document.getElementById('ui-hitbox').classList.add('hidden');
+
+            if(countdownTimer) clearInterval(countdownTimer);
+
+            countdownTimer = setInterval(() => {
+                const now = new Date();
+                const diff = eventTargetDate - now;
+
+                if (diff <= 0) {
+                    clearInterval(countdownTimer);
+                    waitingScreen.classList.remove('flex');
+                    waitingScreen.classList.add('hidden');
+                    document.getElementById('live-video').classList.remove('hidden');
+                    document.getElementById('video-ui-overlay').classList.remove('hidden');
+                    document.getElementById('ui-hitbox').classList.remove('hidden');
+                    iniciarVideoHLS();
+                    return;
+                }
+
+                const h = Math.floor(diff / (1000 * 60 * 60));
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+                document.getElementById('count-h').innerText = h.toString().padStart(2, '0');
+                document.getElementById('count-m').innerText = m.toString().padStart(2, '0');
+                document.getElementById('count-s').innerText = s.toString().padStart(2, '0');
+            }, 1000);
+        }
+
+        function iniciarVideoHLS() {
             const loading = document.getElementById('video-loading');
             loading.classList.remove('hidden');
 
@@ -1515,7 +1599,7 @@
                             default:
                                 hlsInstance.destroy();
                                 showToast("Erro grave. A reiniciar player...", "error");
-                                setTimeout(() => unlockContent(), 3000);
+                                setTimeout(() => iniciarVideoHLS(), 3000);
                                 break;
                         }
                     }
