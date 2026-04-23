@@ -1,1478 +1,1664 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
-import threading
-import sqlite3
-import random
-import string
-import os
-import subprocess
-import re
-import unicodedata
-import json
-from datetime import datetime, timedelta
-from werkzeug.serving import make_server
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import firebase_admin
-from firebase_admin import credentials, firestore
-import requests # BIBLIOTECA PARA O ASAAS
+<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+    <title>ArenaLive PPV - Premium Streaming</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Biblioteca HLS.js -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
-# ==========================================
-# VALORES PADRÃO (Caso seja a primeira vez a abrir a app)
-# ==========================================
-DEFAULT_NOME_PIX = "Seu Nome"       
-DEFAULT_CIDADE_PIX = "Sao Paulo"               
-DEFAULT_CHAVE_PIX = "seu-email@gmail.com"              
-DEFAULT_VALOR = "19.90"               
-DEFAULT_CONTATO = "SeuUsuarioTelegram"       
-# ==========================================
-
-# ---------------------------------------------------
-# GERADOR AUTOMÁTICO DE CÓDIGO PIX (MANUAL - FALLBACK)
-# ---------------------------------------------------
-def gerar_payload_pix(chave, nome, cidade, valor):
-    def f(id, value):
-        return f"{id}{len(value):02d}{value}"
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
         
-    def remove_accents(input_str):
-        nfkd_form = unicodedata.normalize('NFKD', str(input_str))
-        return u"".join([c for c in nfkd_form if not unicodedata.combining(c)])
-
-    gui = f("00", "br.gov.bcb.pix")
-    
-    chave_limpa = str(chave).strip()
-    if len(chave_limpa) == 36 and '-' in chave_limpa:
-        chave_limpa = chave_limpa.lower()
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #050505; 
+            -webkit-tap-highlight-color: transparent;
+            color: #f5f5f5;
+        }
         
-    key = f("01", chave_limpa)
-    
-    merchant_account_info = f("26", gui + key)
-    merchant_category_code = f("52", "0000")
-    currency = f("53", "986")
-    
-    valor_formatado = str(valor).replace(',', '.')
-    try:
-        amount = f("54", f"{float(valor_formatado):.2f}")
-    except:
-        amount = f("54", "19.90")
+        .glass { background: rgba(15, 15, 15, 0.4); backdrop-filter: blur(24px); }
+        .glass-card {
+            background: linear-gradient(145deg, rgba(30, 30, 30, 0.6) 0%, rgba(15, 15, 15, 0.8) 100%);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+        }
 
-    country = f("58", "BR")
-    
-    nome_limpo = re.sub(r'[^A-Z0-9 ]', '', remove_accents(nome).upper()).strip()[:25]
-    if not nome_limpo: nome_limpo = "RECEBEDOR"
-    
-    cidade_limpa = re.sub(r'[^A-Z0-9 ]', '', remove_accents(cidade).upper()).strip()[:15]
-    if not cidade_limpa: cidade_limpa = "CIDADE"
-    
-    merchant_name = f("59", nome_limpo)
-    merchant_city = f("60", cidade_limpa)
-    
-    txid_field = f("05", "***")
-    additional_data = f("62", txid_field)
-    
-    payload = (
-        "000201" + "010211" + merchant_account_info + merchant_category_code +
-        currency + amount + country + merchant_name + merchant_city +
-        additional_data + "6304"
-    )
-    
-    crc = 0xFFFF
-    for char in payload:
-        crc ^= ord(char) << 8
-        for _ in range(8):
-            if crc & 0x8000:
-                crc = (crc << 1) ^ 0x1021
-            else:
-                crc <<= 1
-            crc &= 0xFFFF
-    crc_hex = f"{crc:04X}"
-    
-    return payload + crc_hex
-
-base_path = os.path.dirname(os.path.abspath(__file__))
-db_path = os.path.join(base_path, 'banco_arenalive.db')
-
-app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-db_firebase = None 
-
-@app.after_request
-def add_header(response):
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '-1'
-    return response
-
-def init_local_db():
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    
-    c.execute('''CREATE TABLE IF NOT EXISTS ingressos
-                 (codigo TEXT PRIMARY KEY, cpf TEXT, nome TEXT, evento TEXT, status TEXT, sessao_id TEXT, data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-    
-    try: c.execute("ALTER TABLE ingressos ADD COLUMN sessao_id TEXT")
-    except sqlite3.OperationalError: pass 
+        .fade-in { animation: fadeIn 0.4s ease forwards; }
+        .slide-up { animation: slideUp 0.6s ease forwards; }
+        .slide-down-toast { animation: slideDownToast 0.4s ease forwards; }
         
-    try: c.execute("ALTER TABLE ingressos ADD COLUMN nome TEXT")
-    except sqlite3.OperationalError: pass 
-    
-    c.execute('''CREATE TABLE IF NOT EXISTS config_evento
-                 (id INTEGER PRIMARY KEY, titulo_evento TEXT, time_a_nome TEXT, time_a_img TEXT, time_b_nome TEXT, time_b_img TEXT, limite_ingressos INTEGER DEFAULT 100)''')
-    
-    try: c.execute("ALTER TABLE config_evento ADD COLUMN limite_ingressos INTEGER DEFAULT 100")
-    except sqlite3.OperationalError: pass
-
-    try: c.execute("ALTER TABLE config_evento ADD COLUMN low_latency INTEGER DEFAULT 1")
-    except sqlite3.OperationalError: pass
-    try: c.execute("ALTER TABLE config_evento ADD COLUMN sync_duration INTEGER DEFAULT 2")
-    except sqlite3.OperationalError: pass
-    try: c.execute("ALTER TABLE config_evento ADD COLUMN max_latency INTEGER DEFAULT 4")
-    except sqlite3.OperationalError: pass
-    try: c.execute("ALTER TABLE config_evento ADD COLUMN max_buffer INTEGER DEFAULT 10")
-    except sqlite3.OperationalError: pass
-
-    try: c.execute("ALTER TABLE config_evento ADD COLUMN data_hora_evento TEXT")
-    except sqlite3.OperationalError: pass
-
-    try: c.execute("ALTER TABLE config_evento ADD COLUMN status_player TEXT DEFAULT 'auto'")
-    except sqlite3.OperationalError: pass
-
-    c.execute('''CREATE TABLE IF NOT EXISTS chat_mensagens
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, texto TEXT, codigo_ingresso TEXT, data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-
-    c.execute("SELECT COUNT(*) FROM config_evento")
-    if c.fetchone()[0] == 0:
-        c.execute("INSERT INTO config_evento (titulo_evento, time_a_nome, time_a_img, time_b_nome, time_b_img, limite_ingressos) VALUES (?, ?, ?, ?, ?, ?)",
-                  ("Final do Campeonato Mundial", "GIGANTES FC", 
-                   "https://images.unsplash.com/photo-1614632537190-23e4146777db?q=80&w=300&auto=format&fit=crop",
-                   "ALPHA TEAM", 
-                   "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?q=80&w=300&auto=format&fit=crop", 100))
-
-    c.execute('''CREATE TABLE IF NOT EXISTS config_pagamento
-                 (id INTEGER PRIMARY KEY, nome_pix TEXT, cidade_pix TEXT, chave_pix TEXT, valor TEXT, contato TEXT, asaas_token TEXT)''')
-                 
-    try: c.execute("ALTER TABLE config_pagamento ADD COLUMN asaas_token TEXT")
-    except sqlite3.OperationalError: pass
-
-    c.execute("SELECT COUNT(*) FROM config_pagamento")
-    if c.fetchone()[0] == 0:
-        c.execute("INSERT INTO config_pagamento (nome_pix, cidade_pix, chave_pix, valor, contato, asaas_token) VALUES (?, ?, ?, ?, ?, ?)",
-                  (DEFAULT_NOME_PIX, DEFAULT_CIDADE_PIX, DEFAULT_CHAVE_PIX, DEFAULT_VALOR, DEFAULT_CONTATO, ""))
-
-    conn.commit()
-    conn.close()
-
-def init_firebase():
-    global db_firebase
-    cred_path = os.path.join(base_path, "firebase-credentials.json")
-    try:
-        if os.path.exists(cred_path):
-            if not firebase_admin._apps:
-                cred = credentials.Certificate(cred_path)
-                firebase_admin.initialize_app(cred)
-            db_firebase = firestore.client()
-            return True, f"✅ Sincronização Ativa: {firebase_admin.get_app().project_id}"
-        return False, "⚠️ firebase-credentials.json não encontrado"
-    except Exception as e:
-        return False, f"❌ Erro Firebase: {str(e)}"
-
-init_local_db()
-
-def get_pagamento_config():
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("SELECT nome_pix, cidade_pix, chave_pix, valor, contato, asaas_token FROM config_pagamento WHERE id=1")
-    row = c.fetchone()
-    conn.close()
-    if row:
-        token_raw = row[5] if len(row) > 5 and row[5] else ""
-        match = re.search(r'(\$aact_[a-zA-Z0-9_:-]+)', str(token_raw))
-        if match:
-            token_clean = match.group(1)
-        else:
-            token_clean = str(token_raw).replace('\n', '').replace('\r', '').strip()
-        return row[0], row[1], row[2], row[3], row[4], token_clean
-    return DEFAULT_NOME_PIX, DEFAULT_CIDADE_PIX, DEFAULT_CHAVE_PIX, DEFAULT_VALOR, DEFAULT_CONTATO, ""
-
-@app.route('/api/evento', methods=['GET'])
-def get_evento():
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("SELECT titulo_evento, time_a_nome, time_a_img, time_b_nome, time_b_img, limite_ingressos, low_latency, sync_duration, max_latency, max_buffer, data_hora_evento, status_player FROM config_evento WHERE id=1")
-    row = c.fetchone()
-    
-    c.execute("SELECT COUNT(*) FROM ingressos WHERE status='aprovado'")
-    aprovados = c.fetchone()[0]
-    
-    c.execute("SELECT valor FROM config_pagamento WHERE id=1")
-    row_valor = c.fetchone()
-    valor_ingresso = row_valor[0] if row_valor else "19.90"
-    
-    conn.close()
-    
-    if row:
-        limite = row[5] if len(row) > 5 and row[5] is not None else 100
-        restantes = max(0, int(limite) - aprovados)
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideDownToast { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
         
-        low_latency = bool(row[6]) if len(row) > 6 and row[6] is not None else True
-        sync_duration = row[7] if len(row) > 7 and row[7] is not None else 2
-        max_latency = row[8] if len(row) > 8 and row[8] is not None else 4
-        max_buffer = row[9] if len(row) > 9 and row[9] is not None else 10
-        data_hora = row[10] if len(row) > 10 and row[10] else ""
-        status_player = row[11] if len(row) > 11 and row[11] else "auto"
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
         
-        return jsonify({
-            "titulo_evento": row[0], "time_a_nome": row[1], "time_a_img": row[2],
-            "time_b_nome": row[3], "time_b_img": row[4],
-            "limite_ingressos": limite,
-            "ingressos_restantes": restantes,
-            "valor": valor_ingresso,
-            "data_hora_evento": data_hora,
-            "status_player": status_player,
-            "video_config": {
-                "low_latency": low_latency,
-                "sync_duration": sync_duration,
-                "max_latency": max_latency,
-                "max_buffer": max_buffer
-            }
-        })
-    return jsonify({"status": "error"}), 404
+        video { 
+            width: 100%; 
+            height: 100%; 
+            max-height: 100vh;
+            background-color: #000; 
+            outline: none; 
+            object-fit: contain !important;
+        }
+        :-webkit-full-screen video { width: 100vw; height: 100vh; object-fit: contain !important; }
+        :fullscreen video { width: 100vw; height: 100vh; object-fit: contain !important; }
+        .h-dvh-real { height: 100vh; height: 100dvh; }
+        
+        /* Volume Slider */
+        input[type=range]#volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            border-radius: 8px;
+            height: 4px;
+        }
+        input[type=range]#volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.8);
+        }
 
-@app.route('/api/gerar_ingresso', methods=['POST'])
-def gerar_ingresso():
-    req_data = request.get_json(silent=True) or {}
-    cpf = req_data.get('cpf', 'N/A').replace('.', '').replace('-', '')
-    nome_cliente = req_data.get('nome', 'Sem Nome').strip()
-    device_id = req_data.get('device_id', '')
-    
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
+        /* Timeline Slider (Estilo YouTube) */
+        input[type=range]#progress-bar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 14px;
+            width: 14px;
+            background: #dc2626;
+            border-radius: 50%;
+            opacity: 0; 
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .group\/timeline:hover input[type=range]#progress-bar::-webkit-slider-thumb,
+        input[type=range]#progress-bar:active::-webkit-slider-thumb {
+            opacity: 1;
+            transform: scale(1.3);
+        }
 
-    c.execute("SELECT limite_ingressos, titulo_evento FROM config_evento WHERE id=1")
-    evento_config = c.fetchone()
-    limite = evento_config[0] if evento_config and evento_config[0] is not None else 100
-    evento = evento_config[1] if evento_config else 'ArenaLive PPV'
-    
-    c.execute("SELECT COUNT(*) FROM ingressos WHERE status='aprovado'")
-    aprovados = c.fetchone()[0]
-    
-    c.execute("SELECT codigo FROM ingressos WHERE cpf=? ORDER BY data_criacao DESC LIMIT 1", (cpf,))
-    ingresso_existente = c.fetchone()
-    
-    if not ingresso_existente and aprovados >= limite:
-        conn.close()
-        return jsonify({"status": "error", "message": "Os ingressos para este evento esgotaram!"}), 400
+        /* CORREÇÃO DO CURSOR EM TELA CHEIA */
+        .cursor-hidden, .cursor-hidden * {
+            cursor: none !important;
+        }
+    </style>
+</head>
+<body class="min-h-dvh-real flex flex-col overflow-x-hidden selection:bg-indigo-500 selection:text-white bg-[#050505]">
 
-    nome_pix, cidade_pix, chave_pix, valor, contato, asaas_token = get_pagamento_config()
-    
-    def obter_pix_codigo(codigo_ingresso, cpf_cliente, nome_cl):
-        if asaas_token and asaas_token.strip() != "":
-            try:
-                headers = {"access_token": asaas_token.strip(), "Content-Type": "application/json"}
-                base_url = "https://api.asaas.com/v3"
-                customer_id = None
+    <div id="toast-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999] flex flex-col gap-3 pointer-events-none w-full max-w-sm px-4"></div>
+
+    <header id="main-header" class="fixed top-0 w-full border-b border-white/5 glass z-40 px-4 sm:px-8 h-[72px] flex items-center justify-between transition-all">
+        <div class="flex items-center gap-6">
+            <button onclick="goHome(); checkDevMode(event);" class="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95">
+                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-2 rounded-xl shadow-lg shadow-indigo-500/30">
+                    <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+                </div>
+                <span class="text-xl font-black tracking-tighter text-white uppercase drop-shadow-md">
+                    ARENA<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">LIVE</span>
+                </span>
+            </button>
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="btn-logout" onclick="logout()" class="hidden items-center gap-2 text-xs font-bold text-neutral-400 hover:text-red-400 transition-colors bg-white/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg">
+                <i data-lucide="log-out" class="w-4 h-4"></i> <span class="hidden sm:inline">Sair</span>
+            </button>
+            <div id="connection-status" class="flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-red-500 uppercase bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20 backdrop-blur-md cursor-pointer">
+                <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span> Offline
+            </div>
+        </div>
+    </header>
+
+    <div id="view-home" class="flex-1 w-full fade-in pb-20 pt-[72px]">
+        <div class="relative w-full min-h-[85vh] flex flex-col items-center justify-start pb-16 bg-neutral-950 overflow-hidden pt-8 sm:pt-12">
+            
+            <div class="absolute inset-0 z-0">
+                <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover opacity-[0.15] scale-105 transform origin-center animate-[pulse_20s_ease-in-out_infinite]">
+                <div class="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-[#050505]"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent"></div>
+            </div>
+            
+            <div class="relative z-10 max-w-screen-xl mx-auto px-4 sm:px-6 w-full slide-up flex flex-col items-center text-center">
                 
-                res_search = requests.get(f"{base_url}/customers?cpfCnpj={cpf_cliente}", headers=headers)
-                if res_search.status_code == 200 and res_search.json().get("data"):
-                    customer_id = res_search.json()["data"][0]["id"]
-                else:
-                    cust_data = {"name": nome_cl, "cpfCnpj": cpf_cliente}
-                    res_cust = requests.post(f"{base_url}/customers", json=cust_data, headers=headers).json()
+                <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-red-600/20 to-red-500/10 border border-red-500/40 text-red-400 text-xs sm:text-sm font-black uppercase mb-6 backdrop-blur-md shadow-[0_0_20px_rgba(239,68,68,0.2)] tracking-widest">
+                    <span class="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)]"></span> TRANSMISSÃO EXCLUSIVA AO VIVO
+                </div>
+
+                <h1 id="event-title-display" class="text-4xl sm:text-5xl md:text-7xl font-black text-white max-w-5xl mb-12 leading-[1.1] drop-shadow-2xl tracking-tight">
+                    ArenaLive Premium
+                </h1>
+
+                <div class="flex flex-row items-center justify-center w-full mb-12 gap-1 sm:gap-12 md:gap-20">
+                    <div class="flex flex-col items-center relative w-[40%] sm:w-auto">
+                        <div class="absolute inset-0 bg-indigo-500 rounded-full blur-[40px] opacity-20"></div>
+                        <div class="w-24 h-24 sm:w-56 sm:h-56 rounded-full border-[3px] sm:border-[6px] border-indigo-500/80 overflow-hidden mb-3 sm:mb-6 bg-neutral-900 flex items-center justify-center relative z-10 shadow-[0_0_20px_rgba(99,102,241,0.3)] mx-auto">
+                            <img id="team-a-img-display" src="" class="w-full h-full object-cover transform hover:scale-110 transition-transform duration-700">
+                        </div>
+                        <h2 id="team-a-name-display" class="text-lg sm:text-5xl font-black tracking-tighter text-white drop-shadow-xl text-center leading-tight break-words">---</h2>
+                    </div>
+
+                    <div class="flex flex-col items-center justify-center z-10 relative w-[20%] sm:w-auto">
+                        <div class="text-3xl sm:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-br from-indigo-400 via-white to-purple-500 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] filter">VS</div>
+                    </div>
+
+                    <div class="flex flex-col items-center relative w-[40%] sm:w-auto">
+                        <div class="absolute inset-0 bg-purple-500 rounded-full blur-[40px] opacity-20"></div>
+                        <div class="w-24 h-24 sm:w-56 sm:h-56 rounded-full border-[3px] sm:border-[6px] border-purple-500/80 overflow-hidden mb-3 sm:mb-6 bg-neutral-900 flex items-center justify-center relative z-10 shadow-[0_0_20px_rgba(168,85,247,0.3)] mx-auto">
+                            <img id="team-b-img-display" src="" class="w-full h-full object-cover transform hover:scale-110 transition-transform duration-700">
+                        </div>
+                        <h2 id="team-b-name-display" class="text-lg sm:text-5xl font-black tracking-tighter text-white drop-shadow-xl text-center leading-tight break-words">---</h2>
+                    </div>
+                </div>
+
+                <div class="relative w-full max-w-lg mx-auto mt-4 group">
+                    <div class="absolute -inset-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 rounded-[2rem] blur-xl opacity-50 group-hover:opacity-80 transition duration-500 animate-[pulse_3s_ease-in-out_infinite]"></div>
                     
-                    if "errors" in res_cust:
-                        cust_data_no_cpf = {"name": nome_cl}
-                        res_cust_2 = requests.post(f"{base_url}/customers", json=cust_data_no_cpf, headers=headers).json()
-                        customer_id = res_cust_2.get("id")
-                    else:
-                        customer_id = res_cust.get("id")
+                    <div class="relative bg-neutral-950/80 backdrop-blur-2xl border border-white/10 rounded-[1.8rem] p-8 flex flex-col items-center text-center shadow-2xl">
+                        
+                        <div class="flex items-center gap-2 mb-4 bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20">
+                            <i data-lucide="ticket" class="w-4 h-4 text-indigo-400"></i>
+                            <span class="text-indigo-300 font-bold text-xs uppercase tracking-widest">Ingresso Digital VIP</span>
+                        </div>
 
-                if customer_id:
-                    pay_data = {
-                        "customer": customer_id,
-                        "billingType": "PIX",
-                        "value": float(valor.replace(',', '.')),
-                        "dueDate": (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"),
-                        "description": f"Ingresso VIP: {evento}",
-                        "externalReference": codigo_ingresso
-                    }
-                    res_pay = requests.post(f"{base_url}/payments", json=pay_data, headers=headers).json()
-                    
-                    if "errors" not in res_pay:
-                        payment_id = res_pay.get("id")
-                        if payment_id:
-                            res_qr = requests.get(f"{base_url}/payments/{payment_id}/pixQrCode", headers=headers).json()
-                            payload_pix = res_qr.get("payload")
-                            if payload_pix:
-                                return payload_pix
-            except Exception as e: pass
-                
-        return gerar_payload_pix(chave_pix, nome_pix, cidade_pix, valor)
+                        <div class="flex items-start justify-center gap-1.5 mb-6">
+                            <span class="text-2xl text-neutral-400 font-bold mt-2">R$</span>
+                            <span id="home-price-display" class="text-7xl font-black text-white tracking-tighter drop-shadow-2xl">--,--</span>
+                        </div>
 
-    if ingresso_existente:
-        codigo = ingresso_existente[0]
-        c.execute("UPDATE ingressos SET nome=?, sessao_id=? WHERE codigo=?", (nome_cliente, device_id, codigo))
-        conn.commit()
-        conn.close()
-        
-        pix_copia_e_cola = obter_pix_codigo(codigo, cpf, nome_cliente)
-        
-        return jsonify({
-            "status": "success", "codigo": codigo, "chave_pix": pix_copia_e_cola,
-            "nome_pix": nome_pix, "valor": valor, "whatsapp": contato
-        })
-    
-    codigo = "VIP-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-    pix_copia_e_cola = obter_pix_codigo(codigo, cpf, nome_cliente)
-    
-    try:
-        c.execute("INSERT INTO ingressos (codigo, cpf, nome, evento, status, sessao_id) VALUES (?, ?, ?, ?, ?, ?)", 
-                  (codigo, cpf, nome_cliente, evento, 'pendente', device_id))
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            "status": "success", "codigo": codigo, "chave_pix": pix_copia_e_cola,
-            "nome_pix": nome_pix, "valor": valor, "whatsapp": contato
-        })
-    except Exception as e: 
-        return jsonify({"status": "error", "message": str(e)}), 500
+                        <div id="ticket-urgency-container" class="w-full bg-gradient-to-r from-red-600/20 to-orange-500/20 border border-red-500/30 rounded-xl p-4 mb-8 flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(239,68,68,0.15)] relative overflow-hidden transition-all">
+                            <div class="absolute inset-0 bg-red-500/10 animate-[pulse_2s_ease-in-out_infinite]"></div>
+                            <div class="relative flex items-center gap-3">
+                                <i id="urgency-icon" data-lucide="flame" class="w-6 h-6 text-red-500 animate-bounce"></i>
+                                <span id="tickets-remaining-text" class="text-red-400 font-black text-lg uppercase tracking-wide drop-shadow-md">A CARREGAR INGRESSOS...</span>
+                            </div>
+                        </div>
 
-@app.route('/api/webhook/asaas', methods=['POST'])
-def webhook_asaas():
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"status": "ignorado"}), 200
+                        <button id="btn-assistir" onclick="iniciarCompra()" class="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:via-purple-500 hover:to-indigo-500 text-white font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_30px_rgba(99,102,241,0.5)] text-xl group-hover:shadow-[0_0_50px_rgba(99,102,241,0.7)] bg-[length:200%_auto] animate-[gradient_3s_ease_infinite] relative z-20 cursor-pointer">
+                            <i data-lucide="zap" class="w-6 h-6 fill-current"></i> GARANTIR O MEU ACESSO
+                        </button>
+
+                        <div class="w-full grid grid-cols-2 gap-y-4 gap-x-2 mt-8 text-left">
+                            <div class="flex items-center gap-2 text-sm font-semibold text-neutral-300"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-500"></i> Liberação Imediata</div>
+                            <div class="flex items-center gap-2 text-sm font-semibold text-neutral-300"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-500"></i> Qualidade Full HD</div>
+                            <div class="flex items-center gap-2 text-sm font-semibold text-neutral-300"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-500"></i> Sem Travamentos</div>
+                            <div class="flex items-center gap-2 text-sm font-semibold text-neutral-300"><i data-lucide="lock" class="w-5 h-5 text-emerald-500"></i> Pagamento Seguro</div>
+                        </div>
+                        
+                        <div class="w-full border-t border-white/10 mt-8 pt-6">
+                            <button onclick="openPlayer()" class="text-sm font-bold text-neutral-400 hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto bg-white/5 hover:bg-white/10 py-3 px-6 rounded-xl w-full relative z-20 cursor-pointer">
+                                <i data-lucide="log-in" class="w-4 h-4"></i> Já comprei o ingresso! (Entrar)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Vista Player (Dividida entre Vídeo e Chat) - TOTALMENTE REFORMULADA PARA TECLADO MOBILE -->
+    <main id="view-player" class="hidden fixed top-0 left-0 w-full flex-col lg:flex-row bg-black z-50">
+        
+        <div id="player-wrapper" class="relative w-full flex-1 flex flex-col bg-black overflow-hidden transition-all shrink-0">
             
-        evento_asaas = data.get("event")
-        
-        if evento_asaas in ["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]:
-            payment = data.get("payment", {})
-            codigo_ingresso = payment.get("externalReference")
-            
-            if codigo_ingresso:
-                conn = sqlite3.connect(db_path)
-                c = conn.cursor()
-                c.execute("SELECT status FROM ingressos WHERE codigo=?", (codigo_ingresso,))
-                row = c.fetchone()
-                
-                if row:
-                    c.execute("UPDATE ingressos SET status='aprovado' WHERE codigo=?", (codigo_ingresso,))
-                    conn.commit()
-                conn.close()
-                
-        return jsonify({"status": "recebido"}), 200
-    except Exception as e:
-        return jsonify({"status": "erro"}), 500
-
-@app.route('/api/ingresso/<codigo>', methods=['GET'])
-def check_ingresso(codigo):
-    device_id = request.args.get('device', '')
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("SELECT codigo, cpf, evento, status, sessao_id FROM ingressos WHERE codigo=?", (codigo,))
-    row = c.fetchone() 
-    
-    if not row:
-        conn.close()
-        return jsonify({"status": "not_found"}), 404
-        
-    status = row[3]
-    sessao_bd = row[4]
-    
-    if status == 'aprovado' and device_id:
-        if not sessao_bd:
-            c.execute("UPDATE ingressos SET sessao_id=? WHERE codigo=?", (device_id, codigo))
-            conn.commit()
-        elif sessao_bd != device_id:
-            status = 'conflict'
-
-    conn.close()
-    nome_pix, cidade_pix, chave_pix, valor, contato, _ = get_pagamento_config()
-    pix_copia_e_cola = gerar_payload_pix(chave_pix, nome_pix, cidade_pix, valor)
-    
-    return jsonify({
-        "codigo": row[0], "cpf": row[1], "evento": row[2], "status": status, 
-        "chave_pix": pix_copia_e_cola, "nome_pix": nome_pix, "valor": valor, "whatsapp": contato
-    })
-
-@app.route('/api/ingresso_cpf/<cpf>', methods=['GET'])
-def check_ingresso_cpf(cpf):
-    device_id = request.args.get('device', '')
-    cpf_clean = cpf.replace('.', '').replace('-', '')
-    
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("SELECT codigo, cpf, evento, status, sessao_id FROM ingressos WHERE cpf=? ORDER BY data_criacao DESC", (cpf_clean,))
-    rows = c.fetchall()
-    
-    if not rows: 
-        conn.close()
-        return jsonify({"status": "not_found"}), 404
-    
-    nome_pix, cidade_pix, chave_pix, valor, contato, _ = get_pagamento_config()
-    pix_copia_e_cola = gerar_payload_pix(chave_pix, nome_pix, cidade_pix, valor)
-    
-    ticket = next((r for r in rows if r[3] == 'aprovado'), rows[0])
-    codigo = ticket[0]
-    status = ticket[3]
-    sessao_bd = ticket[4]
-
-    if status == 'aprovado' and device_id:
-        if not sessao_bd:
-            c.execute("UPDATE ingressos SET sessao_id=? WHERE codigo=?", (device_id, codigo))
-            conn.commit()
-        elif sessao_bd != device_id:
-            status = 'conflict'
-            
-    conn.close()
-    return jsonify({
-        "codigo": codigo, "cpf": ticket[1], "evento": ticket[2], "status": status, 
-        "chave_pix": pix_copia_e_cola, "nome_pix": nome_pix, "valor": valor, "whatsapp": contato
-    })
-
-@app.route('/api/forcar_acesso', methods=['POST'])
-def forcar_acesso():
-    req_data = request.get_json(silent=True) or {}
-    codigo = req_data.get('codigo')
-    device_id = req_data.get('device_id')
-    
-    if not codigo or not device_id:
-        return jsonify({"status": "error"}), 400
-        
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("UPDATE ingressos SET sessao_id=? WHERE codigo=?", (device_id, codigo))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"})
-
-@app.route('/api/chat', methods=['GET'])
-def get_chat():
-    last_id = request.args.get('last_id', 0, type=int)
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("SELECT id, nome, texto, strftime('%H:%M', datetime(data_criacao, 'localtime')) FROM chat_mensagens WHERE id > ? ORDER BY id ASC LIMIT 100", (last_id,))
-    rows = c.fetchall()
-    conn.close()
-    mensagens = [{"id": r[0], "nome": r[1], "texto": r[2], "hora": r[3]} for r in rows]
-    return jsonify({"status": "success", "mensagens": mensagens})
-
-@app.route('/api/chat', methods=['POST'])
-def post_chat():
-    req_data = request.get_json(silent=True) or {}
-    codigo = req_data.get('codigo')
-    texto = req_data.get('texto', '').strip()
-
-    if not codigo or not texto or len(texto) > 250:
-        return jsonify({"status": "error", "message": "Mensagem inválida"}), 400
-
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("SELECT nome, status FROM ingressos WHERE codigo=?", (codigo,))
-    row = c.fetchone()
-    
-    if not row or row[1] != 'aprovado':
-        conn.close()
-        return jsonify({"status": "error", "message": "Acesso negado"}), 403
-
-    nome_cliente = row[0]
-    c.execute("INSERT INTO chat_mensagens (nome, texto, codigo_ingresso) VALUES (?, ?, ?)", (nome_cliente, texto, codigo))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"})
-
-class ServerThread(threading.Thread):
-    def __init__(self, app):
-        threading.Thread.__init__(self)
-        self.server = make_server('0.0.0.0', 5000, app) 
-    def run(self): self.server.serve_forever() 
-    def shutdown(self): self.server.shutdown() 
-
-class AdminApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("ArenaLive Premium - Servidor Local + Cloudflare Sync")
-        self.root.geometry("1200x850")
-        self.root.configure(bg="#f3f4f6")
-        self.server_thread = None
-        self.cf_processes = [] 
-        self.filtro_atual = "TODOS"
-        
-        self.container = ttk.Frame(root)
-        self.container.pack(fill=tk.BOTH, expand=True)
-
-        self.canvas = tk.Canvas(self.container, bg="#f3f4f6", highlightthickness=0)
-        self.scrollbar = ttk.Scrollbar(self.container, orient="vertical", command=self.canvas.yview)
-        
-        main_frame = ttk.Frame(self.canvas, padding=20)
-        main_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
-        
-        self.canvas_window = self.canvas.create_window((0, 0), window=main_frame, anchor="nw")
-        
-        def configure_canvas(event):
-            self.canvas.itemconfig(self.canvas_window, width=event.width)
-        self.canvas.bind("<Configure>", configure_canvas)
-
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
-        self.canvas.pack(side="left", fill="both", expand=True)
-        self.scrollbar.pack(side="right", fill="y")
-        
-        def _on_mousewheel(event):
-            try:
-                widget = self.root.winfo_containing(event.x_root, event.y_root)
-            except KeyError:
-                # Corrige o bug do Tkinter ao fazer scroll por cima do menu de Horas (popdown)
-                return
-                
-            if widget and 'treeview' in str(widget).lower(): return
-            if hasattr(event, 'delta') and event.delta != 0:
-                self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-                
-        self.root.bind_all("<MouseWheel>", _on_mousewheel)
-        self.root.bind_all("<Button-4>", lambda e: self.canvas.yview_scroll(-1, "units"))
-        self.root.bind_all("<Button-5>", lambda e: self.canvas.yview_scroll(1, "units"))
-
-        ttk.Label(main_frame, text="Painel de Controlo ArenaLive", font=("Segoe UI", 18, "bold"), background="#f3f4f6").pack(pady=(0, 5))
-        
-        res, msg = init_firebase()
-        ttk.Label(main_frame, text=msg, foreground="green" if res else "red", font=("Segoe UI", 9, "bold")).pack(pady=(0, 10))
-
-        self.notebook = ttk.Notebook(main_frame)
-        self.notebook.pack(fill=tk.BOTH, expand=True)
-
-        self.tab_ingressos = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_ingressos, text="🎟️ Dashboard & Ingressos")
-
-        self.tab_config = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_config, text="⚙️ Configurar Evento")
-
-        self.tab_video = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_video, text="🎥 Player de Vídeo")
-
-        self.tab_chat = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_chat, text="💬 Chat ao Vivo")
-
-        self.tab_pagamento = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_pagamento, text="💰 Configurar PIX")
-
-        self.tab_firebase = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_firebase, text="🔥 Servidor Firebase")
-
-        self.setup_tab_ingressos()
-        self.setup_tab_config()
-        self.setup_tab_video()
-        self.setup_tab_chat()
-        self.setup_tab_pagamento()
-        self.setup_tab_firebase()
-        
-        self.auto_refresh()
-
-    def setup_tab_ingressos(self):
-        dash_frame = ttk.LabelFrame(self.tab_ingressos, text="📊 Resumo Financeiro e de Acessos", padding=15)
-        dash_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        style = ttk.Style()
-        style.configure("TLabelDash.TLabel", font=("Segoe UI", 14, "bold"))
-        style.configure("TLabelDashValue.TLabel", font=("Segoe UI", 24, "bold"), foreground="#4f46e5")
-        
-        frame_aprovados = ttk.Frame(dash_frame)
-        frame_aprovados.pack(side=tk.LEFT, expand=True)
-        ttk.Label(frame_aprovados, text="Aprovados (Assistindo)", font=("Segoe UI", 10)).pack()
-        self.lbl_metric_aprovados = ttk.Label(frame_aprovados, text="0", style="TLabelDashValue.TLabel", foreground="#16a34a")
-        self.lbl_metric_aprovados.pack()
-
-        frame_pendentes = ttk.Frame(dash_frame)
-        frame_pendentes.pack(side=tk.LEFT, expand=True)
-        ttk.Label(frame_pendentes, text="Pendentes (A aguardar)", font=("Segoe UI", 10)).pack()
-        self.lbl_metric_pendentes = ttk.Label(frame_pendentes, text="0", style="TLabelDashValue.TLabel", foreground="#d97706")
-        self.lbl_metric_pendentes.pack()
-        
-        frame_restantes = ttk.Frame(dash_frame)
-        frame_restantes.pack(side=tk.LEFT, expand=True)
-        ttk.Label(frame_restantes, text="Ingressos Restantes", font=("Segoe UI", 10)).pack()
-        self.lbl_metric_restantes = ttk.Label(frame_restantes, text="0", style="TLabelDashValue.TLabel", foreground="#9333ea")
-        self.lbl_metric_restantes.pack()
-
-        frame_faturacao = ttk.Frame(dash_frame)
-        frame_faturacao.pack(side=tk.LEFT, expand=True)
-        ttk.Label(frame_faturacao, text="Faturação Total", font=("Segoe UI", 10)).pack()
-        self.lbl_metric_faturacao = ttk.Label(frame_faturacao, text="R$ 0,00", style="TLabelDashValue.TLabel", foreground="#2563eb")
-        self.lbl_metric_faturacao.pack()
-
-        status_frame = ttk.LabelFrame(self.tab_ingressos, text="Cloudflare & Servidor", padding=10)
-        status_frame.pack(fill=tk.X, pady=5)
-
-        btn_frame = ttk.Frame(status_frame)
-        btn_frame.pack(side=tk.LEFT, padx=10)
-        self.btn_start = ttk.Button(btn_frame, text="🚀 LIGAR SERVIDOR", command=self.start_everything)
-        self.btn_start.pack()
-
-        lbl_frame = ttk.Frame(status_frame)
-        lbl_frame.pack(side=tk.LEFT, padx=20)
-        
-        self.lbl_api = ttk.Label(lbl_frame, text="API: Offline", foreground="red", font=("Segoe UI", 9, "bold"), cursor="hand2")
-        self.lbl_api.pack(anchor="w")
-        self.lbl_video = ttk.Label(lbl_frame, text="Vídeo: Offline", foreground="red", font=("Segoe UI", 9, "bold"), cursor="hand2")
-        self.lbl_video.pack(anchor="w")
-        
-        self.lbl_api.bind("<Button-1>", lambda e: self.copiar_link(self.lbl_api.cget("text")))
-        self.lbl_video.bind("<Button-1>", lambda e: self.copiar_link(self.lbl_video.cget("text")))
-
-        search_frame = ttk.Frame(self.tab_ingressos, padding=5)
-        search_frame.pack(fill=tk.X)
-        ttk.Label(search_frame, text="🔍 Pesquisar:").pack(side=tk.LEFT, padx=(0, 5))
-        self.ent_search = ttk.Entry(search_frame, width=35)
-        self.ent_search.pack(side=tk.LEFT, padx=5)
-        self.ent_search.insert(0, "Nome, CPF ou Código VIP")
-        self.ent_search.bind("<FocusIn>", lambda args: self.ent_search.delete('0', 'end') if self.ent_search.get() == 'Nome, CPF ou Código VIP' else None)
-        ttk.Button(search_frame, text="Procurar", command=lambda: self.refresh(force_search=True)).pack(side=tk.LEFT, padx=5)
-        ttk.Button(search_frame, text="Limpar", command=self.limpar_pesquisa).pack(side=tk.LEFT, padx=5)
-
-        ttk.Label(search_frame, text=" | Filtros Rápidos:").pack(side=tk.LEFT, padx=(10, 5))
-        ttk.Button(search_frame, text="Ver Todos", command=lambda: self.set_filtro("TODOS")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(search_frame, text="Só Pendentes", command=lambda: self.set_filtro("PENDENTE")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(search_frame, text="Só Aprovados", command=lambda: self.set_filtro("APROVADO")).pack(side=tk.LEFT, padx=2)
-
-        table_frame = ttk.LabelFrame(self.tab_ingressos, text="Lista de Ingressos (Dica: Duplo-clique para copiar)", padding=10)
-        table_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-
-        cols = ("codigo", "nome", "cpf", "evento", "status", "hora")
-        self.tree = ttk.Treeview(table_frame, columns=cols, show="headings")
-        
-        self.tree.heading("codigo", text="CÓDIGO VIP")
-        self.tree.heading("nome", text="NOME")
-        self.tree.heading("cpf", text="CPF")
-        self.tree.heading("evento", text="EVENTO")
-        self.tree.heading("status", text="STATUS")
-        self.tree.heading("hora", text="HORA")
-        
-        self.tree.column("codigo", width=100)
-        self.tree.column("nome", width=180)
-        self.tree.column("cpf", width=120)
-        self.tree.column("evento", width=150)
-        self.tree.column("status", width=90)
-        self.tree.column("hora", width=120)
-
-        self.tree.tag_configure('aprovado', background='#dcfce7') 
-        self.tree.tag_configure('pendente', background='#fef08a') 
-
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview)
-        self.tree.configure(yscroll=scrollbar.set)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        self.tree.bind("<Double-1>", self.copiar_dado)
-        
-        action_frame = ttk.Frame(self.tab_ingressos, padding=10)
-        action_frame.pack(fill=tk.X)
-        
-        ttk.Button(action_frame, text="✅ APROVAR", command=self.aprovar).pack(side=tk.LEFT, padx=5)
-        ttk.Button(action_frame, text="⛔ DESATIVAR", command=self.desativar).pack(side=tk.LEFT, padx=5)
-        ttk.Button(action_frame, text="🗑️ EXCLUIR", command=self.excluir).pack(side=tk.LEFT, padx=5)
-
-        danger_frame = ttk.LabelFrame(self.tab_ingressos, text="⚠️ Zona de Perigo", padding=10)
-        danger_frame.pack(fill=tk.X, pady=5)
-        
-        btn_encerrar = tk.Button(danger_frame, text="🔴 ENCERRAR EVENTO (Apagar Todos os Ingressos)", 
-                                 bg="#ef4444", fg="white", font=("Segoe UI", 10, "bold"), 
-                                 command=self.encerrar_evento)
-        btn_encerrar.pack(fill=tk.X, ipady=5)
-
-    def copiar_link(self, texto):
-        if "http" in texto:
-            url = texto.split(": ", 1)[1] if ": " in texto else texto
-            self.root.clipboard_clear()
-            self.root.clipboard_append(url)
-            old_title = self.root.title()
-            self.root.title(f"✅ Link copiado: {url}")
-            self.root.after(2000, lambda: self.root.title(old_title))
-
-    def copiar_direto(self, texto, nome):
-        self.root.clipboard_clear()
-        self.root.clipboard_append(texto)
-        old_title = self.root.title()
-        self.root.title(f"✅ {nome} copiado!")
-        self.root.after(2000, lambda: self.root.title(old_title))
-
-    def limpar_pesquisa(self):
-        self.ent_search.delete(0, tk.END)
-        self.ent_search.insert(0, "Nome, CPF ou Código VIP")
-        self.set_filtro("TODOS")
-
-    def set_filtro(self, filtro):
-        self.filtro_atual = filtro
-        self.refresh(force_search=True)
-
-    def copiar_dado(self, event):
-        item_id = self.tree.selection()
-        if not item_id: return
-        item = self.tree.item(item_id[0])
-        col_id = self.tree.identify_column(event.x)
-        
-        valor = ""
-        if col_id == '#1': valor = item['values'][0]
-        elif col_id == '#2': valor = item['values'][1]
-        elif col_id == '#3': valor = item['values'][2]
-        else: valor = item['values'][0]
-            
-        self.root.clipboard_clear()
-        self.root.clipboard_append(str(valor))
-        old_title = self.root.title()
-        self.root.title(f"✅ Copiado: {valor}")
-        self.root.after(2000, lambda: self.root.title(old_title))
-
-    def setup_tab_config(self):
-        form_frame = ttk.Frame(self.tab_config, padding=20)
-        form_frame.pack(fill=tk.BOTH, expand=True)
-
-        ttk.Label(form_frame, text="Título do Evento:").grid(row=0, column=0, sticky='w', pady=5)
-        self.ent_titulo = ttk.Entry(form_frame, width=60)
-        self.ent_titulo.grid(row=0, column=1, pady=5, padx=10)
-
-        ttk.Label(form_frame, text="Nome da Equipa A:").grid(row=1, column=0, sticky='w', pady=5)
-        self.ent_time_a_nome = ttk.Entry(form_frame, width=60)
-        self.ent_time_a_nome.grid(row=1, column=1, pady=5, padx=10)
-
-        ttk.Label(form_frame, text="Imagem Equipa A (URL):").grid(row=2, column=0, sticky='w', pady=5)
-        self.ent_time_a_img = ttk.Entry(form_frame, width=60)
-        self.ent_time_a_img.grid(row=2, column=1, pady=5, padx=10)
-
-        ttk.Label(form_frame, text="Nome da Equipa B:").grid(row=3, column=0, sticky='w', pady=5)
-        self.ent_time_b_nome = ttk.Entry(form_frame, width=60)
-        self.ent_time_b_nome.grid(row=3, column=1, pady=5, padx=10)
-
-        ttk.Label(form_frame, text="Imagem Equipa B (URL):").grid(row=4, column=0, sticky='w', pady=5)
-        self.ent_time_b_img = ttk.Entry(form_frame, width=60)
-        self.ent_time_b_img.grid(row=4, column=1, pady=5, padx=10)
-
-        ttk.Label(form_frame, text="Limite de Ingressos:").grid(row=5, column=0, sticky='w', pady=5)
-        self.ent_limite = ttk.Entry(form_frame, width=60)
-        self.ent_limite.grid(row=5, column=1, pady=5, padx=10)
-
-        # --- RESTAURADO: Campo com Calendário Visual ---
-        ttk.Label(form_frame, text="Data/Hora do Evento:").grid(row=6, column=0, sticky='w', pady=5)
-        
-        date_frame = ttk.Frame(form_frame)
-        date_frame.grid(row=6, column=1, sticky='w', pady=5, padx=10)
-        
-        self.ent_data_hora = ttk.Entry(date_frame, width=25)
-        self.ent_data_hora.pack(side=tk.LEFT)
-        
-        ttk.Button(date_frame, text="📅 Escolher no Calendário", command=self.abrir_calendario).pack(side=tk.LEFT, padx=5)
-        ttk.Button(date_frame, text="Limpar", command=lambda: self.ent_data_hora.delete(0, tk.END)).pack(side=tk.LEFT)
-        # -----------------------------------------------
-
-        ttk.Label(form_frame, text="*Deixa em branco se o jogo já tiver começado.", foreground="gray", font=("Segoe UI", 8)).grid(row=7, column=1, sticky='w', padx=10)
-
-        # --- SIMPLIFICADO: Apenas 2 Opções! ---
-        ttk.Label(form_frame, text="Controlo da Transmissão:").grid(row=8, column=0, sticky='w', pady=15)
-        self.combo_status_player = ttk.Combobox(form_frame, values=["TELA DE ESPERA", "AO VIVO"], state="readonly", width=40)
-        self.combo_status_player.grid(row=8, column=1, pady=15, sticky='w', padx=10)
-        self.combo_status_player.set("TELA DE ESPERA")
-        # --------------------------------------
-
-        ttk.Button(form_frame, text="💾 GUARDAR CONFRONTO", command=self.salvar_config_evento).grid(row=9, column=0, columnspan=2, pady=30)
-        self.carregar_config_evento()
-
-    def abrir_calendario(self):
-        import calendar
-        
-        top = tk.Toplevel(self.root)
-        top.title("Calendário")
-        top.geometry("320x420")
-        top.configure(bg="#ffffff")
-        top.transient(self.root)
-        top.grab_set()
-        top.resizable(False, False)
-        
-        now = datetime.now()
-        current_year = tk.IntVar(value=now.year)
-        current_month = tk.IntVar(value=now.month)
-        
-        selected_date = {"day": now.day, "month": now.month, "year": now.year}
-        
-        header_frame = tk.Frame(top, bg="#4f46e5", pady=10)
-        header_frame.pack(fill=tk.X)
-        
-        lbl_month_year = tk.Label(header_frame, text="", bg="#4f46e5", fg="white", font=("Segoe UI", 12, "bold"))
-        lbl_month_year.pack(side=tk.TOP)
-        
-        nav_frame = tk.Frame(header_frame, bg="#4f46e5")
-        nav_frame.pack(fill=tk.X, padx=10)
-        
-        cal_frame = tk.Frame(top, bg="white")
-        cal_frame.pack(pady=10, padx=10)
-        
-        def update_calendar():
-            for widget in cal_frame.winfo_children():
-                widget.destroy()
-                
-            y = current_year.get()
-            m = current_month.get()
-            meses = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-            lbl_month_year.config(text=f"{meses[m]} {y}")
-            
-            days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
-            for col, day in enumerate(days):
-                tk.Label(cal_frame, text=day, bg="white", fg="#6b7280", font=("Segoe UI", 9, "bold")).grid(row=0, column=col, pady=5)
-                
-            cal = calendar.monthcalendar(y, m)
-            for row_idx, week in enumerate(cal):
-                for col_idx, day in enumerate(week):
-                    if day != 0:
-                        btn = tk.Button(cal_frame, text=str(day), width=3, relief=tk.FLAT, bg="white", cursor="hand2")
-                        if day == selected_date["day"] and m == selected_date["month"] and y == selected_date["year"]:
-                            btn.config(bg="#4f46e5", fg="white", font=("Segoe UI", 9, "bold"))
-                        else:
-                            btn.config(font=("Segoe UI", 9))
-                        btn.config(command=lambda d=day: select_day(d))
-                        btn.grid(row=row_idx+1, column=col_idx, pady=2, padx=2)
-
-        def select_day(day):
-            selected_date["day"] = day
-            selected_date["month"] = current_month.get()
-            selected_date["year"] = current_year.get()
-            update_calendar()
-            
-        def prev_month():
-            m = current_month.get() - 1
-            if m < 1:
-                m = 12
-                current_year.set(current_year.get() - 1)
-            current_month.set(m)
-            update_calendar()
-
-        def next_month():
-            m = current_month.get() + 1
-            if m > 12:
-                m = 1
-                current_year.set(current_year.get() + 1)
-            current_month.set(m)
-            update_calendar()
-            
-        tk.Button(nav_frame, text="◄ Anterior", bg="#4f46e5", fg="white", bd=0, font=("Segoe UI", 9, "bold"), cursor="hand2", command=prev_month).pack(side=tk.LEFT)
-        tk.Button(nav_frame, text="Próximo ►", bg="#4f46e5", fg="white", bd=0, font=("Segoe UI", 9, "bold"), cursor="hand2", command=next_month).pack(side=tk.RIGHT)
-
-        update_calendar()
-        
-        time_frame = tk.Frame(top, bg="white")
-        time_frame.pack(pady=10)
-        
-        tk.Label(time_frame, text="Hora do Evento:", bg="white", font=("Segoe UI", 10, "bold"), fg="#374151").pack(side=tk.LEFT, padx=(0, 10))
-        cb_hora = ttk.Combobox(time_frame, values=[f"{i:02d}" for i in range(24)], width=3, state="readonly", font=("Segoe UI", 10))
-        cb_hora.set(f"{now.hour:02d}")
-        cb_hora.pack(side=tk.LEFT, padx=2)
-        
-        tk.Label(time_frame, text=":", bg="white", font=("Segoe UI", 10, "bold")).pack(side=tk.LEFT)
-        
-        cb_min = ttk.Combobox(time_frame, values=[f"{i:02d}" for i in range(60)], width=3, state="readonly", font=("Segoe UI", 10))
-        cb_min.set("00")
-        cb_min.pack(side=tk.LEFT, padx=2)
-        
-        def confirmar():
-            d = selected_date["day"]
-            m = selected_date["month"]
-            y = selected_date["year"]
-            h = cb_hora.get()
-            mn = cb_min.get()
-            data_str = f"{d:02d}/{m:02d}/{y} {h}:{mn}"
-            self.ent_data_hora.delete(0, tk.END)
-            self.ent_data_hora.insert(0, data_str)
-            top.destroy()
-            
-        tk.Button(top, text="✔ CONFIRMAR DATA", bg="#10b981", fg="white", font=("Segoe UI", 10, "bold"), cursor="hand2", relief=tk.FLAT, command=confirmar, padx=20, pady=8).pack(pady=15)
-
-    def setup_tab_video(self):
-        form_frame = ttk.Frame(self.tab_video, padding=20)
-        form_frame.pack(fill=tk.BOTH, expand=True)
-        
-        obs_frame = ttk.LabelFrame(form_frame, text="📡 Configuração do OBS Studio (Transmissão)", padding=15)
-        obs_frame.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 20))
-        
-        ttk.Label(obs_frame, text="Servidor (URL):", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky='w', pady=5)
-        ent_obs_server = ttk.Entry(obs_frame, width=50)
-        ent_obs_server.insert(0, "rtmp://localhost:1935/live")
-        ent_obs_server.config(state='readonly')
-        ent_obs_server.grid(row=0, column=1, padx=10, pady=5)
-        ttk.Button(obs_frame, text="Copiar", command=lambda: self.copiar_direto("rtmp://localhost:1935/live", "Servidor OBS")).grid(row=0, column=2, padx=5)
-
-        ttk.Label(obs_frame, text="Chave de Transmissão:", font=("Segoe UI", 10, "bold")).grid(row=1, column=0, sticky='w', pady=5)
-        ent_obs_key = ttk.Entry(obs_frame, width=50)
-        ent_obs_key.insert(0, "stream")
-        ent_obs_key.config(state='readonly')
-        ent_obs_key.grid(row=1, column=1, padx=10, pady=5)
-        ttk.Button(obs_frame, text="Copiar", command=lambda: self.copiar_direto("stream", "Chave OBS")).grid(row=1, column=2, padx=5)
-
-        ttk.Label(form_frame, text="Configurações de Latência e Buffer", font=("Segoe UI", 14, "bold")).grid(row=1, column=0, columnspan=2, pady=(10, 20), sticky='w')
-
-        self.var_low_latency = tk.BooleanVar(value=True)
-        ttk.Checkbutton(form_frame, text="Ativar Modo Ultra Baixa Latência (Recomendado para o Tempo Real)", variable=self.var_low_latency).grid(row=2, column=0, columnspan=2, sticky='w', pady=5)
-
-        ttk.Label(form_frame, text="Atraso do Ao Vivo (Segmentos - Padrão: 2):").grid(row=3, column=0, sticky='w', pady=10)
-        self.ent_sync = ttk.Entry(form_frame, width=20)
-        self.ent_sync.grid(row=3, column=1, pady=10, sticky='w')
-        ttk.Label(form_frame, text="* 2 = Cola o vídeo no tempo real. 5 = Gera atraso, mas evita que o vídeo trave em internets fracas.", foreground="gray", font=("Segoe UI", 8)).grid(row=4, column=0, columnspan=2, sticky='w')
-
-        ttk.Label(form_frame, text="Latência Máxima Tolerada (Segmentos - Padrão: 4):").grid(row=5, column=0, sticky='w', pady=10)
-        self.ent_max_latency = ttk.Entry(form_frame, width=20)
-        self.ent_max_latency.grid(row=5, column=1, pady=10, sticky='w')
-        ttk.Label(form_frame, text="* Se a internet do cliente atrasar o vídeo além deste limite, o player salta para o vivo automaticamente.", foreground="gray", font=("Segoe UI", 8)).grid(row=6, column=0, columnspan=2, sticky='w')
-
-        ttk.Label(form_frame, text="Tamanho Máximo do Buffer (Segundos - Padrão: 10):").grid(row=7, column=0, sticky='w', pady=10)
-        self.ent_buffer = ttk.Entry(form_frame, width=20)
-        self.ent_buffer.grid(row=7, column=1, pady=10, sticky='w')
-
-        ttk.Button(form_frame, text="💾 GUARDAR CONFIGURAÇÕES DE VÍDEO", command=self.salvar_config_video).grid(row=8, column=0, columnspan=2, pady=30)
-        self.carregar_config_video()
-
-    def carregar_config_video(self):
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute("SELECT low_latency, sync_duration, max_latency, max_buffer FROM config_evento WHERE id=1")
-        row = c.fetchone()
-        conn.close()
-        if row:
-            ll = bool(row[0]) if row[0] is not None else True
-            sy = row[1] if row[1] is not None else 2
-            ml = row[2] if row[2] is not None else 4
-            mb = row[3] if row[3] is not None else 10
-            
-            self.var_low_latency.set(ll)
-            self.ent_sync.delete(0, tk.END); self.ent_sync.insert(0, str(sy))
-            self.ent_max_latency.delete(0, tk.END); self.ent_max_latency.insert(0, str(ml))
-            self.ent_buffer.delete(0, tk.END); self.ent_buffer.insert(0, str(mb))
-
-    def salvar_config_video(self):
-        try:
-            ll = 1 if self.var_low_latency.get() else 0
-            sy = int(self.ent_sync.get())
-            ml = int(self.ent_max_latency.get())
-            mb = int(self.ent_buffer.get())
-            
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
-            c.execute('''UPDATE config_evento 
-                         SET low_latency=?, sync_duration=?, max_latency=?, max_buffer=? 
-                         WHERE id=1''', (ll, sy, ml, mb))
-            conn.commit()
-            conn.close()
-            messagebox.showinfo("Sucesso", "Definições do Player atualizadas!")
-        except ValueError:
-            messagebox.showerror("Erro", "Usa apenas números inteiros nos campos de vídeo.")
-
-    def setup_tab_pagamento(self):
-        form_frame = ttk.Frame(self.tab_pagamento, padding=20)
-        form_frame.pack(fill=tk.BOTH, expand=True)
-
-        ttk.Label(form_frame, text="Nome no PIX:").grid(row=0, column=0, sticky='w', pady=5)
-        self.ent_nome_pix = ttk.Entry(form_frame, width=50)
-        self.ent_nome_pix.grid(row=0, column=1, pady=5, padx=10)
-
-        ttk.Label(form_frame, text="Cidade do PIX:").grid(row=1, column=0, sticky='w', pady=5)
-        self.ent_cidade_pix = ttk.Entry(form_frame, width=50)
-        self.ent_cidade_pix.grid(row=1, column=1, pady=5, padx=10)
-
-        ttk.Label(form_frame, text="Chave PIX:").grid(row=2, column=0, sticky='w', pady=5)
-        self.ent_chave_pix = ttk.Entry(form_frame, width=50)
-        self.ent_chave_pix.grid(row=2, column=1, pady=5, padx=10)
-
-        ttk.Label(form_frame, text="Valor:").grid(row=3, column=0, sticky='w', pady=5)
-        self.ent_valor = ttk.Entry(form_frame, width=50)
-        self.ent_valor.grid(row=3, column=1, pady=5, padx=10)
-
-        ttk.Label(form_frame, text="Contato (Telegram):").grid(row=4, column=0, sticky='w', pady=5)
-        self.ent_contato = ttk.Entry(form_frame, width=50)
-        self.ent_contato.grid(row=4, column=1, pady=5, padx=10)
-        
-        ttk.Label(form_frame, text="Token Asaas (Opcional):").grid(row=5, column=0, sticky='w', pady=5)
-        self.ent_asaas_token = ttk.Entry(form_frame, width=50, show="*")
-        self.ent_asaas_token.grid(row=5, column=1, pady=5, padx=10)
-
-        ttk.Button(form_frame, text="💾 GUARDAR PAGAMENTO", command=self.salvar_config_pagamento).grid(row=6, column=0, columnspan=2, pady=30)
-        self.carregar_config_pagamento()
-
-    def carregar_config_evento(self):
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute("SELECT titulo_evento, time_a_nome, time_a_img, time_b_nome, time_b_img, limite_ingressos, data_hora_evento, status_player FROM config_evento WHERE id=1")
-        row = c.fetchone()
-        conn.close()
-        if row:
-            self.ent_titulo.insert(0, row[0])
-            self.ent_time_a_nome.insert(0, row[1])
-            self.ent_time_a_img.insert(0, row[2])
-            self.ent_time_b_nome.insert(0, row[3])
-            self.ent_time_b_img.insert(0, row[4])
-            
-            self.ent_limite.delete(0, tk.END)
-            limite = row[5] if len(row) > 5 and row[5] is not None else 100
-            self.ent_limite.insert(0, str(limite))
-
-            if len(row) > 6 and row[6]:
-                self.ent_data_hora.delete(0, tk.END)
-                self.ent_data_hora.insert(0, str(row[6]))
-                
-            if len(row) > 7 and row[7]:
-                status_db = row[7]
-                if status_db == 'live': self.combo_status_player.set("AO VIVO")
-                else: self.combo_status_player.set("TELA DE ESPERA")
-
-    def salvar_config_evento(self):
-        titulo = self.ent_titulo.get()
-        ta_nome = self.ent_time_a_nome.get()
-        ta_img = self.ent_time_a_img.get()
-        tb_nome = self.ent_time_b_nome.get()
-        tb_img = self.ent_time_b_img.get()
-        data_hora = self.ent_data_hora.get()
-        
-        status_sel = self.combo_status_player.get()
-        if status_sel == "AO VIVO": status_val = 'live'
-        else: status_val = 'auto' # Magia: O sistema entende 'Tela de Espera' como o modo de arrancar automático!
-        
-        try: limite = int(self.ent_limite.get())
-        except:
-            limite = 100
-            self.ent_limite.delete(0, tk.END)
-            self.ent_limite.insert(0, "100")
-
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute('''UPDATE config_evento 
-                     SET titulo_evento=?, time_a_nome=?, time_a_img=?, time_b_nome=?, time_b_img=?, limite_ingressos=?, data_hora_evento=?, status_player=? 
-                     WHERE id=1''', (titulo, ta_nome, ta_img, tb_nome, tb_img, limite, data_hora, status_val))
-        conn.commit()
-        conn.close()
-        messagebox.showinfo("Sucesso", "Evento atualizado!")
-
-    def carregar_config_pagamento(self):
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute("SELECT nome_pix, cidade_pix, chave_pix, valor, contato, asaas_token FROM config_pagamento WHERE id=1")
-        row = c.fetchone()
-        conn.close()
-        if row:
-            self.ent_nome_pix.insert(0, row[0])
-            self.ent_cidade_pix.insert(0, row[1])
-            self.ent_chave_pix.insert(0, row[2])
-            self.ent_valor.insert(0, row[3])
-            self.ent_contato.insert(0, row[4])
-            if len(row) > 5 and row[5]:
-                self.ent_asaas_token.insert(0, row[5])
-
-    def salvar_config_pagamento(self):
-        nome = self.ent_nome_pix.get()
-        cidade = self.ent_cidade_pix.get()
-        chave = self.ent_chave_pix.get()
-        valor = self.ent_valor.get().replace(',', '.') 
-        contato = self.ent_contato.get()
-        asaas_token_raw = self.ent_asaas_token.get()
-        
-        match = re.search(r'(\$aact_[a-zA-Z0-9_:-]+)', str(asaas_token_raw))
-        if match:
-            asaas_token = match.group(1)
-            self.ent_asaas_token.delete(0, tk.END)
-            self.ent_asaas_token.insert(0, asaas_token)
-        else:
-            asaas_token = str(asaas_token_raw).replace('\n', '').replace('\r', '').strip()
-
-        try:
-            valor_check = float(valor)
-            if asaas_token and valor_check < 5.0:
-                messagebox.showwarning("Aviso Asaas", "O Asaas exige um valor mínimo de R$ 5,00. A aprovação automática não vai funcionar com esse valor!")
-        except: pass
-
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute('''UPDATE config_pagamento 
-                     SET nome_pix=?, cidade_pix=?, chave_pix=?, valor=?, contato=?, asaas_token=? 
-                     WHERE id=1''', (nome, cidade, chave, valor, contato, asaas_token))
-        conn.commit()
-        conn.close()
-        messagebox.showinfo("Sucesso", "Pagamento guardado!")
-
-    def setup_tab_chat(self):
-        action_frame = ttk.Frame(self.tab_chat, padding=10)
-        action_frame.pack(fill=tk.X)
-        
-        ttk.Button(action_frame, text="🗑️ APAGAR MENSAGEM", command=self.apagar_mensagem_chat).pack(side=tk.LEFT, padx=5)
-        ttk.Button(action_frame, text="☢️ LIMPAR TODO O CHAT", command=self.limpar_todo_chat).pack(side=tk.RIGHT, padx=5)
-
-        table_frame = ttk.LabelFrame(self.tab_chat, text="Moderação do Chat ao Vivo", padding=10)
-        table_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-
-        cols = ("id", "hora", "nome", "texto", "codigo")
-        self.tree_chat = ttk.Treeview(table_frame, columns=cols, show="headings")
-        
-        self.tree_chat.heading("id", text="ID")
-        self.tree_chat.heading("hora", text="HORA")
-        self.tree_chat.heading("nome", text="NOME")
-        self.tree_chat.heading("texto", text="MENSAGEM")
-        self.tree_chat.heading("codigo", text="VIP CODE")
-        
-        self.tree_chat.column("id", width=50, stretch=False)
-        self.tree_chat.column("hora", width=80, stretch=False)
-        self.tree_chat.column("nome", width=150)
-        self.tree_chat.column("texto", width=400)
-        self.tree_chat.column("codigo", width=100)
-
-        self.tree_chat.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree_chat.yview)
-        self.tree_chat.configure(yscroll=scrollbar.set)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-    def apagar_mensagem_chat(self):
-        sel = self.tree_chat.selection()
-        if not sel: return
-        msg_id = self.tree_chat.item(sel[0])['values'][0]
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute("DELETE FROM chat_mensagens WHERE id=?", (msg_id,))
-        conn.commit()
-        conn.close()
-        self.refresh_chat()
-
-    def limpar_todo_chat(self):
-        if messagebox.askyesno("⚠️ AVISO", "Tens a certeza que queres apagar TODAS as mensagens do chat?"):
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
-            c.execute("DELETE FROM chat_mensagens")
-            conn.commit()
-            conn.close()
-            self.refresh_chat()
-
-    def refresh_chat(self):
-        selected_id = None
-        sel = self.tree_chat.selection()
-        if sel:
-            try: selected_id = self.tree_chat.item(sel[0])['values'][0]
-            except: pass
-
-        for r in self.tree_chat.get_children(): self.tree_chat.delete(r)
-        
-        try:
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
-            c.execute("SELECT id, strftime('%H:%M:%S', datetime(data_criacao, 'localtime')), nome, texto, codigo_ingresso FROM chat_mensagens ORDER BY id DESC LIMIT 50")
-            rows = c.fetchall()
-            conn.close()
-            
-            for row in rows:
-                item = self.tree_chat.insert("", tk.END, values=(row[0], row[1], row[2], row[3], row[4]))
-                if selected_id and row[0] == selected_id:
-                    self.tree_chat.selection_set(item)
-        except: pass
-
-    def setup_tab_firebase(self):
-        form_frame = ttk.Frame(self.tab_firebase, padding=20)
-        form_frame.pack(fill=tk.BOTH, expand=True)
-
-        lbl_titulo = ttk.Label(form_frame, text="Trocar Banco de Dados Firebase (Modo Automático)", font=("Segoe UI", 14, "bold"))
-        lbl_titulo.pack(anchor="w", pady=(0, 10))
-
-        inst_text = (
-            "PASSO A PASSO (Quando o seu limite gratuito acabar):\n"
-            "1. Crie um novo projeto no Firebase.\n"
-            "2. Baixe a Chave Privada (JSON) em 'Configurações' > 'Contas de Serviço' e cole na PRIMEIRA CAIXA.\n"
-            "3. Vá em 'Geral' > Adicione um App Web (ícone </>) > Copie o bloco 'const firebaseConfig = {...}' e cole na SEGUNDA CAIXA.\n"
-            "4. Coloque o arquivo 'index.html' do seu site na mesma pasta deste programa Python.\n"
-            "5. Clique em Salvar. O Python vai INJETAR a chave nova no seu HTML automaticamente!\n\n"
-            "⚠️ O PARADOXO DO GITHUB: Como o seu site está hospedado na internet (GitHub), o Python não consegue invadir\n"
-            "o GitHub para mudar o código lá. Por isso, após salvar aqui, você PRECISA pegar no 'index.html' atualizado\n"
-            "e fazer o UPLOAD DELE PARA O SEU GITHUB PAGES. Só assim o público vê a mudança."
-        )
-        
-        frame_inst = ttk.LabelFrame(form_frame, text="Instruções e Regras", padding=10)
-        frame_inst.pack(fill=tk.X, pady=(0, 10))
-        ttk.Label(frame_inst, text=inst_text, foreground="#d97706", font=("Segoe UI", 9, "bold")).pack(anchor="w")
-
-        ttk.Label(form_frame, text="1. Credenciais do Servidor (Arquivo .json baixado):", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(5, 2))
-        ttk.Label(form_frame, text="Cole EXATAMENTE com este formato do exemplo abaixo:", font=("Segoe UI", 8, "italic"), foreground="#6b7280").pack(anchor="w")
-        ttk.Label(form_frame, text='{\n  "type": "service_account",\n  "project_id": "seu-projeto-123",\n  "private_key_id": "...",\n  ...\n}', font=("Consolas", 8), foreground="#10b981").pack(anchor="w", pady=(0, 4))
-        
-        self.txt_firebase = tk.Text(form_frame, height=7, width=80, bg="#1e1e1e", fg="#10b981", font=("Consolas", 9))
-        self.txt_firebase.pack(fill=tk.X, pady=2)
-        
-        ttk.Label(form_frame, text="2. Configuração Web (firebaseConfig do HTML):", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(10, 0))
-        ttk.Label(form_frame, text="Cole EXATAMENTE com este formato do exemplo abaixo:", font=("Segoe UI", 8, "italic"), foreground="#6b7280").pack(anchor="w")
-        ttk.Label(form_frame, text="const firebaseConfig = {\n  apiKey: \"AIzaSy...\",\n  authDomain: \"seu-projeto.firebaseapp.com\",\n  projectId: \"...\",\n  ...\n};", font=("Consolas", 8), foreground="#3b82f6").pack(anchor="w", pady=(0, 4))
-
-        self.txt_firebase_web = tk.Text(form_frame, height=7, width=80, bg="#1e1e1e", fg="#3b82f6", font=("Consolas", 9))
-        self.txt_firebase_web.pack(fill=tk.X, pady=2)
-
-        cred_path = os.path.join(base_path, "firebase-credentials.json")
-        if os.path.exists(cred_path):
-            try:
-                with open(cred_path, 'r', encoding='utf-8') as f:
-                    self.txt_firebase.insert(tk.END, f.read())
-            except: pass
-            
-        web_path = os.path.join(base_path, "firebase-web-config.txt")
-        if os.path.exists(web_path):
-            try:
-                with open(web_path, 'r', encoding='utf-8') as f:
-                    self.txt_firebase_web.insert(tk.END, f.read())
-            except: pass
-
-        ttk.Button(form_frame, text="💾 SALVAR E INJETAR NO INDEX.HTML", command=self.salvar_firebase).pack(pady=15)
-
-    def salvar_firebase(self):
-        conteudo_json = self.txt_firebase.get("1.0", tk.END).strip()
-        conteudo_web = self.txt_firebase_web.get("1.0", tk.END).strip()
-        
-        if not conteudo_json or not conteudo_web:
-            messagebox.showerror("Erro", "Você precisa preencher as duas caixas para continuar!")
-            return
-            
-        try:
-            json.loads(conteudo_json)
-            
-            cred_path = os.path.join(base_path, "firebase-credentials.json")
-            with open(cred_path, 'w', encoding='utf-8') as f:
-                f.write(conteudo_json)
-                
-            web_path = os.path.join(base_path, "firebase-web-config.txt")
-            with open(web_path, 'w', encoding='utf-8') as f:
-                f.write(conteudo_web)
-                
-            html_atualizado = False
-            
-            # --- NOVA LÓGICA INTELIGENTE DE EXTRAÇÃO ---
-            # Ignora os "imports" e procura apenas pelo bloco que começa com { e contém apiKey
-            match_config = re.search(r'(\{\s*[\'"]?apiKey[\'"]?\s*:[^}]+})', conteudo_web, re.DOTALL | re.IGNORECASE)
-            
-            if match_config:
-                config_obj = match_config.group(1)
-                html_path = os.path.join(base_path, "index.html")
-                
-                if os.path.exists(html_path):
-                    with open(html_path, 'r', encoding='utf-8') as f:
-                        html_content = f.read()
-
-                    # Substitui cirurgicamente o bloco const firebaseConfig = { ... }; antigo pelo novo
-                    new_html = re.sub(r'const\s+firebaseConfig\s*=\s*\{[^}]+\};', f'const firebaseConfig = {config_obj};', html_content)
-
-                    with open(html_path, 'w', encoding='utf-8') as f:
-                        f.write(new_html)
-                    html_atualizado = True
-
-            msg = "Chaves salvas com sucesso no servidor!\n\n"
-            if html_atualizado:
-                msg += "✅ SUCESSO DE INJEÇÃO: O seu arquivo 'index.html' local foi modificado e já tem a nova chave instalada.\n\n"
-                msg += "⚠️ PASSO FINAL: Como o seu site está hospedado na internet, por favor pegue neste 'index.html' novo e faça o UPLOAD PARA O SEU GITHUB para a alteração ficar online.\n\n"
-            else:
-                msg += "⚠️ AVISO: Não encontrei nenhum arquivo 'index.html' na mesma pasta deste Python ou o formato da caixa 2 não era o correto.\n\n"
-                
-            msg += "Lembre-se de fechar este programa Python e abrir de novo para ativar!"
-            
-            messagebox.showinfo("Atualização Firebase Concluída", msg)
-            
-        except json.JSONDecodeError:
-            messagebox.showerror("Erro de Formato", "A primeira caixa não tem um formato válido. Certifique-se de copiar todo o conteúdo do arquivo .json.")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao salvar: {str(e)}")
-
-    def atualizar_webhook_asaas(self, token, webhook_url):
-        try:
-            match = re.search(r'(\$aact_[a-zA-Z0-9_:-]+)', str(token))
-            token_clean = match.group(1) if match else str(token).replace('\n', '').strip()
-                
-            print(f"\n🔄 [ASAAS] Configurando Webhook...")
-            headers = {"access_token": token_clean, "Content-Type": "application/json"}
-            base_url = "https://api.asaas.com/v3/webhook"
-            
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
-            c.execute("SELECT chave_pix FROM config_pagamento WHERE id=1")
-            row = c.fetchone()
-            conn.close()
-            email_webhook = row[0] if row and '@' in row[0] else "admin@arenalive.com"
-
-            payload = {
-                "url": webhook_url, "email": email_webhook, "enabled": True, "interrupted": False,
-                "apiVersion": 3, "sendType": "SEQUENTIALLY", "events": ["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]
-            }
-            
-            res = requests.post(base_url, json=payload, headers=headers)
-            if res.status_code == 200: print(f"✅ [ASAAS] Webhook configurado: {webhook_url}")
-            else: print(f"⚠️ [ASAAS] Erro webhook: {res.text}")
-        except Exception as e: print(f"❌ [ASAAS] Erro: {e}")
-
-    def start_everything(self):
-        if not self.server_thread:
-            self.server_thread = ServerThread(app)
-            self.server_thread.start()
-            self.btn_start.config(text="⚙️ A SINCRONIZAR...", state=tk.DISABLED)
-            self.run_tunnel(5000, self.lbl_api, "api_url")
-            self.run_tunnel(8080, self.lbl_video, "video_url")
-
-    def run_tunnel(self, port, label, db_field):
-        def task():
-            try:
-                # Melhoria: Procura garantidamente na pasta exata do script
-                cf_local = os.path.join(base_path, "cloudflared.exe")
-                cmd_path = cf_local if os.path.exists(cf_local) else "cloudflared"
-                
-                startupinfo = subprocess.STARTUPINFO()
-                if os.name == 'nt': startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                proc = subprocess.Popen([cmd_path, 'tunnel', '--url', f'http://localhost:{port}'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, startupinfo=startupinfo)
-                self.cf_processes.append(proc)
-                for line in iter(proc.stdout.readline, ''):
-                    if "trycloudflare.com" in line:
-                        found = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
-                        if found:
-                            url = found.group(0)
+            <div id="locked-state" class="absolute inset-0 z-40 flex flex-col items-center justify-start sm:justify-center p-6 bg-black/90 backdrop-blur-md text-center overflow-y-auto pt-12 sm:pt-6">
+                <div class="relative z-30 glass-card p-8 sm:p-12 rounded-[2.5rem] max-w-md w-full shadow-2xl slide-up my-auto">
+                    <button onclick="goHome()" class="absolute top-6 left-6 text-neutral-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-bold bg-white/5 px-3 py-2 rounded-xl">
+                        <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
+                    </button>
+
+                    <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-gradient-to-br from-indigo-500 to-purple-600 w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/40 rotate-12 transition-transform hover:rotate-0 duration-300">
+                        <i data-lucide="lock" class="text-white w-8 h-8 -rotate-12 group-hover:rotate-0"></i>
+                    </div>
+
+                    <div class="pt-8">
+                        <h2 class="text-3xl font-black mb-2 text-white drop-shadow-md">Acesso Restrito</h2>
+                        <p class="text-neutral-400 text-sm mb-8 font-medium" id="lock-event-subtitle">Acesso Premium</p>
+
+                        <button id="btn-comprar" onclick="openCheckout()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold py-4 px-6 rounded-xl mb-8 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.5)] active:scale-95 flex justify-center items-center gap-2">
+                            <i data-lucide="unlock" class="w-5 h-5"></i> COMPRAR / DESBLOQUEAR
+                        </button>
+
+                        <div class="relative flex items-center py-5">
+                            <div class="flex-grow border-t border-white/10"></div>
+                            <span class="flex-shrink-0 mx-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Já tens um ingresso?</span>
+                            <div class="flex-grow border-t border-white/10"></div>
+                        </div>
+
+                        <div class="flex flex-col gap-3">
+                            <label class="text-xs text-neutral-400 text-left pl-2 font-semibold">Entra usando o teu CPF ou VIP Code:</label>
+                            <input id="existing-ticket-input" type="text" placeholder="Digita CPF ou Código" oninput="maskCpfOrCode(this)" class="bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white text-center font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-neutral-600">
                             
-                            if port == 5000: 
-                                webhook_url = f"{url}/api/webhook/asaas"
-                                conn = sqlite3.connect(db_path)
-                                c = conn.cursor()
-                                c.execute("SELECT asaas_token FROM config_pagamento WHERE id=1")
-                                row = c.fetchone()
-                                conn.close()
-                                asaas_token = row[0] if row and len(row) > 0 else ""
-                                if asaas_token:
-                                    threading.Thread(target=self.atualizar_webhook_asaas, args=(asaas_token, webhook_url), daemon=True).start()
+                            <button onclick="checkExistingTicket()" class="w-full bg-indigo-950/40 border border-indigo-500/50 text-indigo-300 font-bold text-sm hover:bg-indigo-600 hover:text-white hover:border-indigo-400 rounded-xl transition-all duration-300 py-4 mt-1 flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(99,102,241,0.1)] hover:shadow-[0_0_25px_rgba(99,102,241,0.5)] active:scale-95 group">
+                                ASSISTIR AO EVENTO <i data-lucide="play-circle" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                            if port == 8080: url += "/hls/stream.m3u8"
-                            if db_firebase:
-                                db_firebase.collection('configuracoes').document('links').set({db_field: url, "ultima_atualizacao": firestore.SERVER_TIMESTAMP}, merge=True)
-                            self.root.after(0, lambda: label.config(text=f"{db_field.upper()}: {url}", foreground="green"))
-                            break
-            except Exception as e:
-                erro_msg = str(e)
-                print(f"Erro na porta {port}: {erro_msg}")
-                if "Firestore" in erro_msg or "403" in erro_msg:
-                    self.root.after(0, lambda: label.config(text="Erro Firebase: Ative o Firestore!", foreground="red"))
-                else:
-                    self.root.after(0, lambda: label.config(text="Erro ao ligar Túnel/Firebase", foreground="red"))
-        threading.Thread(target=task, daemon=True).start()
+            <!-- Player Desbloqueado -->
+            <div id="unlocked-state" class="hidden absolute inset-0 bg-black flex items-center justify-center z-10 overflow-hidden">
+                
+                <!-- TELA DE ESPERA PRÉ-JOGO (Z-INDEX SUPER ALTO PARA NÃO SER TAPADO) -->
+                <div id="waiting-screen" class="hidden absolute inset-0 z-[60] flex-col items-center justify-center bg-black/95 backdrop-blur-md transition-opacity duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-indigo-900/20 via-black to-black pointer-events-none"></div>
+                    <div class="relative z-10 flex flex-col items-center justify-center w-full h-full p-2 sm:p-6 overflow-hidden">
+                        
+                        <div class="relative w-12 h-12 sm:w-24 sm:h-24 mb-2 sm:mb-6 flex-shrink-0">
+                            <div class="absolute inset-0 border-2 sm:border-4 border-indigo-500/20 rounded-full"></div>
+                            <div class="absolute inset-0 border-2 sm:border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                            <i data-lucide="clock" class="absolute inset-0 m-auto w-5 h-5 sm:w-10 sm:h-10 text-indigo-400"></i>
+                        </div>
+                        
+                        <h2 class="text-lg sm:text-3xl md:text-4xl font-black text-white mb-1 sm:mb-2 text-center drop-shadow-lg px-2 flex-shrink-0 leading-tight">A Transmissão Começa Em Breve</h2>
+                        
+                        <p class="hidden sm:block text-xs sm:text-sm text-neutral-400 mb-6 text-center max-w-md px-6 leading-relaxed flex-shrink-0">O teu acesso VIP já está garantido! Prepara os petiscos, o vídeo será ativado automaticamente assim que a transmissão iniciar.</p>
+                        <p class="block sm:hidden text-[10px] text-neutral-400 mb-3 text-center px-4 leading-tight flex-shrink-0">Acesso garantido! O vídeo inicia automaticamente.</p>
+                        
+                        <div id="countdown-container" class="flex gap-2 sm:gap-4 text-center transition-opacity duration-300 flex-shrink-0">
+                            <div class="bg-white/5 border border-white/10 rounded-lg sm:rounded-2xl p-2 sm:p-5 min-w-[55px] sm:min-w-[90px] shadow-2xl backdrop-blur-md flex flex-col items-center justify-center">
+                                <span id="count-h" class="text-xl sm:text-5xl font-black text-white tracking-tighter leading-none">00</span>
+                                <p class="text-[7px] sm:text-[10px] text-neutral-400 font-bold uppercase mt-1 tracking-widest">Horas</p>
+                            </div>
+                            <div class="bg-white/5 border border-white/10 rounded-lg sm:rounded-2xl p-2 sm:p-5 min-w-[55px] sm:min-w-[90px] shadow-2xl backdrop-blur-md flex flex-col items-center justify-center">
+                                <span id="count-m" class="text-xl sm:text-5xl font-black text-white tracking-tighter leading-none">00</span>
+                                <p class="text-[7px] sm:text-[10px] text-neutral-400 font-bold uppercase mt-1 tracking-widest">Minutos</p>
+                            </div>
+                            <div class="bg-white/5 border border-white/10 rounded-lg sm:rounded-2xl p-2 sm:p-5 min-w-[55px] sm:min-w-[90px] shadow-2xl backdrop-blur-md flex flex-col items-center justify-center">
+                                <span id="count-s" class="text-xl sm:text-5xl font-black text-white tracking-tighter leading-none">00</span>
+                                <p class="text-[7px] sm:text-[10px] text-neutral-400 font-bold uppercase mt-1 tracking-widest">Segundos</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    def refresh(self, force_search=False):
-        selected_cod = None
-        sel = self.tree.selection()
-        if sel:
-            try: selected_cod = self.tree.item(sel[0])['values'][0]
-            except: pass
+                <video id="live-video" playsinline class="w-full h-full object-contain z-10"></video>
+                
+                <div id="ui-hitbox" class="absolute inset-0 z-20 cursor-pointer" onclick="showUI(event)"></div>
 
-        for r in self.tree.get_children(): self.tree.delete(r)
+                <!-- OVERLAY DOS CONTROLOS (ESTILO YOUTUBE) -->
+                <div id="video-ui-overlay" class="absolute inset-0 z-30 flex flex-col justify-between opacity-0 transition-opacity duration-300 pointer-events-none cursor-pointer" onclick="hideUI(event)">
+                    
+                    <div class="absolute inset-0 bg-black/40 pointer-events-none"></div>
+
+                    <!-- Topo: Botão Voltar (Esq) | Volume e Definições (Dir) -->
+                    <div class="relative px-3 pt-3 sm:px-5 sm:pt-5 w-full flex justify-between items-start cursor-default pointer-events-auto" onclick="event.stopPropagation()">
+                        <button onclick="goHome()" class="bg-black/60 hover:bg-black/90 border border-white/10 text-white p-2 sm:px-4 sm:py-2.5 rounded-full sm:rounded-xl backdrop-blur-md transition-transform active:scale-95 flex items-center gap-2 font-bold text-sm shadow-xl">
+                            <i data-lucide="arrow-left" class="w-5 h-5 sm:w-5 sm:h-5"></i> <span class="hidden sm:inline">Voltar</span>
+                        </button>
+
+                        <div class="flex items-center gap-2 sm:gap-4">
+                            <div class="flex items-center group/volume cursor-pointer">
+                                <button onclick="toggleMute(event)" id="btn-mute" class="text-white p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95">
+                                    <i data-lucide="volume-2" id="icon-mute" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                                </button>
+                                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1" class="hidden sm:block w-0 sm:group-hover/volume:w-20 opacity-0 sm:group-hover/volume:opacity-100 transition-all duration-300 origin-right bg-white/20" oninput="changeVolume(this.value)">
+                            </div>
+
+                            <div class="relative">
+                                <button onclick="toggleQualityMenu(event)" class="text-white p-2 hover:bg-white/10 rounded-full transition-colors transform active:scale-95">
+                                    <i data-lucide="settings" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                                </button>
+                                <div id="quality-menu" class="hidden absolute top-full right-0 mt-2 bg-neutral-900 border border-white/10 rounded-xl flex flex-col min-w-[120px] overflow-hidden shadow-2xl z-50">
+                                    <button onclick="setQuality(-1)" class="px-4 py-3 text-sm font-bold text-white hover:bg-indigo-600 text-left border-b border-white/5 transition-colors">Auto</button>
+                                    <div id="quality-levels" class="flex flex-col"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Centro: Play / Pause -->
+                    <div class="relative flex-1 flex items-center justify-center pointer-events-none">
+                        <button onclick="togglePlay(event)" class="text-white hover:scale-110 active:scale-95 transition-transform bg-black/40 p-4 sm:p-5 rounded-full backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.5)] pointer-events-auto">
+                            <i data-lucide="pause" id="icon-center-play-pause" class="w-10 h-10 sm:w-14 sm:h-14 fill-current"></i>
+                        </button>
+                    </div>
+
+                    <!-- Base: Timeline, Tempo e Tela Cheia -->
+                    <div class="relative w-full bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-8 pb-3 px-3 sm:px-5 cursor-default pointer-events-auto" onclick="event.stopPropagation()">
+                        
+                        <div class="flex items-center justify-between w-full mb-2">
+                            <div class="flex items-center gap-2 sm:gap-3">
+                                <span id="current-time" class="text-white text-[11px] sm:text-xs font-medium drop-shadow-md">00:00</span>
+                                <span class="text-white/50 text-[10px]">•</span>
+                                <button id="btn-live" onclick="jumpToLive(event)" class="cursor-pointer text-red-500 font-bold text-[11px] sm:text-xs flex items-center gap-1.5 uppercase active:scale-95 px-2 py-1 -ml-2 rounded hover:bg-white/10 transition-colors pointer-events-auto">
+                                    <span id="dot-live" class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span> Ao vivo
+                                </button>
+                            </div>
+                            
+                            <button onclick="toggleFullScreen(event)" class="text-white p-1.5 hover:bg-white/10 rounded-full transition-colors active:scale-95 pointer-events-auto">
+                                <i data-lucide="maximize" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                            </button>
+                        </div>
+
+                        <!-- Timeline Redesenhada -->
+                        <div class="w-full flex items-center relative h-1 sm:h-1.5 group/timeline cursor-pointer pointer-events-auto">
+                            <div class="absolute left-0 right-0 h-full bg-white/30 rounded-full pointer-events-none"></div>
+                            <div id="progress-fill" class="absolute left-0 h-full bg-red-600 rounded-full pointer-events-none transition-all duration-75" style="width: 0%;"></div>
+                            <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" class="w-full h-full bg-transparent appearance-none cursor-pointer z-10 focus:outline-none absolute inset-0 m-0 p-0" oninput="scrubVideo(this)" onchange="seekVideo(this)">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="video-loading" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 hidden z-50 backdrop-blur-sm pointer-events-none">
+                    <div class="relative w-16 h-16">
+                        <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
+                        <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <p class="mt-4 text-indigo-400 font-bold animate-pulse text-sm">A ligar ao Stream...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA DO CHAT AO VIVO -->
+        <div id="chat-container" class="hidden flex-col w-full lg:w-[400px] bg-neutral-900 border-t lg:border-t-0 lg:border-l border-white/10 flex-1 min-h-0 relative z-20 transition-all">
+            <!-- Header do Chat -->
+            <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-neutral-950 shrink-0">
+                <h3 class="text-white font-bold text-sm flex items-center gap-2">
+                    Chat ao vivo <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                </h3>
+                <div class="text-[10px] text-neutral-500 font-medium px-2 py-1 bg-white/5 rounded">Exclusivo para VIPs</div>
+            </div>
+            
+            <!-- Mensagens -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col bg-[#0a0a0a]">
+                <div class="text-center text-xs text-neutral-500 my-2">Bem-vindo ao chat ao vivo! Lembra-te de ser respeitoso.</div>
+                <!-- As mensagens vão aparecer aqui via JS -->
+            </div>
+
+            <!-- Input do Chat -->
+            <div class="p-3 bg-neutral-950 border-t border-white/5 flex items-center gap-2 shrink-0">
+                <!-- O input anula o auto-scroll nativo do navegador para o teclado não quebrar a tela -->
+                <input type="text" id="chat-input" placeholder="Conversar publicamente..." class="flex-1 bg-neutral-800 text-white rounded-full px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-neutral-500" maxlength="200" onkeypress="if(event.key === 'Enter') enviarMensagemChat()" onfocus="forceScrollToTop()">
+                <button onclick="enviarMensagemChat()" id="btn-send-chat" class="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center text-white shrink-0 active:scale-95 transition-transform disabled:opacity-50">
+                    <i data-lucide="send" class="w-4 h-4 -ml-0.5"></i>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Checkout / Conflito -->
+    <div id="checkout-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 hidden">
+        <div class="bg-neutral-900 border border-white/10 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col slide-up relative">
+            
+            <div class="bg-gradient-to-r from-neutral-800 to-neutral-900 px-6 py-5 flex justify-between items-center border-b border-white/5">
+                <button onclick="closeModal()" class="text-neutral-400 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
+                </button>
+                <h3 class="font-bold flex items-center gap-2 text-white text-sm">
+                    Liberação VIP
+                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                </h3>
+            </div>
+            
+            <div class="p-6 sm:p-8">
+                <div id="step-form" class="fade-in">
+                    <p class="text-neutral-400 text-sm mb-6 leading-relaxed">Para gerar o teu ingresso VIP, introduz os teus dados. <strong class="text-white">Eles serão usados para recuperar o acesso caso feches a página.</strong></p>
+                    
+                    <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-6 text-left flex items-start gap-3">
+                        <i data-lucide="alert-circle" class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5"></i>
+                        <p class="text-[10px] sm:text-xs text-amber-200/80 leading-relaxed font-medium">
+                            <strong class="text-amber-500">Aviso Importante:</strong> Este ingresso é válido <strong class="text-white">APENAS para o jogo de hoje</strong>. O acesso expira automaticamente e será bloqueado assim que a transmissão oficial terminar.
+                        </p>
+                    </div>
+
+                    <label class="block text-xs text-neutral-500 font-black mb-2 uppercase tracking-wide">O TEU NOME</label>
+                    <input type="text" id="nome-input" placeholder="O teu nome e apelido" class="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white mb-4 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-center text-lg">
+
+                    <label class="block text-xs text-neutral-500 font-black mb-2 uppercase tracking-wide">O TEU CPF</label>
+                    <input type="text" id="cpf-input" placeholder="000.000.000-00 (000 p/ testes)" oninput="maskCPFOnly(this)" class="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white mb-6 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-mono text-center text-lg">
+                    
+                    <button id="btn-gerar-pix" onclick="generateTicket()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 py-4 rounded-xl font-bold text-white hover:from-indigo-500 hover:to-indigo-400 transition-all active:scale-95 shadow-[0_0_15px_rgba(99,102,241,0.3)] flex justify-center items-center gap-2 relative z-20 cursor-pointer">
+                        GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <div id="step-payment" class="hidden text-center fade-in">
+                    <div id="timer-container" class="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-red-400">
+                            <i data-lucide="timer" class="w-5 h-5 animate-pulse"></i>
+                            <span class="text-[10px] font-bold uppercase tracking-wider">O código expira em:</span>
+                        </div>
+                        <span id="payment-timer" class="text-xl font-mono font-black text-red-400">10:00</span>
+                    </div>
+
+                    <h4 id="ticket-price-display" class="text-4xl font-black mb-1 text-white">R$ --,--</h4>
+                    <p class="text-xs text-neutral-400 mb-6 px-4">Faz o pagamento via QR Code ou Copia e Cola para ativar o teu acesso.</p>
+                    
+                    <div id="qr-wrapper" class="bg-white p-3 rounded-2xl mb-6 inline-block glow-qr relative transition-opacity duration-300">
+                        <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-indigo-500 rounded-tl-xl -translate-x-1 -translate-y-1"></div>
+                        <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-indigo-500 rounded-tr-xl translate-x-1 -translate-y-1"></div>
+                        <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-indigo-500 rounded-bl-xl -translate-x-1 translate-y-1"></div>
+                        <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-indigo-500 rounded-br-xl translate-x-1 translate-y-1"></div>
+                        <img id="qr-code-img" class="w-36 h-36" alt="QR PIX">
+                        
+                        <div id="expired-overlay" class="hidden absolute inset-0 bg-white/90 backdrop-blur-sm rounded-xl flex-col items-center justify-center text-center z-10">
+                            <i data-lucide="x-circle" class="w-10 h-10 text-red-600 mb-2"></i>
+                            <p class="text-black font-black text-sm uppercase">EXPIRADO</p>
+                        </div>
+                    </div>
+
+                    <div class="w-full text-left mb-6">
+                        <label class="block text-[10px] text-neutral-500 font-bold mb-2 uppercase tracking-wider pl-1">Pix Copia e Cola:</label>
+                        <div class="flex items-center bg-black border border-white/10 rounded-xl overflow-hidden p-1 focus-within:border-indigo-500 transition-colors relative">
+                            <input type="text" id="pix-copy-input" class="bg-transparent text-white text-xs px-3 py-3 w-full outline-none font-mono opacity-70" readonly>
+                            <button id="btn-copy-pix" onclick="copyPixText()" class="bg-neutral-800 hover:bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap active:scale-95 z-20 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i data-lucide="copy" class="w-4 h-4"></i> Copiar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col items-center justify-center gap-2 mb-6">
+                        <div class="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/20">
+                            <div class="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                            <span class="text-xs font-bold uppercase tracking-wide">A aguardar pagamento...</span>
+                        </div>
+                        <p class="text-[10px] text-neutral-500">O vídeo será libertado automaticamente.</p>
+                    </div>
+
+                    <button id="btn-gerar-novo" onclick="resetPayment()" class="hidden w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold items-center justify-center gap-2 transition-all active:scale-95 mb-4">
+                        <i data-lucide="refresh-cw" class="w-5 h-5"></i> GERAR NOVO PIX
+                    </button>
+
+                    <div class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 mb-4">
+                        <p class="text-[10px] text-indigo-400 font-bold mb-1 uppercase tracking-wider">O TEU CÓDIGO VIP</p>
+                        <h4 id="ticket-code-display" class="text-2xl font-black text-white tracking-[0.2em] font-mono">---</h4>
+                    </div>
+
+                    <button onclick="sendTelegram()" class="w-full bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95">
+                        <i data-lucide="send" class="w-5 h-5"></i> SUPORTE / DÚVIDAS
+                    </button>
+                </div>
+
+                <div id="step-conflict" class="hidden text-center fade-in py-6">
+                    <div class="mx-auto w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
+                        <i data-lucide="alert-triangle" class="w-8 h-8 text-red-500"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-white mb-2">Sessão em Uso!</h2>
+                    <p class="text-sm text-neutral-400 mb-8">Este ingresso já está a ser utilizado noutro ecrã ou dispositivo. Gostarias de derrubar o outro acesso e entrar por aqui?</p>
+                    
+                    <button onclick="forcarAcesso()" class="w-full bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl font-bold transition-all active:scale-95 mb-3 shadow-[0_0_15px_rgba(220,38,38,0.4)]">
+                        SIM, FORÇAR ACESSO
+                    </button>
+                    <button onclick="resetPayment()" class="w-full text-neutral-400 hover:text-white py-2 font-bold text-sm transition-colors">
+                        Cancelar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        try { lucide.createIcons(); } catch(e){}
+
+        // FORMATO OBRIGATÓRIO PARA A INJEÇÃO DO PYTHON FUNCIONAR!
+        const firebaseConfig = {
+  apiKey: "AIzaSyAdObOIqqxEoTDOhETxUD5A8KWwq2QUVlQ",
+  authDomain: "arena-live-v1.firebaseapp.com",
+  projectId: "arena-live-v1",
+  storageBucket: "arena-live-v1.firebasestorage.app",
+  messagingSenderId: "416707033471",
+  appId: "1:416707033471:web:be71a5277ba6556e00c24a"
+};
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let bgClass = type === 'error' ? 'bg-red-600' : (type === 'warning' ? 'bg-amber-600' : 'bg-emerald-600');
+            let icon = type === 'error' ? 'alert-circle' : (type === 'warning' ? 'info' : 'check-circle');
+
+            toast.className = `${bgClass} text-white px-5 py-3.5 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] text-sm font-bold flex items-center gap-3 slide-down-toast transition-all duration-300 pointer-events-auto border border-white/20 z-[999]`;
+            toast.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5 flex-shrink-0"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            try { lucide.createIcons(); } catch(e){}
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        let db = null;
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            db = firebase.firestore();
+        } catch(e) {
+            console.error("Firebase bloqueado ou com erro. A aguardar conexão direta.");
+        }
+
+        window.API_URL = "";
+        window.VIDEO_URL = "";
+        let checkInterval = null;
+        let countdownInterval = null;
+        let eventDetailsInterval = null;
+        let currentTicketCode = "";
+        let currentTicketCpf = "";
+        let currentTicketNome = "";
+        let hlsInstance = null;
+        let eventTargetDate = null;
+        let countdownTimer = null;
+        window.STATUS_PLAYER = 'auto'; // Nova variável global para controlar o override
         
-        try:
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
+        let videoConfig = {
+            low_latency: true,
+            sync_duration: 2,
+            max_latency: 4,
+            max_buffer: 10
+        };
+
+        // ==== REDIMENSIONAMENTO INTELIGENTE DE ECRÃ (TIPO YOUTUBE) ====
+        function adjustPlayerHeight() {
+            const vp = document.getElementById('view-player');
+            if (vp && !vp.classList.contains('hidden')) {
+                let currentHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                vp.style.height = currentHeight + 'px';
+                vp.style.top = '0px'; 
+                window.scrollTo(0, 0); 
+                document.body.scrollTop = 0;
+            }
+        }
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', adjustPlayerHeight);
+            window.visualViewport.addEventListener('scroll', () => {
+                if (!document.getElementById('view-player').classList.contains('hidden')) {
+                    window.scrollTo(0, 0);
+                    document.body.scrollTop = 0;
+                }
+            });
+        } else {
+            window.addEventListener('resize', adjustPlayerHeight);
+        }
+
+        function forceScrollToTop() {
+            setTimeout(() => {
+                window.scrollTo(0,0);
+                document.body.scrollTop = 0;
+                adjustPlayerHeight();
+                const chatMsgs = document.getElementById('chat-messages');
+                if(chatMsgs) chatMsgs.scrollTop = chatMsgs.scrollHeight;
+            }, 50);
+        }
+
+        // ==== CHAT AO VIVO (Lógica) ====
+        let lastChatId = 0;
+        let chatInterval = null;
+
+        function iniciarChat() {
+            document.getElementById('chat-container').classList.remove('hidden');
+            document.getElementById('chat-container').classList.add('flex');
             
-            c.execute("SELECT status, COUNT(*) FROM ingressos GROUP BY status")
-            counts = dict(c.fetchall())
-            aprovados = counts.get('aprovado', 0)
-            pendentes = counts.get('pendente', 0)
+            document.getElementById('chat-messages').innerHTML = '<div class="text-center text-xs text-neutral-500 my-2">Bem-vindo ao chat ao vivo! Lembra-te de ser respeitoso.</div>';
+            lastChatId = 0;
+            buscarMensagensChat();
+            if(chatInterval) clearInterval(chatInterval);
+            chatInterval = setInterval(buscarMensagensChat, 3000);
+        }
+
+        function pararChat() {
+            document.getElementById('chat-container').classList.add('hidden');
+            document.getElementById('chat-container').classList.remove('flex');
+            if(chatInterval) clearInterval(chatInterval);
+        }
+
+        function getAvatarColor(name) {
+            const colors = ['bg-red-500', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500', 'bg-cyan-500', 'bg-rose-500'];
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            return colors[Math.abs(hash) % colors.length];
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag]));
+        }
+
+        async function buscarMensagensChat() {
+            if(!window.API_URL) return;
+            try {
+                const res = await fetch(`${window.API_URL}/api/chat?last_id=${lastChatId}`);
+                if(res.ok) {
+                    const data = await res.json();
+                    if(data.status === 'success' && data.mensagens.length > 0) {
+                        const container = document.getElementById('chat-messages');
+                        let isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 50;
+                        
+                        data.mensagens.forEach(msg => {
+                            if(msg.id > lastChatId) lastChatId = msg.id;
+                            
+                            const color = getAvatarColor(msg.nome || '?');
+                            const initial = (msg.nome || '?').charAt(0).toUpperCase();
+                            
+                            const msgDiv = document.createElement('div');
+                            msgDiv.className = 'flex items-start gap-3 fade-in';
+                            msgDiv.innerHTML = `
+                                <div class="w-7 h-7 rounded-full ${color} flex items-center justify-center text-[11px] font-bold text-white shrink-0 mt-0.5">${initial}</div>
+                                <div class="flex flex-col">
+                                    <span class="text-neutral-400 text-[11px] font-bold mb-0.5">${escapeHTML(msg.nome)} <span class="text-neutral-600 font-normal text-[9px] ml-1">${msg.hora}</span></span>
+                                    <span class="text-white text-sm break-words leading-snug">${escapeHTML(msg.texto)}</span>
+                                </div>
+                            `;
+                            container.appendChild(msgDiv);
+                        });
+                        
+                        if(isScrolledToBottom || data.mensagens.length > 5) {
+                            container.scrollTop = container.scrollHeight;
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+
+        async function enviarMensagemChat() {
+            const input = document.getElementById('chat-input');
+            const btn = document.getElementById('btn-send-chat');
+            const texto = input.value.trim();
             
-            c.execute("SELECT valor FROM config_pagamento WHERE id=1")
-            row_valor = c.fetchone()
-            valor_unitario = 0.0
-            if row_valor:
-                try: valor_unitario = float(row_valor[0].replace(',', '.'))
-                except: pass
+            if(!texto || !currentTicketCode) return;
+            
+            input.disabled = true;
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch(`${window.API_URL}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigo: currentTicketCode, texto: texto })
+                });
                 
-            faturacao = aprovados * valor_unitario
+                if(res.ok) {
+                    input.value = '';
+                    buscarMensagensChat(); 
+                } else {
+                    showToast("Erro ao enviar mensagem.", "error");
+                }
+            } catch(e) {
+                showToast("Erro de ligação com o chat.", "error");
+            }
             
-            c.execute("SELECT limite_ingressos FROM config_evento WHERE id=1")
-            row_limite = c.fetchone()
-            limite = row_limite[0] if row_limite and row_limite[0] is not None else 100
-            restantes = max(0, limite - aprovados)
-            
-            self.lbl_metric_aprovados.config(text=f"{aprovados}")
-            self.lbl_metric_pendentes.config(text=f"{pendentes}")
-            self.lbl_metric_restantes.config(text=f"{restantes}")
-            self.lbl_metric_faturacao.config(text=f"R$ {faturacao:.2f}".replace('.', ','))
+            input.disabled = false;
+            btn.disabled = false;
+            input.focus();
+        }
 
-            search_term = self.ent_search.get().strip()
-            
-            base_query = "SELECT codigo, nome, cpf, evento, status, strftime('%H:%M:%S', datetime(data_criacao, 'localtime')) FROM ingressos WHERE 1=1"
-            params = []
-            
-            if search_term and search_term != "Nome, CPF ou Código VIP":
-                base_query += " AND (codigo LIKE ? OR cpf LIKE ? OR nome LIKE ?)"
-                params.extend([f'%{search_term}%', f'%{search_term}%', f'%{search_term}%'])
+        // ==== LÓGICA DA INTERFACE DO PLAYER ====
+        let isUIVisible = false;
+        let idleTimeout;
+        const videoElement = document.getElementById('live-video');
+
+        let isTouchDevice = false;
+        window.addEventListener('touchstart', () => { isTouchDevice = true; }, {passive: true});
+
+        function showUI(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            const overlay = document.getElementById('video-ui-overlay');
+            if(overlay) {
+                overlay.classList.remove('opacity-0', 'pointer-events-none');
+                overlay.classList.add('opacity-100');
+                isUIVisible = true;
+                document.getElementById('unlocked-state').classList.remove('cursor-hidden');
+                resetIdleTimer();
+            }
+        }
+
+        function hideUI(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            const overlay = document.getElementById('video-ui-overlay');
+            if(overlay) {
+                overlay.classList.add('opacity-0', 'pointer-events-none');
+                overlay.classList.remove('opacity-100');
+                document.getElementById('quality-menu').classList.add('hidden');
+                isUIVisible = false;
+                if (!videoElement.paused) {
+                    document.getElementById('unlocked-state').classList.add('cursor-hidden');
+                }
+                clearTimeout(idleTimeout);
+            }
+        }
+
+        function resetIdleTimer() {
+            clearTimeout(idleTimeout);
+            if (isUIVisible && !videoElement.paused) {
+                idleTimeout = setTimeout(() => { hideUI(); }, 3500); 
+            }
+        }
+
+        document.getElementById('unlocked-state').addEventListener('mousemove', () => {
+            if (isTouchDevice) return; 
+            if (!isUIVisible) showUI();
+            else resetIdleTimer();
+        });
+
+        let deviceId = localStorage.getItem('arenaLiveDeviceId');
+        if (!deviceId) {
+            deviceId = 'DEV-' + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('arenaLiveDeviceId', deviceId);
+        }
+
+        // ==== LÓGICA DA LINHA DE TEMPO ====
+        const progressBar = document.getElementById('progress-bar');
+        const progressFill = document.getElementById('progress-fill');
+        const currentTimeDisplay = document.getElementById('current-time');
+        const totalTimeDisplay = document.getElementById('total-time');
+        let isSeeking = false;
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || !isFinite(seconds)) return "00:00";
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        videoElement.addEventListener('timeupdate', () => {
+            if (!isSeeking) {
+                const current = videoElement.currentTime;
+                const duration = videoElement.duration;
+                currentTimeDisplay.textContent = formatTime(current);
                 
-            if self.filtro_atual != "TODOS":
-                base_query += " AND status = ?"
-                params.append(self.filtro_atual.lower())
+                if (duration && isFinite(duration)) {
+                    totalTimeDisplay.textContent = formatTime(duration);
+                    const percent = (current / duration) * 100;
+                    progressBar.value = percent;
+                    progressFill.style.width = `${percent}%`;
+                } else {
+                    progressBar.value = 100;
+                    progressFill.style.width = `100%`;
+                    totalTimeDisplay.textContent = "AO VIVO";
+                }
+            }
+
+            const btnLive = document.getElementById('btn-live');
+            const dotLive = document.getElementById('dot-live');
+            if (btnLive && dotLive) {
+                let isLiveEdge = true;
                 
-            base_query += " ORDER BY data_criacao DESC LIMIT 100"
+                if (hlsInstance && hlsInstance.liveSyncPosition !== null && hlsInstance.liveSyncPosition !== undefined) {
+                    if (videoElement.currentTime < (hlsInstance.liveSyncPosition - 5)) isLiveEdge = false;
+                } else if (videoElement.seekable && videoElement.seekable.length > 0) {
+                    if (videoElement.currentTime < (videoElement.seekable.end(videoElement.seekable.length - 1) - 5)) isLiveEdge = false;
+                } else if (videoElement.duration && isFinite(videoElement.duration)) {
+                    if (videoElement.currentTime < (videoElement.duration - 5)) isLiveEdge = false;
+                }
+
+                if (isLiveEdge) {
+                    btnLive.className = "cursor-pointer text-red-500 font-bold text-[11px] sm:text-xs flex items-center gap-1.5 uppercase active:scale-95 px-2 py-1 -ml-2 rounded hover:bg-white/10 transition-colors pointer-events-auto";
+                    dotLive.className = "w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]";
+                } else {
+                    btnLive.className = "cursor-pointer text-neutral-400 font-bold text-[11px] sm:text-xs flex items-center gap-1.5 uppercase active:scale-95 px-2 py-1 -ml-2 rounded bg-white/10 border border-transparent hover:bg-white/20 transition-colors pointer-events-auto";
+                    dotLive.className = "w-2 h-2 bg-neutral-400 rounded-full";
+                }
+            }
+        });
+
+        videoElement.addEventListener('loadedmetadata', () => {
+            if (videoElement.duration && isFinite(videoElement.duration)) {
+                totalTimeDisplay.textContent = formatTime(videoElement.duration);
+            }
+        });
+
+        function scrubVideo(slider) {
+            isSeeking = true;
+            const percent = slider.value;
+            progressFill.style.width = `${percent}%`;
+            if (videoElement.duration && isFinite(videoElement.duration)) {
+                currentTimeDisplay.textContent = formatTime((percent / 100) * videoElement.duration);
+            }
+            resetIdleTimer();
+        }
+
+        function seekVideo(slider) {
+            isSeeking = false;
+            if (videoElement.duration && isFinite(videoElement.duration)) {
+                videoElement.currentTime = (slider.value / 100) * videoElement.duration;
+            }
+            resetIdleTimer();
+        }
+
+        function setStatus(isOnline, msg = "Offline") {
+            const status = document.getElementById('connection-status');
+            if (!status) return;
+            if(isOnline) {
+                status.innerHTML = '<span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> Servidor Ativo';
+                status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-emerald-400 uppercase bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 backdrop-blur-md";
+            } else {
+                status.innerHTML = `<span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span> ${msg}`;
+                status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-red-500 uppercase bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20 backdrop-blur-md cursor-pointer";
+            }
+        }
+
+        let devClickCount = 0;
+        let devClickTimer;
+        function checkDevMode(e) {
+            devClickCount++;
+            clearTimeout(devClickTimer);
+            devClickTimer = setTimeout(() => devClickCount = 0, 1000);
             
-            c.execute(base_query, params)
-            rows = c.fetchall()
-            conn.close()
+            if(devClickCount >= 3) {
+                devClickCount = 0;
+                const api = prompt("⚙️ MODO DESENVOLVEDOR ⚙️\n\nO Firebase falhou?\nCopia o link da API (que está verde no teu Python) e cola aqui:", window.API_URL || "");
+                if(api) {
+                    const vid = prompt("Agora, copia e cola o link do VÍDEO (que está verde no Python):", window.VIDEO_URL || "");
+                    if(vid) {
+                        window.API_URL = api.replace(/\/$/, ""); 
+                        window.VIDEO_URL = vid;
+                        localStorage.setItem('dev_api_url', window.API_URL);
+                        localStorage.setItem('dev_video_url', window.VIDEO_URL);
+                        showToast("Links forçados manualmente!", "success");
+                        fetchEventDetails();
+                    }
+                }
+            }
+        }
+
+        async function fetchEventDetails() {
+            if (!window.API_URL) {
+                setStatus(false, "A aguardar Links...");
+                return;
+            }
+            try {
+                const noCache = new Date().getTime();
+                const cleanApiUrl = window.API_URL.replace(/\/$/, ""); 
+                
+                const res = await fetch(`${cleanApiUrl}/api/evento?_t=${noCache}`, {
+                    headers: { 'Accept': 'application/json', 'Bypass-Tunnel-Reminder': 'true' }
+                });
+                
+                if (!res.ok) throw new Error("Cloudflare Bloqueou ou Servidor Offline");
+                
+                const data = await res.json();
+                setStatus(true); 
+                
+                if (data.titulo_evento) {
+                    document.getElementById('event-title-display').innerText = data.titulo_evento;
+                    document.getElementById('team-a-name-display').innerText = data.time_a_nome;
+                    document.getElementById('team-b-name-display').innerText = data.time_b_nome;
+                    if (data.time_a_img) document.getElementById('team-a-img-display').src = data.time_a_img;
+                    if (data.time_b_img) document.getElementById('team-b-img-display').src = data.time_b_img;
+                    document.getElementById('lock-event-subtitle').innerText = `${data.time_a_nome} vs ${data.time_b_nome}`;
+                }
+                
+                if (data.valor) {
+                    const numValor = parseFloat(data.valor.toString().replace(',', '.'));
+                    if (!isNaN(numValor)) {
+                        document.getElementById('home-price-display').innerText = numValor.toFixed(2).replace('.', ',');
+                    }
+                }
+
+                if (data.data_hora_evento) {
+                    const parts = data.data_hora_evento.split(/[\s/:]+/);
+                    if(parts.length >= 5) {
+                        eventTargetDate = new Date(parts[2], parts[1] - 1, parts[0], parts[3], parts[4]);
+                    } else { eventTargetDate = null; }
+                } else { eventTargetDate = null; }
+
+                if (data.status_player) {
+                    window.STATUS_PLAYER = data.status_player;
+                } else {
+                    window.STATUS_PLAYER = 'auto';
+                }
+
+                if (data.video_config) videoConfig = data.video_config;
+
+                // Força a atualização do ecrã se o utilizador já estiver dentro do player
+                if (!document.getElementById('unlocked-state').classList.contains('hidden')) {
+                    avaliarStatusPlayer();
+                }
+
+                if (data.ingressos_restantes !== undefined) {
+                    const counterText = document.getElementById('tickets-remaining-text');
+                    const urgencyContainer = document.getElementById('ticket-urgency-container');
+                    const urgencyIcon = document.getElementById('urgency-icon');
+                    const btnAssistir = document.getElementById('btn-assistir');
+                    const btnComprar = document.getElementById('btn-comprar'); 
+                    
+                    if (data.ingressos_restantes <= 0) {
+                        counterText.innerText = "INGRESSOS ESGOTADOS";
+                        urgencyContainer.className = "w-full bg-neutral-900 border border-white/10 rounded-xl p-4 mb-8 flex items-center justify-center gap-3 relative overflow-hidden transition-all";
+                        counterText.className = "text-neutral-400 font-black text-lg uppercase tracking-wide drop-shadow-md";
+                        if(urgencyIcon) {
+                            urgencyIcon.setAttribute('data-lucide', 'x-circle');
+                            urgencyIcon.className = "w-6 h-6 text-neutral-500";
+                        }
+                        
+                        btnAssistir.innerHTML = '<i data-lucide="lock" class="w-6 h-6"></i> VENDAS ENCERRADAS';
+                        btnAssistir.onclick = () => showToast("As vendas para este evento estão encerradas!", "error");
+                        btnAssistir.className = "w-full bg-neutral-800 text-neutral-400 font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 text-xl cursor-not-allowed";
+                        
+                        if(btnComprar) {
+                            btnComprar.onclick = () => showToast("As vendas para este evento estão encerradas!", "error");
+                            btnComprar.innerHTML = '<i data-lucide="x-circle" class="w-5 h-5"></i> VENDAS ENCERRADAS';
+                            btnComprar.className = "w-full bg-neutral-800 text-neutral-400 font-bold py-4 px-6 rounded-xl mb-8 flex justify-center items-center gap-2 cursor-not-allowed";
+                        }
+                        try { lucide.createIcons(); } catch(e){}
+                    } else {
+                        counterText.innerText = `CORRE! FALTAM APENAS ${data.ingressos_restantes} INGRESSOS`;
+                        urgencyContainer.className = "w-full bg-gradient-to-r from-red-600/20 to-orange-500/20 border border-red-500/30 rounded-xl p-4 mb-8 flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(239,68,68,0.15)] relative overflow-hidden transition-all";
+                        counterText.className = "text-red-400 font-black text-lg uppercase tracking-wide drop-shadow-md";
+                        if(urgencyIcon) {
+                            urgencyIcon.setAttribute('data-lucide', 'flame');
+                            urgencyIcon.className = "w-6 h-6 text-red-500 animate-bounce";
+                        }
+                        
+                        btnAssistir.innerHTML = '<i data-lucide="zap" class="w-6 h-6 fill-current"></i> GARANTIR O MEU ACESSO';
+                        btnAssistir.onclick = iniciarCompra;
+                        btnAssistir.className = "w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:via-purple-500 hover:to-indigo-500 text-white font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_30px_rgba(99,102,241,0.5)] text-xl group-hover:shadow-[0_0_50px_rgba(99,102,241,0.7)] bg-[length:200%_auto] animate-[gradient_3s_ease_infinite] relative z-20 cursor-pointer";
+                        
+                        if(btnComprar) {
+                            btnComprar.onclick = openCheckout;
+                            btnComprar.innerHTML = '<i data-lucide="unlock" class="w-5 h-5"></i> COMPRAR / DESBLOQUEAR';
+                            btnComprar.className = "w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold py-4 px-6 rounded-xl mb-8 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.5)] active:scale-95 flex justify-center items-center gap-2 relative z-20 cursor-pointer";
+                        }
+                        try { lucide.createIcons(); } catch(e){}
+                    }
+                }
+            } catch(e) { 
+                setStatus(false, "Erro de API (Cloudflare)"); 
+                console.error("Falha ao comunicar com a API:", e);
+            }
+        }
+
+        window.onload = function() {
+            const savedApi = localStorage.getItem('dev_api_url');
+            const savedVid = localStorage.getItem('dev_video_url');
             
-            for row in rows:
-                status_atual = row[4].lower()
-                item = self.tree.insert("", tk.END, values=(row[0], row[1], row[2], row[3], status_atual.upper(), row[5]), tags=(status_atual,))
-                if selected_cod and row[0] == selected_cod:
-                    self.tree.selection_set(item)
-                    self.tree.focus(item)
-        except: pass
+            if(savedApi && savedVid) {
+                window.API_URL = savedApi;
+                window.VIDEO_URL = savedVid;
+                showToast("Modo Desenvolvedor Ativo", "warning");
+                fetchEventDetails();
+            }
 
-    def aprovar(self):
-        sel = self.tree.selection()
-        if not sel: return          
-        cod = self.tree.item(sel[0])['values'][0] 
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute("UPDATE ingressos SET status='aprovado' WHERE codigo=?", (cod,))
-        conn.commit()
-        conn.close()
-        self.refresh()
+            try {
+                if(db) {
+                    db.collection('configuracoes').doc('links').onSnapshot(async (doc) => {
+                        if (doc.exists && !savedApi) { 
+                            window.API_URL = doc.data().api_url;
+                            window.VIDEO_URL = doc.data().video_url;
+                            
+                            await fetchEventDetails();
+                            if(!eventDetailsInterval) eventDetailsInterval = setInterval(fetchEventDetails, 5000); // Polling reduzido para 5s
 
-    def desativar(self):
-        sel = self.tree.selection()
-        if not sel: return
-        cod = self.tree.item(sel[0])['values'][0]
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute("UPDATE ingressos SET status='pendente', sessao_id=NULL WHERE codigo=?", (cod,))
-        conn.commit()
-        conn.close()
-        self.refresh()
+                            const saved = localStorage.getItem('arenaLiveTicket');
+                            if(saved && !currentTicketCode) { 
+                                document.getElementById('existing-ticket-input').value = saved;
+                                showLogoutButton();
+                                checkExistingTicket(saved, true);
+                            }
+                        }
+                    });
+                }
+            } catch (e) { }
 
-    def excluir(self):
-        sel = self.tree.selection()
-        if not sel: return
-        cod = self.tree.item(sel[0])['values'][0]
-        if messagebox.askyesno("Confirmar", f"Apagar o ingresso {cod}?"):
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
-            c.execute("DELETE FROM ingressos WHERE codigo=?", (cod,))
-            conn.commit()
-            conn.close()
-            self.refresh()
+            setInterval(() => {
+                if(db && !window.API_URL && !savedApi) {
+                    db.collection('configuracoes').doc('links').get().then(doc => {
+                        if(doc.exists) {
+                            window.API_URL = doc.data().api_url;
+                            window.VIDEO_URL = doc.data().video_url;
+                            fetchEventDetails();
+                        }
+                    }).catch(e=>{});
+                } else {
+                    fetchEventDetails();
+                }
+            }, 5000);
 
-    def encerrar_evento(self):
-        if messagebox.askyesno("⚠️ FIM DE EVENTO", "Tens a certeza? Isto apaga todos os ingressos e desconecta todos os clientes!"):
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
-            c.execute("DELETE FROM ingressos")
-            c.execute("DELETE FROM chat_mensagens")
-            conn.commit()
-            conn.close()
-            self.refresh()
-            self.refresh_chat()
+            videoElement.addEventListener('play', () => { updatePlayPauseIcon(true); resetIdleTimer(); });
+            videoElement.addEventListener('pause', () => { updatePlayPauseIcon(false); showUI(); clearTimeout(idleTimeout); });
+            videoElement.addEventListener('volumechange', () => {
+                document.getElementById('volume-slider').value = videoElement.volume;
+                const icon = document.getElementById('icon-mute');
+                if(icon) {
+                    icon.setAttribute('data-lucide', (videoElement.muted || videoElement.volume === 0) ? 'volume-x' : 'volume-2');
+                    lucide.createIcons();
+                }
+            });
+        };
 
-    def auto_refresh(self):
-        search_term = self.ent_search.get().strip()
-        if not search_term or search_term == "Nome, CPF ou Código VIP":
-            self.refresh()
-        self.refresh_chat()
-        self.root.after(3000, self.auto_refresh)
+        function isValidCPF(cpf) {
+            cpf = cpf.replace(/[^\d]+/g, ''); 
+            if (cpf === '00000000000') return true; 
+            if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false; 
+            let soma = 0, resto;
+            for (let i = 1; i <= 9; i++) soma += parseInt(cpf.substring(i - 1, i)) * (11 - i);
+            resto = (soma * 10) % 11;
+            if (resto === 10 || resto === 11) resto = 0;
+            if (resto !== parseInt(cpf.substring(9, 10))) return false;
+            soma = 0;
+            for (let i = 1; i <= 10; i++) soma += parseInt(cpf.substring(i - 1, i)) * (12 - i);
+            resto = (soma * 10) % 11;
+            if (resto === 10 || resto === 11) resto = 0;
+            if (resto !== parseInt(cpf.substring(10, 11))) return false;
+            return true;
+        }
 
-    def on_close(self):
-        if self.server_thread: self.server_thread.shutdown()
-        for p in self.cf_processes: p.terminate()
-        self.root.destroy()
+        function startPaymentTimer(durationInSeconds) {
+            let timer = durationInSeconds;
+            const display = document.getElementById('payment-timer');
+            const overlay = document.getElementById('expired-overlay');
+            const btnNovo = document.getElementById('btn-gerar-novo');
+            const copyBtn = document.getElementById('btn-copy-pix');
 
-if __name__ == "__main__":
-    root = tk.Tk() 
-    app_gui = AdminApp(root) 
-    root.protocol("WM_DELETE_WINDOW", app_gui.on_close) 
-    root.mainloop()
+            overlay.classList.add('hidden'); overlay.classList.remove('flex');
+            btnNovo.classList.add('hidden'); btnNovo.classList.remove('flex');
+            copyBtn.disabled = false;
+
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            countdownInterval = setInterval(function () {
+                let minutes = parseInt(timer / 60, 10);
+                let seconds = parseInt(timer % 60, 10);
+
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                display.textContent = minutes + ":" + seconds;
+
+                if (--timer < 0) {
+                    clearInterval(countdownInterval);
+                    display.textContent = "00:00";
+                    overlay.classList.remove('hidden'); overlay.classList.add('flex');
+                    btnNovo.classList.remove('hidden'); btnNovo.classList.add('flex');
+                    copyBtn.disabled = true;
+                    showToast("O teu código PIX expirou. Por favor, gera um novo.", "error");
+                }
+            }, 1000);
+        }
+
+        function resetPayment() {
+            document.getElementById('step-payment').classList.add('hidden');
+            document.getElementById('step-conflict').classList.add('hidden');
+            document.getElementById('step-form').classList.remove('hidden');
+            document.getElementById('cpf-input').value = '';
+            document.getElementById('nome-input').value = '';
+            
+            if (countdownInterval) clearInterval(countdownInterval);
+            if (checkInterval) clearInterval(checkInterval);
+            
+            localStorage.removeItem('arenaLiveTicket');
+            currentTicketCode = "";
+            currentTicketNome = "";
+        }
+
+        function togglePlay(e) { 
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            videoElement.paused ? videoElement.play() : videoElement.pause(); 
+            resetIdleTimer();
+        }
+        
+        function updatePlayPauseIcon(isPlaying) {
+            const icon = document.getElementById('icon-center-play-pause');
+            if (icon) {
+                icon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+                lucide.createIcons();
+            }
+        }
+
+        function toggleMute(e) {
+            if(e) e.stopPropagation();
+            videoElement.muted = !videoElement.muted;
+            if(!videoElement.muted && videoElement.volume === 0) videoElement.volume = 1;
+            resetIdleTimer();
+        }
+
+        function changeVolume(val) { 
+            videoElement.volume = val; 
+            videoElement.muted = (val == 0); 
+            resetIdleTimer();
+        }
+        
+        function jumpToLive(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            if (videoElement) {
+                isSeeking = false; 
+                try {
+                    if (hlsInstance && hlsInstance.liveSyncPosition !== null && hlsInstance.liveSyncPosition !== undefined) {
+                        videoElement.currentTime = hlsInstance.liveSyncPosition;
+                    } else if (videoElement.seekable && videoElement.seekable.length > 0) {
+                        videoElement.currentTime = videoElement.seekable.end(videoElement.seekable.length - 1) - 2;
+                    }
+                    if (videoElement.paused) videoElement.play().catch(e=>{});
+                    showToast("Sincronizado com o Ao Vivo!", "info");
+                } catch(error) {}
+                resetIdleTimer();
+            }
+        }
+
+        async function toggleFullScreen(e) {
+            if(e) e.stopPropagation();
+            const wrapper = document.getElementById('unlocked-state');
+            if (!document.fullscreenElement) {
+                try {
+                    if (wrapper.requestFullscreen) await wrapper.requestFullscreen();
+                    else if (wrapper.webkitRequestFullscreen) await wrapper.webkitRequestFullscreen();
+                    if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(e => {});
+                } catch (e) {}
+            } else {
+                try {
+                    if (document.exitFullscreen) await document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+                    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+                } catch (e) {}
+            }
+            resetIdleTimer();
+        }
+        
+        function toggleQualityMenu(e) { 
+            if(e) e.stopPropagation();
+            document.getElementById('quality-menu').classList.toggle('hidden'); 
+            resetIdleTimer();
+        }
+
+        function setQuality(levelIndex) {
+            if(hlsInstance) {
+                hlsInstance.currentLevel = levelIndex;
+                document.getElementById('quality-menu').classList.add('hidden');
+                showToast(levelIndex === -1 ? "Qualidade: Automática" : `Qualidade: ${hlsInstance.levels[levelIndex].height}p`, "info");
+            }
+        }
+
+        function updatePriceDisplay(valor) {
+            const numValor = parseFloat(valor.toString().replace(',', '.'));
+            if (!isNaN(numValor)) {
+                document.getElementById('ticket-price-display').innerText = `R$ ${numValor.toFixed(2).replace('.', ',')}`;
+            }
+        }
+
+        function goHome() {
+            if (videoElement) videoElement.pause();
+            
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.width = '';
+            document.body.style.height = '';
+            document.body.style.overflow = '';
+            document.body.style.backgroundColor = '#050505';
+            
+            document.getElementById('main-header').classList.remove('hidden');
+            
+            const wrapper = document.getElementById('player-wrapper');
+            wrapper.classList.remove('shrink-0', 'aspect-video', 'lg:aspect-auto', 'lg:flex-1');
+            wrapper.classList.add('flex-1');
+
+            document.getElementById('view-player').classList.add('hidden');
+            document.getElementById('view-player').classList.remove('flex', 'lg:flex-row');
+            document.getElementById('view-home').classList.remove('hidden');
+            
+            closeModal();
+            pararChat();
+            fetchEventDetails();
+            window.scrollTo(0,0);
+        }
+
+        function openPlayer() {
+            document.body.style.position = 'fixed';
+            document.body.style.top = '0';
+            document.body.style.left = '0';
+            document.body.style.width = '100%';
+            document.body.style.height = '100%';
+            document.body.style.overflow = 'hidden';
+            document.body.style.backgroundColor = '#000';
+            
+            document.getElementById('main-header').classList.add('hidden');
+            document.getElementById('view-home').classList.add('hidden');
+            
+            const vp = document.getElementById('view-player');
+            vp.classList.remove('hidden');
+            vp.classList.add('flex', 'lg:flex-row');
+            
+            adjustPlayerHeight();
+        }
+        
+        function iniciarCompra() {
+            openPlayer();
+            openCheckout();
+        }
+
+        function openCheckout() {
+            document.getElementById('checkout-modal').classList.remove('hidden');
+            document.getElementById('step-form').classList.remove('hidden');
+            document.getElementById('step-payment').classList.add('hidden');
+            document.getElementById('step-conflict').classList.add('hidden');
+            setTimeout(() => document.getElementById('nome-input').focus(), 100);
+        }
+
+        function closeModal() { document.getElementById('checkout-modal').classList.add('hidden'); }
+        function showLogoutButton() { document.getElementById('btn-logout').classList.remove('hidden'); document.getElementById('btn-logout').classList.add('flex'); }
+        function logout() { localStorage.removeItem('arenaLiveTicket'); pararChat(); showToast("A desconectar...", "warning"); setTimeout(() => location.reload(), 1500); }
+
+        function maskCPFOnly(input) {
+            let v = input.value.replace(/\D/g, ''); if (v.length > 11) v = v.substring(0, 11);
+            v = v.replace(/(\d{3})(\d)/, '$1.$2'); v = v.replace(/(\d{3})(\d)/, '$1.$2');
+            input.value = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        }
+
+        function maskCpfOrCode(input) {
+            let v = input.value;
+            if (/^\d/.test(v)) {
+                v = v.replace(/\D/g, ''); if (v.length > 11) v = v.substring(0, 11);
+                v = v.replace(/(\d{3})(\d)/, '$1.$2'); v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                input.value = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            }
+        }
+
+        async function generateTicket() {
+            const nome = document.getElementById('nome-input').value.trim();
+            const cpf = document.getElementById('cpf-input').value;
+            
+            if (nome.length < 3) return showToast("Por favor, insere um nome válido.", "error");
+            if (!isValidCPF(cpf)) return showToast("CPF Inválido.", "error");
+            if (!window.API_URL) return showToast("A aguardar sincronização com o sistema...", "warning");
+            
+            const btnGerar = document.getElementById('btn-gerar-pix');
+            const originalBtnHtml = btnGerar.innerHTML;
+            
+            try {
+                btnGerar.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> PROCESSANDO...';
+                btnGerar.disabled = true;
+
+                const res = await fetch(`${window.API_URL}/api/gerar_ingresso`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ nome: nome, cpf: cpf, device_id: deviceId })
+                });
+                
+                if (!res.ok) {
+                    btnGerar.innerHTML = originalBtnHtml; btnGerar.disabled = false;
+                    if (res.status === 400) {
+                        const errorData = await res.json();
+                        fetchEventDetails();
+                        return showToast(errorData.message, "error");
+                    }
+                    return showToast("O servidor Python está offline. Verifica o teu painel.", "error");
+                }
+
+                const data = await res.json();
+                if(data.status === 'error') {
+                    btnGerar.innerHTML = originalBtnHtml; btnGerar.disabled = false;
+                    return showToast("Erro: " + data.message, "error");
+                }
+                
+                currentTicketCode = data.codigo; currentTicketCpf = cpf; currentTicketNome = nome;
+                if(data.whatsapp) adminContact = data.whatsapp; 
+                if(data.valor) updatePriceDisplay(data.valor);
+
+                try {
+                    const checkRes = await fetch(`${window.API_URL}/api/ingresso/${data.codigo}?device=${deviceId}`);
+                    const checkData = await checkRes.json();
+                    
+                    btnGerar.innerHTML = originalBtnHtml; btnGerar.disabled = false;
+
+                    if (checkData.status === 'aprovado') {
+                        localStorage.setItem('arenaLiveTicket', data.codigo);
+                        showLogoutButton();
+                        showToast("Ingresso já estava pago! Acesso libertado.", "success");
+                        openPlayer(); 
+                        unlockContent();
+                        iniciarPolling(data.codigo);
+                        return;
+                    } else if (checkData.status === 'conflict') {
+                        document.getElementById('step-form').classList.add('hidden');
+                        document.getElementById('step-conflict').classList.remove('hidden');
+                        return;
+                    }
+                } catch(e) {}
+
+                btnGerar.innerHTML = originalBtnHtml; btnGerar.disabled = false;
+                document.getElementById('step-form').classList.add('hidden');
+                document.getElementById('ticket-code-display').innerText = data.codigo;
+                document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(data.chave_pix)}`;
+                document.getElementById('pix-copy-input').value = data.chave_pix;
+                document.getElementById('step-payment').classList.remove('hidden');
+                
+                showToast("Ticket gerado! Realiza o pagamento para aceder.", "success");
+                localStorage.setItem('arenaLiveTicket', data.codigo); 
+                showLogoutButton();
+                startPaymentTimer(600);
+                iniciarPolling(data.codigo);
+                
+            } catch(e) { 
+                btnGerar.innerHTML = originalBtnHtml; btnGerar.disabled = false;
+                showToast("Falha ao comunicar com o servidor.", "error"); 
+            }
+        }
+
+        function copyPixText() {
+            document.getElementById("pix-copy-input").select(); document.execCommand("copy"); showToast("Código PIX copiado!", "success");
+            const btn = document.getElementById("btn-copy-pix"); const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> Copiado!'; btn.classList.replace('bg-neutral-800', 'bg-emerald-600'); btn.classList.replace('hover:bg-indigo-600', 'hover:bg-emerald-500'); try { lucide.createIcons(); } catch(e){}
+            setTimeout(() => { btn.innerHTML = originalHTML; btn.classList.replace('bg-emerald-600', 'bg-neutral-800'); btn.classList.replace('hover:bg-emerald-500', 'hover:bg-indigo-600'); try { lucide.createIcons(); } catch(e){} }, 2000);
+        }
+
+        async function checkExistingTicket(val = null, silent = false) {
+            const inputVal = val || document.getElementById('existing-ticket-input').value.trim();
+            if (!inputVal) return;
+            if (/^[\d.-]+$/.test(inputVal) && inputVal.length >= 11) {
+                if(!isValidCPF(inputVal)) return showToast("CPF Inválido.", "error");
+            }
+            if (!window.API_URL) return showToast("A aguardar servidor...", "warning");
+            
+            try {
+                const noCache = new Date().getTime();
+                let endpoint = /^[\d.-]+$/.test(inputVal) ? `${window.API_URL}/api/ingresso_cpf/${inputVal.replace(/\D/g, '')}?device=${deviceId}&_t=${noCache}` : `${window.API_URL}/api/ingresso/${inputVal}?device=${deviceId}&_t=${noCache}`;
+                const res = await fetch(endpoint); 
+                
+                if (!res.ok && res.status !== 404) {
+                    if(!silent) showToast("O servidor Python está offline.", "error");
+                    return;
+                }
+                
+                const data = await res.json();
+                
+                if (data.status === 'conflict') {
+                    currentTicketCode = data.codigo;
+                    if(!silent) {
+                        openPlayer();
+                        document.getElementById('checkout-modal').classList.remove('hidden');
+                        document.getElementById('step-form').classList.add('hidden');
+                        document.getElementById('step-payment').classList.add('hidden');
+                        document.getElementById('step-conflict').classList.remove('hidden');
+                    }
+                } else if (res.ok && data.status === 'aprovado') {
+                    currentTicketCode = data.codigo;
+                    localStorage.setItem('arenaLiveTicket', data.codigo); showLogoutButton();
+                    if(!silent) showToast("Acesso libertado! Bom evento.", "success");
+                    
+                    openPlayer(); 
+                    unlockContent();
+                    iniciarPolling(data.codigo);
+                    
+                } else if (res.ok && data.status === 'pendente') {
+                    currentTicketCode = data.codigo; currentTicketCpf = data.cpf || inputVal;
+                    if(data.whatsapp) adminContact = data.whatsapp; 
+                    if(data.valor) updatePriceDisplay(data.valor);
+
+                    localStorage.setItem('arenaLiveTicket', data.codigo); showLogoutButton();
+                    if(!silent) {
+                        showToast("Pagamento pendente. Finaliza para aceder.", "warning");
+                        openPlayer();
+                        document.getElementById('ticket-code-display').innerText = data.codigo;
+                        document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(data.chave_pix)}`;
+                        document.getElementById('pix-copy-input').value = data.chave_pix;
+                        document.getElementById('checkout-modal').classList.remove('hidden');
+                        document.getElementById('step-form').classList.add('hidden');
+                        document.getElementById('step-payment').classList.remove('hidden');
+                        startPaymentTimer(300);
+                        iniciarPolling(data.codigo);
+                    }
+                } else { if(!silent) showToast("Ingresso não encontrado.", "error"); }
+            } catch(e) { if(!silent) showToast("Erro de ligação ao servidor.", "error"); }
+        }
+
+        async function forcarAcesso() {
+            try {
+                const res = await fetch(`${window.API_URL}/api/forcar_acesso`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ codigo: currentTicketCode, device_id: deviceId })
+                });
+                if(res.ok) {
+                    document.getElementById('step-conflict').classList.add('hidden');
+                    checkExistingTicket(currentTicketCode);
+                }
+            } catch(e) { showToast("Erro ao processar alteração de sessão.", "error"); }
+        }
+
+        function iniciarPolling(codigo) {
+            if (checkInterval) clearInterval(checkInterval);
+            checkInterval = setInterval(async () => {
+                try {
+                    const noCache = new Date().getTime();
+                    const res = await fetch(`${window.API_URL}/api/ingresso/${codigo}?device=${deviceId}&_t=${noCache}`);
+                    
+                    if (!res.ok) {
+                        if (res.status === 404) {
+                            clearInterval(checkInterval);
+                            localStorage.removeItem('arenaLiveTicket');
+                            showToast("O evento foi encerrado! Redirecionando...", "warning");
+                            setTimeout(() => location.reload(), 3000);
+                        }
+                        return;
+                    }
+                    
+                    const data = await res.json();
+                    
+                    if (data.status === 'aprovado') {
+                        if (!document.getElementById('locked-state').classList.contains('hidden')) {
+                            if (countdownInterval) clearInterval(countdownInterval);
+                            showToast("Pagamento Confirmado! A libertar...", "success");
+                            setTimeout(() => unlockContent(), 1000);
+                        }
+                    } else if (data.status === 'pendente') {
+                        if (!document.getElementById('unlocked-state').classList.contains('hidden')) {
+                            clearInterval(checkInterval);
+                            localStorage.removeItem('arenaLiveTicket');
+                            showToast("O teu acesso foi suspenso.", "error");
+                            setTimeout(() => location.reload(), 2500);
+                        }
+                    } else if (data.status === 'conflict') {
+                        clearInterval(checkInterval);
+                        if (!document.getElementById('unlocked-state').classList.contains('hidden')) {
+                            if (videoElement) videoElement.pause();
+                            document.getElementById('unlocked-state').classList.add('hidden');
+                            document.getElementById('locked-state').classList.remove('hidden');
+                            pararChat();
+                        }
+                        checkExistingTicket(codigo);
+                    }
+                } catch (e) {}
+            }, 5000);
+        }
+
+        function sendTelegram() {
+            if (!currentTicketCode) return;
+            let cleanContact = adminContact.replace('@', '').trim();
+            if (/^\d+$/.test(cleanContact)) cleanContact = '+' + cleanContact;
+            
+            const nomeTexto = currentTicketNome ? `\n*👤 Nome:* ${currentTicketNome}` : '';
+            window.open(`https://t.me/${cleanContact}?text=${encodeURIComponent(`Olá! Preciso de ajuda com o meu acesso.${nomeTexto}\n*🎫 Ingresso VIP:* ${currentTicketCode}\n*📄 CPF:* ${currentTicketCpf}`)}`, '_blank');
+        }
+
+        function unlockContent() {
+            closeModal();
+            document.getElementById('locked-state').classList.add('hidden');
+            document.getElementById('unlocked-state').classList.remove('hidden');
+            document.getElementById('unlocked-state').classList.add('fade-in');
+            
+            const wrapper = document.getElementById('player-wrapper');
+            wrapper.classList.remove('flex-1');
+            wrapper.classList.add('shrink-0', 'aspect-video', 'lg:aspect-auto', 'lg:flex-1');
+            
+            showUI(); 
+            iniciarChat();
+            avaliarStatusPlayer();
+        }
+
+        // LÓGICA DE OVERRIDE (SUBSTITUIÇÃO DE EMERGÊNCIA)
+        function avaliarStatusPlayer() {
+            const waitingScreen = document.getElementById('waiting-screen');
+            const liveVideo = document.getElementById('live-video');
+            const videoUiOverlay = document.getElementById('video-ui-overlay');
+            const uiHitbox = document.getElementById('ui-hitbox');
+            const videoLoading = document.getElementById('video-loading');
+
+            if (window.STATUS_PLAYER === 'live') {
+                // MODO: FORÇAR AO VIVO
+                if (countdownTimer) clearInterval(countdownTimer);
+                waitingScreen.classList.remove('flex');
+                waitingScreen.classList.add('hidden');
+                liveVideo.classList.remove('hidden');
+                videoUiOverlay.classList.remove('hidden');
+                uiHitbox.classList.remove('hidden');
+                if(!hlsInstance && !liveVideo.src) iniciarVideoHLS(); 
+                else liveVideo.play().catch(e=>{});
+
+            } else if (window.STATUS_PLAYER === 'waiting') {
+                // MODO: FORÇAR TELA DE ESPERA
+                waitingScreen.classList.remove('hidden');
+                waitingScreen.classList.add('flex');
+                liveVideo.classList.add('hidden');
+                videoUiOverlay.classList.add('hidden');
+                uiHitbox.classList.add('hidden');
+                videoLoading.classList.add('hidden'); // <-- CORREÇÃO: Esconde a rodinha de loading sempre!
+                if(liveVideo) liveVideo.pause();
+                
+                // Continua a atualizar o contador só para efeito visual, se houver data
+                if (eventTargetDate) iniciarContagemRegressiva(true);
+                else document.getElementById('countdown-container').classList.add('opacity-0'); // Se não houver data, esconde os números
+
+            } else {
+                // MODO: AUTOMÁTICO (Baseado no Calendário)
+                document.getElementById('countdown-container').classList.remove('opacity-0');
+                if (eventTargetDate && new Date() < eventTargetDate) {
+                    iniciarContagemRegressiva(false);
+                } else {
+                    if (countdownTimer) clearInterval(countdownTimer);
+                    waitingScreen.classList.remove('flex');
+                    waitingScreen.classList.add('hidden');
+                    liveVideo.classList.remove('hidden');
+                    videoUiOverlay.classList.remove('hidden');
+                    uiHitbox.classList.remove('hidden');
+                    if(!hlsInstance && !liveVideo.src) iniciarVideoHLS();
+                    else liveVideo.play().catch(e=>{});
+                }
+            }
+        }
+
+        function iniciarContagemRegressiva(apenasVisual = false) {
+            const waitingScreen = document.getElementById('waiting-screen');
+            if(!apenasVisual) {
+                waitingScreen.classList.remove('hidden');
+                waitingScreen.classList.add('flex');
+                document.getElementById('live-video').classList.add('hidden');
+                document.getElementById('video-ui-overlay').classList.add('hidden');
+                document.getElementById('ui-hitbox').classList.add('hidden');
+                document.getElementById('video-loading').classList.add('hidden'); // <-- CORREÇÃO: Esconde o loading aqui também
+            }
+
+            if(countdownTimer) clearInterval(countdownTimer);
+
+            countdownTimer = setInterval(() => {
+                if(!eventTargetDate) { clearInterval(countdownTimer); return; }
+                const now = new Date();
+                const diff = eventTargetDate - now;
+
+                if (diff <= 0) {
+                    clearInterval(countdownTimer);
+                    if(!apenasVisual && window.STATUS_PLAYER === 'auto') {
+                        waitingScreen.classList.remove('flex');
+                        waitingScreen.classList.add('hidden');
+                        document.getElementById('live-video').classList.remove('hidden');
+                        document.getElementById('video-ui-overlay').classList.remove('hidden');
+                        document.getElementById('ui-hitbox').classList.remove('hidden');
+                        iniciarVideoHLS();
+                    }
+                    return;
+                }
+
+                const h = Math.floor(diff / (1000 * 60 * 60));
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+                document.getElementById('count-h').innerText = h.toString().padStart(2, '0');
+                document.getElementById('count-m').innerText = m.toString().padStart(2, '0');
+                document.getElementById('count-s').innerText = s.toString().padStart(2, '0');
+            }, 1000);
+        }
+
+        function iniciarVideoHLS() {
+            const loading = document.getElementById('video-loading');
+            loading.classList.remove('hidden');
+
+            if (Hls.isSupported()) {
+                if(hlsInstance) { hlsInstance.destroy(); }
+                
+                hlsInstance = new Hls({
+                    lowLatencyMode: videoConfig.low_latency, 
+                    liveSyncDurationCount: videoConfig.sync_duration, 
+                    liveMaxLatencyDurationCount: videoConfig.max_latency, 
+                    maxBufferLength: videoConfig.max_buffer, 
+                    maxMaxBufferLength: videoConfig.max_buffer * 2,
+                    manifestLoadingTimeOut: 20000,
+                    manifestLoadingMaxRetry: 10,
+                    manifestLoadingRetryDelay: 1000
+                });
+                
+                hlsInstance.loadSource(window.VIDEO_URL);
+                hlsInstance.attachMedia(videoElement);
+                
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+                    loading.classList.add('hidden');
+                    videoElement.play().catch(e => console.log("Interação necessária para iniciar."));
+                    
+                    const qualityContainer = document.getElementById('quality-levels');
+                    qualityContainer.innerHTML = '';
+                    hlsInstance.levels.forEach((level, index) => {
+                        const btn = document.createElement('button');
+                        btn.className = 'px-4 py-3 text-sm font-bold text-white hover:bg-indigo-600 text-left border-b border-white/5 transition-colors';
+                        btn.innerText = `${level.height}p`;
+                        btn.onclick = (e) => { e.stopPropagation(); setQuality(index); }
+                        qualityContainer.appendChild(btn);
+                    });
+                });
+                
+                hlsInstance.on(Hls.Events.ERROR, function (event, data) {
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.warn("OBS Desconectado. A tentar recuperar sinal...");
+                                showToast("Sinal perdido! A tentar reconectar automaticamente...", "warning");
+                                hlsInstance.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                hlsInstance.recoverMediaError();
+                                break;
+                            default:
+                                hlsInstance.destroy();
+                                showToast("Erro grave. A reiniciar player...", "error");
+                                setTimeout(() => iniciarVideoHLS(), 3000);
+                                break;
+                        }
+                    }
+                });
+            } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                videoElement.src = window.VIDEO_URL;
+                videoElement.addEventListener('loadedmetadata', () => {
+                    loading.classList.add('hidden');
+                    videoElement.play();
+                });
+            }
+        }
+    </script>
+</body>
+</html>
