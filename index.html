@@ -281,6 +281,15 @@
             <!-- Player Desbloqueado -->
             <div id="unlocked-state" class="hidden absolute inset-0 bg-black flex items-center justify-center z-10 overflow-hidden">
                 
+                <!-- OVERLAY DE INTERAÇÃO (RESOLVE BLOQUEIOS DE AUTOPLAY DOS NAVEGADORES) -->
+                <div id="interaction-overlay" class="absolute inset-0 z-[70] bg-black/80 backdrop-blur-md flex-col items-center justify-center hidden cursor-pointer" onclick="forcePlay()">
+                    <div class="w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center animate-[pulse_2s_ease-in-out_infinite] mb-6 shadow-[0_0_30px_rgba(99,102,241,0.6)] hover:scale-110 transition-transform">
+                        <i data-lucide="play" class="w-10 h-10 text-white fill-current ml-2"></i>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-black text-white drop-shadow-md text-center px-4">CLIQUE PARA ASSISTIR</h2>
+                    <p class="text-neutral-400 text-sm mt-3 text-center px-4">O teu navegador exige um clique para iniciar o vídeo.</p>
+                </div>
+
                 <!-- TELA DE ESPERA PRÉ-JOGO -->
                 <div id="waiting-screen" class="hidden absolute inset-0 z-[60] flex-col items-center justify-center bg-black/95 backdrop-blur-md transition-opacity duration-500">
                     <div class="absolute inset-0 bg-gradient-to-t from-indigo-900/20 via-black to-black pointer-events-none"></div>
@@ -535,6 +544,8 @@
     <script>
         try { lucide.createIcons(); } catch(e){}
 
+        // SE O SEU NGINX ESTIVER NO MESMO DOMÍNIO MAS EM PORTA DIFERENTE (EX: localhost:8080)
+        // ALTERE ESTA VARIÁVEL window.VIDEO_URL CONFORME NECESSÁRIO
         window.API_URL = "https://api.arenalive.shop";
         window.VIDEO_URL = "https://video.arenalive.shop/hls/stream.m3u8";
 
@@ -578,7 +589,6 @@
         function adjustPlayerHeight() {
             const vp = document.getElementById('view-player');
             if (vp && !vp.classList.contains('hidden')) {
-                // Dá prioridade ao innerHeight nativo, e só depois tenta o visualViewport
                 let currentHeight = window.innerHeight;
                 let offsetTop = 0;
                 
@@ -609,7 +619,6 @@
         }
 
         function onChatFocus() {
-            // Primeiro puxão quando o teclado começa a subir
             setTimeout(() => {
                 adjustPlayerHeight();
                 const inputContainer = document.getElementById('chat-input-container');
@@ -618,7 +627,6 @@
                 if(chatMsgs) chatMsgs.scrollTop = chatMsgs.scrollHeight;
             }, 300);
             
-            // Segundo puxão de segurança caso a animação do teclado atrase
             setTimeout(() => {
                 adjustPlayerHeight();
                 const inputContainer = document.getElementById('chat-input-container');
@@ -637,7 +645,7 @@
             lastChatId = 0;
             buscarMensagensChat();
             if(chatInterval) clearInterval(chatInterval);
-            chatInterval = setInterval(buscarMensagensChat, 2000); // CHAT MAIS RÁPIDO
+            chatInterval = setInterval(buscarMensagensChat, 2000); 
         }
 
         function pararChat() {
@@ -913,7 +921,7 @@
 
                 if (data.status_player) {
                     window.STATUS_PLAYER = data.status_player;
-                    localStorage.setItem('arenaLiveStatus', data.status_player); // CACHE PARA INICIAR IMEDIATO NO RELOAD
+                    localStorage.setItem('arenaLiveStatus', data.status_player); 
                 } else {
                     window.STATUS_PLAYER = 'auto';
                     localStorage.setItem('arenaLiveStatus', 'auto');
@@ -921,7 +929,6 @@
 
                 if (data.video_config) videoConfig = data.video_config;
 
-                // Força a atualização do ecrã se o utilizador já estiver dentro do player
                 if (!document.getElementById('unlocked-state').classList.contains('hidden')) {
                     avaliarStatusPlayer();
                 }
@@ -1011,7 +1018,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Iniciar fluxo principal
             if (window.API_URL) {
                 const saved = localStorage.getItem('arenaLiveTicket');
                 
@@ -1024,7 +1030,6 @@
                     showLogoutButton();
                     openPlayer();
                     
-                    // Pulo visual para remover o flash do ecrã de pagamento
                     document.getElementById('locked-state').classList.add('hidden');
                     document.getElementById('unlocked-state').classList.remove('hidden');
                     document.getElementById('unlocked-state').classList.add('fade-in');
@@ -1034,11 +1039,10 @@
                     showUI(); 
                     iniciarChat();
                     
-                    // OTIMIZAÇÃO: Inicia o vídeo IMEDIATAMENTE (ignora o atraso da API inicial)
                     window.STATUS_PLAYER = localStorage.getItem('arenaLiveStatus') || 'live';
                     avaliarStatusPlayer();
 
-                    // Validação de segurança corre invisível no fundo sem interromper o vídeo
+                    // Validação de segurança corre invisível no fundo
                     checkExistingTicket(saved, true);
                 }
 
@@ -1047,7 +1051,7 @@
                 }
 
                 fetchEventDetails();
-                if(!eventDetailsInterval) eventDetailsInterval = setInterval(fetchEventDetails, 2500); // Mais rápido!
+                if(!eventDetailsInterval) eventDetailsInterval = setInterval(fetchEventDetails, 2500); 
 
             } else {
                 showToast("A aguardar ligação ao servidor...", "warning");
@@ -1137,6 +1141,19 @@
             if(e) { e.preventDefault(); e.stopPropagation(); }
             videoElement.paused ? videoElement.play() : videoElement.pause(); 
             resetIdleTimer();
+        }
+
+        function forcePlay() {
+            document.getElementById('interaction-overlay').classList.add('hidden');
+            document.getElementById('interaction-overlay').classList.remove('flex');
+            if (videoElement) {
+                videoElement.muted = false;
+                videoElement.volume = 1;
+                document.getElementById('volume-slider').value = 1;
+                const icon = document.getElementById('icon-mute');
+                if(icon) { icon.setAttribute('data-lucide', 'volume-2'); lucide.createIcons(); }
+                videoElement.play().catch(e=>{});
+            }
         }
         
         function updatePlayPauseIcon(isPlaying) {
@@ -1412,7 +1429,6 @@
                         document.getElementById('step-payment').classList.add('hidden');
                         document.getElementById('step-conflict').classList.remove('hidden');
                     } else {
-                        // Se for encontrado um conflito invisivel, puxa-o para a aba de conflito na mesma
                         lockContent();
                         document.getElementById('checkout-modal').classList.remove('hidden');
                         document.getElementById('step-form').classList.add('hidden');
@@ -1448,7 +1464,6 @@
                         startPaymentTimer(300);
                         iniciarPolling(data.codigo);
                     } else {
-                        // Se fizemos pulo imediato (silent), mas era um pagamento PENDENTE, revertemos com segurança
                         lockContent();
                         document.getElementById('ticket-code-display').innerText = data.codigo;
                         document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(data.chave_pix)}`;
@@ -1463,7 +1478,7 @@
                     if(!silent) showToast("Ingresso não encontrado.", "error"); 
                     else {
                         localStorage.removeItem('arenaLiveTicket');
-                        location.reload(); // Código inválido de cache, expulsa o utilizador
+                        location.reload(); 
                     }
                 }
             } catch(e) { if(!silent) showToast("Erro de ligação ao servidor.", "error"); }
@@ -1523,7 +1538,7 @@
                         checkExistingTicket(codigo);
                     }
                 } catch (e) {}
-            }, 3000); // Polling de verificação de VIP agora a 3 segundos (estava a 5s)
+            }, 3000); 
         }
 
         function sendTelegram() {
@@ -1544,7 +1559,6 @@
             const videoLoading = document.getElementById('video-loading');
 
             if (window.STATUS_PLAYER === 'live') {
-                // MODO: FORÇAR AO VIVO
                 if (countdownTimer) clearInterval(countdownTimer);
                 waitingScreen.classList.remove('flex');
                 waitingScreen.classList.add('hidden');
@@ -1552,10 +1566,12 @@
                 videoUiOverlay.classList.remove('hidden');
                 uiHitbox.classList.remove('hidden');
                 if(!hlsInstance && !liveVideo.src) iniciarVideoHLS(); 
-                else liveVideo.play().catch(e=>{});
+                else liveVideo.play().catch(e => {
+                    document.getElementById('interaction-overlay').classList.remove('hidden');
+                    document.getElementById('interaction-overlay').classList.add('flex');
+                });
 
             } else if (window.STATUS_PLAYER === 'waiting') {
-                // MODO: FORÇAR TELA DE ESPERA
                 waitingScreen.classList.remove('hidden');
                 waitingScreen.classList.add('flex');
                 liveVideo.classList.add('hidden');
@@ -1564,12 +1580,10 @@
                 videoLoading.classList.add('hidden'); 
                 if(liveVideo) liveVideo.pause();
                 
-                // Continua a atualizar o contador só para efeito visual, se houver data
                 if (eventTargetDate) iniciarContagemRegressiva(true);
                 else document.getElementById('countdown-container').classList.add('opacity-0');
 
             } else {
-                // MODO: AUTOMÁTICO (Baseado no Calendário)
                 document.getElementById('countdown-container').classList.remove('opacity-0');
                 if (eventTargetDate && new Date() < eventTargetDate) {
                     iniciarContagemRegressiva(false);
@@ -1581,7 +1595,10 @@
                     videoUiOverlay.classList.remove('hidden');
                     uiHitbox.classList.remove('hidden');
                     if(!hlsInstance && !liveVideo.src) iniciarVideoHLS();
-                    else liveVideo.play().catch(e=>{});
+                    else liveVideo.play().catch(e => {
+                        document.getElementById('interaction-overlay').classList.remove('hidden');
+                        document.getElementById('interaction-overlay').classList.add('flex');
+                    });
                 }
             }
         }
@@ -1634,12 +1651,13 @@
             if (Hls.isSupported()) {
                 if(hlsInstance) { hlsInstance.destroy(); }
                 
+                // OTIMIZAÇÃO: Restaurei as defnições robustas baseadas na sua API (sync = 2, max = 4)
                 hlsInstance = new Hls({
                     lowLatencyMode: videoConfig.low_latency, 
-                    liveSyncDurationCount: 1, // Reduzido para iniciar mais rápido
-                    liveMaxLatencyDurationCount: 2, // Reduzido para iniciar mais rápido
-                    maxBufferLength: 3, // Buffer agressivo para cortar o delay do player
-                    maxMaxBufferLength: 6,
+                    liveSyncDurationCount: videoConfig.sync_duration || 3,
+                    liveMaxLatencyDurationCount: videoConfig.max_latency || 5,
+                    maxBufferLength: videoConfig.max_buffer || 15,
+                    maxMaxBufferLength: (videoConfig.max_buffer || 15) * 2,
                     manifestLoadingTimeOut: 10000,
                     manifestLoadingMaxRetry: 10,
                     manifestLoadingRetryDelay: 500,
@@ -1651,7 +1669,11 @@
                 
                 hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
                     loading.classList.add('hidden');
-                    videoElement.play().catch(e => console.log("Interação necessária para iniciar."));
+                    videoElement.play().catch(e => {
+                        console.warn("Autoplay bloqueado pelo Navegador.");
+                        document.getElementById('interaction-overlay').classList.remove('hidden');
+                        document.getElementById('interaction-overlay').classList.add('flex');
+                    });
                     
                     const qualityContainer = document.getElementById('quality-levels');
                     qualityContainer.innerHTML = '';
@@ -1687,7 +1709,10 @@
                 videoElement.src = window.VIDEO_URL;
                 videoElement.addEventListener('loadedmetadata', () => {
                     loading.classList.add('hidden');
-                    videoElement.play();
+                    videoElement.play().catch(e => {
+                        document.getElementById('interaction-overlay').classList.remove('hidden');
+                        document.getElementById('interaction-overlay').classList.add('flex');
+                    });
                 });
             }
         }
