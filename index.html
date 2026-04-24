@@ -544,8 +544,6 @@
     <script>
         try { lucide.createIcons(); } catch(e){}
 
-        // SE O SEU NGINX ESTIVER NO MESMO DOMÍNIO MAS EM PORTA DIFERENTE (EX: localhost:8080)
-        // ALTERE ESTA VARIÁVEL window.VIDEO_URL CONFORME NECESSÁRIO
         window.API_URL = "https://api.arenalive.shop";
         window.VIDEO_URL = "https://video.arenalive.shop/hls/stream.m3u8";
 
@@ -580,10 +578,10 @@
         window.STATUS_PLAYER = 'auto'; 
         
         let videoConfig = {
-            low_latency: true,
-            sync_duration: 2,
-            max_latency: 4,
-            max_buffer: 10
+            low_latency: false,
+            sync_duration: 3,
+            max_latency: 8,
+            max_buffer: 15
         };
 
         function adjustPlayerHeight() {
@@ -1651,16 +1649,17 @@
             if (Hls.isSupported()) {
                 if(hlsInstance) { hlsInstance.destroy(); }
                 
-                // OTIMIZAÇÃO: Restaurei as configurações originais e estáveis que o seu Nginx suporta!
+                // OTIMIZAÇÃO: Desativado o lowLatencyMode agressivo porque o Nginx clássico (1.7) não o suporta nativamente.
+                // Restaurei as configurações originais e alarguei o tempo de tentativa!
                 hlsInstance = new Hls({
-                    lowLatencyMode: videoConfig.low_latency !== undefined ? videoConfig.low_latency : true, 
-                    liveSyncDurationCount: videoConfig.sync_duration || 2,
-                    liveMaxLatencyDurationCount: videoConfig.max_latency || 4,
-                    maxBufferLength: videoConfig.max_buffer || 10,
-                    maxMaxBufferLength: (videoConfig.max_buffer || 10) * 2,
-                    manifestLoadingTimeOut: 20000,
-                    manifestLoadingMaxRetry: 10,
-                    manifestLoadingRetryDelay: 1000
+                    lowLatencyMode: false, 
+                    liveSyncDurationCount: videoConfig.sync_duration || 3,
+                    liveMaxLatencyDurationCount: videoConfig.max_latency || 7,
+                    maxBufferLength: videoConfig.max_buffer || 15,
+                    maxMaxBufferLength: (videoConfig.max_buffer || 15) * 2,
+                    manifestLoadingMaxRetry: 20, // Tenta conectar 20 vezes antes de desistir e avisar erro
+                    manifestLoadingRetryDelay: 2000,
+                    enableWorker: true
                 });
                 
                 hlsInstance.loadSource(window.VIDEO_URL);
@@ -1689,12 +1688,12 @@
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.warn("Erro de rede (Nginx ou OBS Offline). A tentar recuperar...");
-                                // Proteção contra Spam de mensagens (avisa só 1 vez a cada 6 segundos)
+                                console.warn("Erro de rede HLS. A tentar recuperar o sinal de vídeo...");
+                                // Bloqueia spam do aviso para que o vídeo se recupere sozinho silenciosamente
                                 if (!window.hlsErrorSpamBlock) {
-                                    showToast("A aguardar sinal do vídeo (OBS Offline?)...", "warning");
+                                    showToast("A sincronizar sinal do vídeo...", "warning");
                                     window.hlsErrorSpamBlock = true;
-                                    setTimeout(() => { window.hlsErrorSpamBlock = false; }, 6000);
+                                    setTimeout(() => { window.hlsErrorSpamBlock = false; }, 8000);
                                 }
                                 hlsInstance.startLoad();
                                 break;
@@ -1703,7 +1702,6 @@
                                 break;
                             default:
                                 hlsInstance.destroy();
-                                showToast("Erro grave. A reiniciar player...", "error");
                                 setTimeout(() => iniciarVideoHLS(), 3000);
                                 break;
                         }
