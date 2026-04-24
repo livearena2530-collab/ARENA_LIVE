@@ -123,7 +123,7 @@
 
     <header id="main-header" class="fixed top-0 w-full border-b border-white/5 glass z-40 px-4 sm:px-8 h-[72px] flex items-center justify-between transition-all">
         <div class="flex items-center gap-6">
-            <button onclick="goHome(); checkDevMode(event);" class="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95">
+            <button onclick="goHome();" class="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95">
                 <div class="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-2 rounded-xl shadow-lg shadow-indigo-500/30">
                     <i data-lucide="play" class="w-5 h-5 fill-current"></i>
                 </div>
@@ -402,8 +402,8 @@
             </div>
 
             <!-- Input do Chat -->
-            <div class="p-3 bg-neutral-950 border-t border-white/5 flex items-center gap-2 shrink-0">
-                <input type="text" id="chat-input" placeholder="Conversar publicamente..." class="flex-1 bg-neutral-800 text-white rounded-full px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-neutral-500" maxlength="200" onkeypress="if(event.key === 'Enter') enviarMensagemChat()" onfocus="forceScrollToTop()">
+            <div id="chat-input-container" class="p-3 bg-neutral-950 border-t border-white/5 flex items-center gap-2 shrink-0">
+                <input type="text" id="chat-input" placeholder="Conversar publicamente..." class="flex-1 bg-neutral-800 text-white rounded-full px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-neutral-500" maxlength="200" onkeypress="if(event.key === 'Enter') enviarMensagemChat()" onfocus="onChatFocus()">
                 <button onclick="enviarMensagemChat()" id="btn-send-chat" class="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center text-white shrink-0 active:scale-95 transition-transform disabled:opacity-50">
                     <i data-lucide="send" class="w-4 h-4 -ml-0.5"></i>
                 </button>
@@ -573,6 +573,7 @@
                 let currentHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
                 vp.style.height = currentHeight + 'px';
                 vp.style.top = '0px'; 
+                document.body.style.height = currentHeight + 'px'; // Previne rolagem do fundo no mobile
                 window.scrollTo(0, 0); 
                 document.body.scrollTop = 0;
             }
@@ -590,14 +591,16 @@
             window.addEventListener('resize', adjustPlayerHeight);
         }
 
-        function forceScrollToTop() {
+        function onChatFocus() {
             setTimeout(() => {
                 window.scrollTo(0,0);
                 document.body.scrollTop = 0;
                 adjustPlayerHeight();
+                const inputContainer = document.getElementById('chat-input-container');
+                if(inputContainer) inputContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
                 const chatMsgs = document.getElementById('chat-messages');
                 if(chatMsgs) chatMsgs.scrollTop = chatMsgs.scrollHeight;
-            }, 50);
+            }, 300);
         }
 
         let lastChatId = 0;
@@ -844,30 +847,6 @@
             }
         }
 
-        let devClickCount = 0;
-        let devClickTimer;
-        function checkDevMode(e) {
-            devClickCount++;
-            clearTimeout(devClickTimer);
-            devClickTimer = setTimeout(() => devClickCount = 0, 1000);
-            
-            if(devClickCount >= 3) {
-                devClickCount = 0;
-                const api = prompt("⚙️ MODO DESENVOLVEDOR ⚙️\n\nCopia o link da API (que está verde no teu Python) e cola aqui:", window.API_URL || "");
-                if(api) {
-                    const vid = prompt("Agora, copia e cola o link do VÍDEO (que está verde no Python):", window.VIDEO_URL || "");
-                    if(vid) {
-                        window.API_URL = api.replace(/\/$/, ""); 
-                        window.VIDEO_URL = vid;
-                        localStorage.setItem('dev_api_url', window.API_URL);
-                        localStorage.setItem('dev_video_url', window.VIDEO_URL);
-                        showToast("Links forçados manualmente!", "success");
-                        fetchEventDetails();
-                    }
-                }
-            }
-        }
-
         async function fetchEventDetails() {
             if (!window.API_URL) {
                 setStatus(false, "A aguardar Ligações...");
@@ -982,15 +961,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const savedApi = localStorage.getItem('dev_api_url');
-            const savedVid = localStorage.getItem('dev_video_url');
-            
-            if(savedApi && savedVid) {
-                window.API_URL = savedApi;
-                window.VIDEO_URL = savedVid;
-                showToast("Modo Desenvolvedor Ativo", "warning");
-            }
-
             // Iniciar fluxo principal
             if (window.API_URL) {
                 const saved = localStorage.getItem('arenaLiveTicket');
