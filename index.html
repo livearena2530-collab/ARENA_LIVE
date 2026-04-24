@@ -523,7 +523,7 @@
                     <button onclick="forcarAcesso()" class="w-full bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl font-bold transition-all active:scale-95 mb-3 shadow-[0_0_15px_rgba(220,38,38,0.4)]">
                         SIM, FORÇAR ACESSO
                     </button>
-                    <button onclick="resetPayment()" class="w-full text-neutral-400 hover:text-white py-2 font-bold text-sm transition-colors">
+                    <button onclick="resetPayment(); closeModal();" class="w-full text-neutral-400 hover:text-white py-2 font-bold text-sm transition-colors">
                         Cancelar
                     </button>
                 </div>
@@ -983,6 +983,33 @@
             }
         }
 
+        function unlockContent() {
+            closeModal();
+            document.getElementById('locked-state').classList.add('hidden');
+            document.getElementById('unlocked-state').classList.remove('hidden');
+            document.getElementById('unlocked-state').classList.add('fade-in');
+            
+            const wrapper = document.getElementById('player-wrapper');
+            wrapper.classList.remove('flex-1');
+            wrapper.classList.add('shrink-0', 'aspect-video', 'lg:aspect-auto', 'lg:flex-1');
+            
+            showUI(); 
+            iniciarChat();
+            avaliarStatusPlayer();
+        }
+
+        function lockContent() {
+            if (videoElement) videoElement.pause();
+            document.getElementById('unlocked-state').classList.add('hidden');
+            document.getElementById('locked-state').classList.remove('hidden');
+            
+            const wrapper = document.getElementById('player-wrapper');
+            wrapper.classList.remove('shrink-0', 'aspect-video', 'lg:aspect-auto', 'lg:flex-1');
+            wrapper.classList.add('flex-1');
+            
+            pararChat();
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // Iniciar fluxo principal
             if (window.API_URL) {
@@ -1379,15 +1406,14 @@
                     currentTicketCode = data.codigo;
                     if(!silent) {
                         openPlayer();
+                        lockContent();
                         document.getElementById('checkout-modal').classList.remove('hidden');
                         document.getElementById('step-form').classList.add('hidden');
                         document.getElementById('step-payment').classList.add('hidden');
                         document.getElementById('step-conflict').classList.remove('hidden');
                     } else {
                         // Se for encontrado um conflito invisivel, puxa-o para a aba de conflito na mesma
-                        if (videoElement) videoElement.pause();
-                        document.getElementById('unlocked-state').classList.add('hidden');
-                        document.getElementById('locked-state').classList.remove('hidden');
+                        lockContent();
                         document.getElementById('checkout-modal').classList.remove('hidden');
                         document.getElementById('step-form').classList.add('hidden');
                         document.getElementById('step-payment').classList.add('hidden');
@@ -1412,6 +1438,7 @@
                     if(!silent) {
                         showToast("Pagamento pendente. Finaliza para aceder.", "warning");
                         openPlayer();
+                        lockContent();
                         document.getElementById('ticket-code-display').innerText = data.codigo;
                         document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(data.chave_pix)}`;
                         document.getElementById('pix-copy-input').value = data.chave_pix;
@@ -1422,9 +1449,7 @@
                         iniciarPolling(data.codigo);
                     } else {
                         // Se fizemos pulo imediato (silent), mas era um pagamento PENDENTE, revertemos com segurança
-                        if (videoElement) videoElement.pause();
-                        document.getElementById('unlocked-state').classList.add('hidden');
-                        document.getElementById('locked-state').classList.remove('hidden');
+                        lockContent();
                         document.getElementById('ticket-code-display').innerText = data.codigo;
                         document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(data.chave_pix)}`;
                         document.getElementById('pix-copy-input').value = data.chave_pix;
@@ -1451,6 +1476,7 @@
                     body: JSON.stringify({ codigo: currentTicketCode, device_id: deviceId })
                 });
                 if(res.ok) {
+                    closeModal(); // Garante que o modal sai do ecrã
                     document.getElementById('step-conflict').classList.add('hidden');
                     checkExistingTicket(currentTicketCode);
                 }
@@ -1492,10 +1518,7 @@
                     } else if (data.status === 'conflict') {
                         clearInterval(checkInterval);
                         if (!document.getElementById('unlocked-state').classList.contains('hidden')) {
-                            if (videoElement) videoElement.pause();
-                            document.getElementById('unlocked-state').classList.add('hidden');
-                            document.getElementById('locked-state').classList.remove('hidden');
-                            pararChat();
+                            lockContent();
                         }
                         checkExistingTicket(codigo);
                     }
@@ -1510,21 +1533,6 @@
             
             const nomeTexto = currentTicketNome ? `\n*👤 Nome:* ${currentTicketNome}` : '';
             window.open(`https://t.me/${cleanContact}?text=${encodeURIComponent(`Olá! Preciso de ajuda com o meu acesso.${nomeTexto}\n*🎫 Ingresso VIP:* ${currentTicketCode}\n*📄 CPF:* ${currentTicketCpf}`)}`, '_blank');
-        }
-
-        function unlockContent() {
-            closeModal();
-            document.getElementById('locked-state').classList.add('hidden');
-            document.getElementById('unlocked-state').classList.remove('hidden');
-            document.getElementById('unlocked-state').classList.add('fade-in');
-            
-            const wrapper = document.getElementById('player-wrapper');
-            wrapper.classList.remove('flex-1');
-            wrapper.classList.add('shrink-0', 'aspect-video', 'lg:aspect-auto', 'lg:flex-1');
-            
-            showUI(); 
-            iniciarChat();
-            avaliarStatusPlayer();
         }
 
         // LÓGICA DE OVERRIDE (SUBSTITUIÇÃO DE EMERGÊNCIA)
