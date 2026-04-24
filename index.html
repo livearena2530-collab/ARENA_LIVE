@@ -1649,20 +1649,22 @@
             if (Hls.isSupported()) {
                 if(hlsInstance) { hlsInstance.destroy(); }
                 
-                // OTIMIZAÇÃO: Desativado o lowLatencyMode agressivo porque o Nginx clássico (1.7) não o suporta nativamente.
-                // Restaurei as configurações originais e alarguei o tempo de tentativa!
+                // MODO DE COMPATIBILIDADE MÁXIMA PARA O NGINX E CLOUDFLARE TÚNEL
                 hlsInstance = new Hls({
-                    lowLatencyMode: false, 
-                    liveSyncDurationCount: videoConfig.sync_duration || 3,
-                    liveMaxLatencyDurationCount: videoConfig.max_latency || 7,
-                    maxBufferLength: videoConfig.max_buffer || 15,
-                    maxMaxBufferLength: (videoConfig.max_buffer || 15) * 2,
-                    manifestLoadingMaxRetry: 20, // Tenta conectar 20 vezes antes de desistir e avisar erro
-                    manifestLoadingRetryDelay: 2000,
-                    enableWorker: true
+                    enableWorker: true,
+                    lowLatencyMode: false,
+                    manifestLoadingMaxRetry: 5,
+                    manifestLoadingRetryDelay: 3000,
+                    levelLoadingMaxRetry: 5,
+                    fragLoadingMaxRetry: 5
                 });
                 
-                hlsInstance.loadSource(window.VIDEO_URL);
+                // DESTRUIDOR DE CACHE (Cache Buster)
+                // Garante que a Cloudflare não envia um ficheiro offline preso no tempo
+                const timestamp_atual = new Date().getTime();
+                const videoURL_Limpa = window.VIDEO_URL + "?nocache=" + timestamp_atual;
+
+                hlsInstance.loadSource(videoURL_Limpa);
                 hlsInstance.attachMedia(videoElement);
                 
                 hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -1688,10 +1690,11 @@
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.warn("Erro de rede HLS. A tentar recuperar o sinal de vídeo...");
-                                // Bloqueia spam do aviso para que o vídeo se recupere sozinho silenciosamente
+                                console.warn("Erro de rede HLS. A tentar ligar ao Cloudflare Tunnel...");
+                                loading.classList.add('hidden');
+                                
                                 if (!window.hlsErrorSpamBlock) {
-                                    showToast("A sincronizar sinal do vídeo...", "warning");
+                                    showToast("A tentar conectar ao servidor de vídeo. Se demorar, verifica o Cloudflare Tunnel no PC!", "warning");
                                     window.hlsErrorSpamBlock = true;
                                     setTimeout(() => { window.hlsErrorSpamBlock = false; }, 8000);
                                 }
@@ -1702,13 +1705,14 @@
                                 break;
                             default:
                                 hlsInstance.destroy();
-                                setTimeout(() => iniciarVideoHLS(), 3000);
+                                setTimeout(() => iniciarVideoHLS(), 4000);
                                 break;
                         }
                     }
                 });
             } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-                videoElement.src = window.VIDEO_URL;
+                const timestamp_atual = new Date().getTime();
+                videoElement.src = window.VIDEO_URL + "?nocache=" + timestamp_atual;
                 videoElement.addEventListener('loadedmetadata', () => {
                     loading.classList.add('hidden');
                     videoElement.play().catch(e => {
