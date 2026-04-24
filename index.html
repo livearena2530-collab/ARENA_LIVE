@@ -123,8 +123,8 @@
             <button id="btn-logout" onclick="logout()" class="hidden items-center gap-2 text-xs font-bold text-neutral-400 hover:text-red-400 transition-colors bg-white/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg">
                 <i data-lucide="log-out" class="w-4 h-4"></i> <span class="hidden sm:inline">Sair</span>
             </button>
-            <div id="connection-status" class="flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-red-500 uppercase bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20 backdrop-blur-md cursor-pointer">
-                <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span> Offline
+            <div id="connection-status" class="flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-amber-500 uppercase bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20 backdrop-blur-md cursor-pointer">
+                <span class="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]"></span> A ligar...
             </div>
         </div>
     </header>
@@ -827,15 +827,15 @@
             resetIdleTimer();
         }
 
-        function setStatus(isOnline, msg = "Offline") {
+        function setStatus(isOnline, msg = "A ligar...") {
             const status = document.getElementById('connection-status');
             if (!status) return;
             if(isOnline) {
                 status.innerHTML = '<span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> Servidor Ativo';
                 status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-emerald-400 uppercase bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 backdrop-blur-md";
             } else {
-                status.innerHTML = `<span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span> ${msg}`;
-                status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-red-500 uppercase bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20 backdrop-blur-md cursor-pointer";
+                status.innerHTML = `<span class="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]"></span> ${msg}`;
+                status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-amber-500 uppercase bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20 backdrop-blur-md cursor-pointer";
             }
         }
 
@@ -969,12 +969,12 @@
                     }
                 }
             } catch(e) { 
-                setStatus(false, "Erro de API (Cloudflare)"); 
+                setStatus(false, "A reconectar..."); 
                 console.error("Falha ao comunicar com a API:", e);
             }
         }
 
-        window.onload = function() {
+        document.addEventListener('DOMContentLoaded', function() {
             const savedApi = localStorage.getItem('dev_api_url');
             const savedVid = localStorage.getItem('dev_video_url');
             
@@ -987,7 +987,7 @@
             // Iniciar fluxo principal dependendo da API
             if (window.API_URL) {
                 fetchEventDetails();
-                if(!eventDetailsInterval) eventDetailsInterval = setInterval(fetchEventDetails, 5000);
+                if(!eventDetailsInterval) eventDetailsInterval = setInterval(fetchEventDetails, 4000);
 
                 const saved = localStorage.getItem('arenaLiveTicket');
                 if(saved && !currentTicketCode) { 
@@ -1002,7 +1002,7 @@
                 // Caso a página carregue mais rápido que a injeção ou falhe, tentar ligar
                 if(!eventDetailsInterval) eventDetailsInterval = setInterval(() => {
                     if(window.API_URL) fetchEventDetails();
-                }, 5000);
+                }, 4000);
             }
 
             videoElement.addEventListener('play', () => { updatePlayPauseIcon(true); resetIdleTimer(); });
@@ -1015,7 +1015,7 @@
                     lucide.createIcons();
                 }
             });
-        };
+        });
 
         function isValidCPF(cpf) {
             cpf = cpf.replace(/[^\d]+/g, ''); 
