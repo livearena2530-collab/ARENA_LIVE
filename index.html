@@ -1651,17 +1651,16 @@
             if (Hls.isSupported()) {
                 if(hlsInstance) { hlsInstance.destroy(); }
                 
-                // OTIMIZAÇÃO: Restaurei as defnições robustas baseadas na sua API (sync = 2, max = 4)
+                // OTIMIZAÇÃO: Restaurei as configurações originais e estáveis que o seu Nginx suporta!
                 hlsInstance = new Hls({
-                    lowLatencyMode: videoConfig.low_latency, 
-                    liveSyncDurationCount: videoConfig.sync_duration || 3,
-                    liveMaxLatencyDurationCount: videoConfig.max_latency || 5,
-                    maxBufferLength: videoConfig.max_buffer || 15,
-                    maxMaxBufferLength: (videoConfig.max_buffer || 15) * 2,
-                    manifestLoadingTimeOut: 10000,
+                    lowLatencyMode: videoConfig.low_latency !== undefined ? videoConfig.low_latency : true, 
+                    liveSyncDurationCount: videoConfig.sync_duration || 2,
+                    liveMaxLatencyDurationCount: videoConfig.max_latency || 4,
+                    maxBufferLength: videoConfig.max_buffer || 10,
+                    maxMaxBufferLength: (videoConfig.max_buffer || 10) * 2,
+                    manifestLoadingTimeOut: 20000,
                     manifestLoadingMaxRetry: 10,
-                    manifestLoadingRetryDelay: 500,
-                    enableWorker: true
+                    manifestLoadingRetryDelay: 1000
                 });
                 
                 hlsInstance.loadSource(window.VIDEO_URL);
@@ -1690,8 +1689,13 @@
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.warn("OBS Desconectado. A tentar recuperar sinal...");
-                                showToast("Sinal perdido! A tentar reconectar automaticamente...", "warning");
+                                console.warn("Erro de rede (Nginx ou OBS Offline). A tentar recuperar...");
+                                // Proteção contra Spam de mensagens (avisa só 1 vez a cada 6 segundos)
+                                if (!window.hlsErrorSpamBlock) {
+                                    showToast("A aguardar sinal do vídeo (OBS Offline?)...", "warning");
+                                    window.hlsErrorSpamBlock = true;
+                                    setTimeout(() => { window.hlsErrorSpamBlock = false; }, 6000);
+                                }
                                 hlsInstance.startLoad();
                                 break;
                             case Hls.ErrorTypes.MEDIA_ERROR:
