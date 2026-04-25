@@ -199,7 +199,7 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- ECRÃ DO PLAYER (C/ CHAT LATERAL)           -->
+    <!-- ECRÃ DO PLAYER (C/ CHAT LATERAL E MARCA DE ÁGUA) -->
     <!-- ========================================== -->
     <div id="view-player" class="hidden fixed inset-0 z-50 bg-black flex-row fade-in">
         <div class="flex-1 relative h-full bg-black flex items-center justify-center overflow-hidden">
@@ -213,9 +213,6 @@
             </div>
             
             <video id="video-player" class="w-full h-full object-contain relative z-10" controls autoplay playsinline></video>
-            
-            <!-- 🕵️‍♂️ NOVO: MARCA DE ÁGUA ANTI-PIRATARIA (FLUTUANTE) -->
-            <div id="watermark" class="absolute text-white/30 font-black text-sm md:text-xl pointer-events-none select-none z-30 mix-blend-overlay transition-all duration-1000 hidden drop-shadow-md"></div>
             
             <div id="loading-overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm z-40">
                 <div class="relative w-16 h-16 mb-6">
@@ -253,7 +250,6 @@
         let nomeAtual = localStorage.getItem('nome_vip') || "Anónimo";
         let checkInterval = null;
         let timerInterval = null;
-        let watermarkInterval = null;
         let targetEventDate = null;
         let socket = null;
 
@@ -317,8 +313,10 @@
                     return;
                 }
 
-                if(timerContainer) timerContainer.classList.remove('hidden');
-                if(timerContainer) timerContainer.classList.add('flex');
+                if(timerContainer) {
+                    timerContainer.classList.remove('hidden');
+                    timerContainer.classList.add('flex');
+                }
 
                 const d = Math.floor(diff / (1000 * 60 * 60 * 24));
                 const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -364,18 +362,20 @@
                     const ticketsRemaining = document.getElementById('tickets-remaining-text');
                     if (ticketsRemaining) ticketsRemaining.innerText = data.ingressos_restantes;
 
-                    // PROCESSA A DATA DO JOGO
+                    // LÊ A DATA DO NOVO CALENDÁRIO PYTHON (YYYY-MM-DD HH:MM)
                     if(data.data_hora && data.data_hora.trim() !== "") {
-                        // Converte o texto "2026-12-31 20:00" em data real de forma segura
                         let p = data.data_hora.split(/[- :]/);
                         if(p.length >= 5) {
+                            // Nota: Os meses no JavaScript começam no 0 (Janeiro = 0, Fevereiro = 1)
                             targetEventDate = new Date(p[0], p[1]-1, p[2], p[3], p[4]).getTime();
                             iniciarRelogio();
                         }
                     } else {
                         const tc = document.getElementById('timer-container');
-                        if(tc) tc.classList.add('hidden');
-                        if(tc) tc.classList.remove('flex');
+                        if(tc) {
+                            tc.classList.add('hidden');
+                            tc.classList.remove('flex');
+                        }
                     }
 
                     const btnPrincipal = document.getElementById('btn-principal');
@@ -748,7 +748,6 @@
             localStorage.removeItem('ingresso_vip'); localStorage.removeItem('nome_vip');
             codigoAtual = null; nomeAtual = "Anónimo";
             if(checkInterval) clearInterval(checkInterval);
-            if(watermarkInterval) clearInterval(watermarkInterval);
             setUIDeslogado();
         }
 
@@ -763,7 +762,6 @@
                 viewPlayer.classList.add('flex');
             }
             iniciarPlayerDoVideo();
-            iniciarMarcaDagua(); // Ativa a proteção anti-gravação
             conectarChat();
         }
 
@@ -782,7 +780,6 @@
             
             if(window.hlsPlayer) window.hlsPlayer.destroy();
             if(socket) socket.disconnect();
-            if(watermarkInterval) clearInterval(watermarkInterval);
             socket = null;
         }
 
@@ -790,7 +787,7 @@
             const video = document.getElementById('video-player');
             const overlay = document.getElementById('loading-overlay');
             
-            // 🔒 HLS TOKEN DE SEGURANÇA: Só carrega se apresentar o bilhete (token)
+            // 🔒 HLS TOKEN DE SEGURANÇA (Se for copiado sem isto, não dá)
             const paramToken = codigoAtual ? `&token=${codigoAtual}` : '';
             const src = `${dominioCloudflare}/stream/stream.m3u8?t=${new Date().getTime()}${paramToken}`; 
 
@@ -807,7 +804,6 @@
                     video.play().catch(e => { video.muted = true; video.play(); }); 
                 });
                 window.hlsPlayer.on(Hls.Events.ERROR, (e, data) => { 
-                    // Se o Python recusar a conexão (Erro 403)
                     if(data.response && data.response.code === 403) {
                         alert("Acesso Negado! O seu ingresso não tem permissão para assistir a este vídeo.");
                         voltarHome();
@@ -823,23 +819,6 @@
                 });
                 video.addEventListener('error', () => { setTimeout(iniciarPlayerDoVideo, 2000); });
             }
-        }
-
-        // 🕵️‍♂️ MARCA DE ÁGUA (Flutua na tela de forma aleatória a cada 8 segundos)
-        function iniciarMarcaDagua() {
-            const wm = document.getElementById('watermark');
-            if(!wm) return;
-            wm.classList.remove('hidden');
-            wm.innerText = `${nomeAtual} - ${codigoAtual}`;
-            
-            if(watermarkInterval) clearInterval(watermarkInterval);
-            
-            watermarkInterval = setInterval(() => {
-                const top = Math.floor(Math.random() * 80) + 10; 
-                const left = Math.floor(Math.random() * 80) + 10;
-                wm.style.top = `${top}%`;
-                wm.style.left = `${left}%`;
-            }, 8000);
         }
 
         // === WEB SOCKETS (CHAT E SEGURANÇA DE LOGIN) ===
@@ -865,7 +844,7 @@
                 if(codigoAtual) socket.emit('join_stream', { codigo: codigoAtual });
             });
 
-            // 🚫 RECEBE ORDEM DE EXPULSÃO DO SERVIDOR (Se outra pessoa entrar)
+            // 🚫 RECEBE ORDEM DE EXPULSÃO DO SERVIDOR
             socket.on('force_logout', (data) => {
                 alert(data.msg || "Sessão encerrada por segurança.");
                 voltarHome();
