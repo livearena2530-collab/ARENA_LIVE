@@ -150,6 +150,7 @@
                 <!-- PIX GERADO / PENDENTE (ETAPA 2) -->
                 <div id="step-payment" class="hidden text-center fade-in">
                     <h4 id="valor-ingresso" class="text-3xl font-black mb-1 text-white">R$ --,--</h4>
+                    <!-- REMOVIDO: O elemento que causava o erro "Cannot set properties of null (setting 'innerText')" -->
                     <p class="text-xs text-neutral-400 mb-6">Pague via PIX para libertar o vídeo. A liberação é automática após o pagamento.</p>
                     
                     <div class="flex items-center bg-black border border-white/10 rounded-xl overflow-hidden p-1 mb-6">
@@ -252,7 +253,10 @@
             setInterval(fetchEventDetails, 5000); 
             
             if (codigoAtual) {
-                document.getElementById('area-recuperacao').classList.add('hidden');
+                const areaRecuperacao = document.getElementById('area-recuperacao');
+                if (areaRecuperacao) {
+                    areaRecuperacao.classList.add('hidden');
+                }
                 verificarStatusAPI(); 
             }
         });
@@ -268,46 +272,57 @@
                 
                 if (res.ok) {
                     const data = await res.json();
-                    document.getElementById('event-title-display').innerText = data.titulo_evento;
-                    document.getElementById('team-a-name-display').innerText = data.time_a_nome;
-                    document.getElementById('team-b-name-display').innerText = data.time_b_nome;
+                    
+                    const titleDisplay = document.getElementById('event-title-display');
+                    if (titleDisplay) titleDisplay.innerText = data.titulo_evento || '---';
+                    
+                    const teamAName = document.getElementById('team-a-name-display');
+                    if (teamAName) teamAName.innerText = data.time_a_nome || '---';
+                    
+                    const teamBName = document.getElementById('team-b-name-display');
+                    if (teamBName) teamBName.innerText = data.time_b_nome || '---';
                     
                     const imgA = document.getElementById('team-a-img-display');
-                    if (imgA.src !== data.time_a_img) imgA.src = data.time_a_img;
+                    if (imgA && data.time_a_img) imgA.src = data.time_a_img;
                     
                     const imgB = document.getElementById('team-b-img-display');
-                    if (imgB.src !== data.time_b_img) imgB.src = data.time_b_img;
+                    if (imgB && data.time_b_img) imgB.src = data.time_b_img;
                     
-                    document.getElementById('home-price-display').innerText = data.valor;
-                    document.getElementById('tickets-remaining-text').innerText = data.ingressos_restantes;
+                    const homePrice = document.getElementById('home-price-display');
+                    if (homePrice) homePrice.innerText = data.valor || 'R$ --,--';
+                    
+                    const ticketsRemaining = document.getElementById('tickets-remaining-text');
+                    if (ticketsRemaining) ticketsRemaining.innerText = data.ingressos_restantes;
 
                     const btnPrincipal = document.getElementById('btn-principal');
                     const txtBtn = document.getElementById('texto-btn');
                     const iconBtn = document.getElementById('icon-btn');
                     const iconRestantes = document.getElementById('icon-restantes');
                     
-                    if(data.ingressos_restantes <= 0 && !codigoAtual) {
-                        txtBtn.innerText = 'ESGOTADO';
-                        iconBtn.setAttribute('data-lucide', 'lock');
-                        btnPrincipal.disabled = true;
-                        btnPrincipal.classList.replace('from-indigo-600', 'from-neutral-700');
-                        btnPrincipal.classList.replace('to-purple-600', 'to-neutral-800');
-                        btnPrincipal.classList.add('cursor-not-allowed', 'opacity-80');
-                        document.getElementById('tickets-remaining-text').classList.replace('text-indigo-400', 'text-red-500');
-                        iconRestantes.classList.remove('animate-bounce');
-                        iconRestantes.setAttribute('data-lucide', 'x-circle');
-                    } else if (!codigoAtual) {
-                        btnPrincipal.disabled = false;
-                        txtBtn.innerText = 'COMPRAR INGRESSO VIP';
-                        iconBtn.setAttribute('data-lucide', 'ticket');
-                        btnPrincipal.classList.replace('from-neutral-700', 'from-indigo-600');
-                        btnPrincipal.classList.replace('to-neutral-800', 'to-purple-600');
-                        btnPrincipal.classList.remove('cursor-not-allowed', 'opacity-80');
-                        document.getElementById('tickets-remaining-text').classList.replace('text-red-500', 'text-indigo-400');
-                        iconRestantes.classList.add('animate-bounce');
-                        iconRestantes.setAttribute('data-lucide', 'flame');
+                    if (btnPrincipal && txtBtn && iconBtn && iconRestantes) {
+                        if(data.ingressos_restantes <= 0 && !codigoAtual) {
+                            txtBtn.innerText = 'ESGOTADO';
+                            iconBtn.setAttribute('data-lucide', 'lock');
+                            btnPrincipal.disabled = true;
+                            btnPrincipal.classList.replace('from-indigo-600', 'from-neutral-700');
+                            btnPrincipal.classList.replace('to-purple-600', 'to-neutral-800');
+                            btnPrincipal.classList.add('cursor-not-allowed', 'opacity-80');
+                            ticketsRemaining.classList.replace('text-indigo-400', 'text-red-500');
+                            iconRestantes.classList.remove('animate-bounce');
+                            iconRestantes.setAttribute('data-lucide', 'x-circle');
+                        } else if (!codigoAtual) {
+                            btnPrincipal.disabled = false;
+                            txtBtn.innerText = 'COMPRAR INGRESSO VIP';
+                            iconBtn.setAttribute('data-lucide', 'ticket');
+                            btnPrincipal.classList.replace('from-neutral-700', 'from-indigo-600');
+                            btnPrincipal.classList.replace('to-neutral-800', 'to-purple-600');
+                            btnPrincipal.classList.remove('cursor-not-allowed', 'opacity-80');
+                            ticketsRemaining.classList.replace('text-red-500', 'text-indigo-400');
+                            iconRestantes.classList.add('animate-bounce');
+                            iconRestantes.setAttribute('data-lucide', 'flame');
+                        }
+                        lucide.createIcons();
                     }
-                    lucide.createIcons();
                 }
             } catch(e) {}
         }
@@ -316,40 +331,67 @@
         // GESTÃO DE ESTADOS DA INTERFACE (UI)
         // ==========================================
         function setUIAprovado() {
-            document.getElementById('btn-logout').classList.remove('hidden'); 
-            document.getElementById('area-recuperacao').classList.add('hidden');
+            const btnLogout = document.getElementById('btn-logout');
+            if (btnLogout) btnLogout.classList.remove('hidden'); 
+            
+            const areaRecuperacao = document.getElementById('area-recuperacao');
+            if (areaRecuperacao) areaRecuperacao.classList.add('hidden');
             
             const statusDiv = document.getElementById('status-ingresso-salvo');
-            statusDiv.classList.remove('hidden', 'bg-amber-500/20', 'border-amber-500/40', 'text-amber-400', 'animate-pulse');
-            statusDiv.classList.add('bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-400');
-            statusDiv.innerText = "Ingresso Aprovado! Acesso Liberado.";
+            if (statusDiv) {
+                statusDiv.classList.remove('hidden', 'bg-amber-500/20', 'border-amber-500/40', 'text-amber-400', 'animate-pulse');
+                statusDiv.classList.add('bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-400');
+                statusDiv.innerText = "Ingresso Aprovado! Acesso Liberado.";
+            }
 
-            document.getElementById('texto-btn').innerText = 'ASSISTIR JOGO AGORA';
-            document.getElementById('icon-btn').setAttribute('data-lucide', 'play-circle');
+            const textoBtn = document.getElementById('texto-btn');
+            if (textoBtn) textoBtn.innerText = 'ASSISTIR JOGO AGORA';
+            
+            const iconBtn = document.getElementById('icon-btn');
+            if (iconBtn) iconBtn.setAttribute('data-lucide', 'play-circle');
+            
             lucide.createIcons();
         }
 
         function setUIPendente() {
-            document.getElementById('btn-logout').classList.add('hidden'); 
-            document.getElementById('area-recuperacao').classList.add('hidden'); 
+            const btnLogout = document.getElementById('btn-logout');
+            if (btnLogout) btnLogout.classList.add('hidden'); 
+            
+            const areaRecuperacao = document.getElementById('area-recuperacao');
+            if (areaRecuperacao) areaRecuperacao.classList.add('hidden'); 
             
             const statusDiv = document.getElementById('status-ingresso-salvo');
-            statusDiv.classList.remove('hidden', 'bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-400');
-            statusDiv.classList.add('bg-amber-500/20', 'border-amber-500/40', 'text-amber-400', 'animate-pulse');
-            statusDiv.innerText = "Pagamento Pendente. A aguardar aprovação...";
+            if (statusDiv) {
+                statusDiv.classList.remove('hidden', 'bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-400');
+                statusDiv.classList.add('bg-amber-500/20', 'border-amber-500/40', 'text-amber-400', 'animate-pulse');
+                statusDiv.innerText = "Pagamento Pendente. A aguardar aprovação...";
+            }
 
-            document.getElementById('texto-btn').innerText = 'FINALIZAR PAGAMENTO PIX';
-            document.getElementById('icon-btn').setAttribute('data-lucide', 'qr-code');
+            const textoBtn = document.getElementById('texto-btn');
+            if (textoBtn) textoBtn.innerText = 'FINALIZAR PAGAMENTO PIX';
+            
+            const iconBtn = document.getElementById('icon-btn');
+            if (iconBtn) iconBtn.setAttribute('data-lucide', 'qr-code');
+            
             lucide.createIcons();
         }
 
         function setUIDeslogado() {
-            document.getElementById('btn-logout').classList.add('hidden');
-            document.getElementById('area-recuperacao').classList.remove('hidden'); 
-            document.getElementById('status-ingresso-salvo').classList.add('hidden');
+            const btnLogout = document.getElementById('btn-logout');
+            if (btnLogout) btnLogout.classList.add('hidden');
             
-            document.getElementById('texto-btn').innerText = 'COMPRAR INGRESSO VIP';
-            document.getElementById('icon-btn').setAttribute('data-lucide', 'ticket');
+            const areaRecuperacao = document.getElementById('area-recuperacao');
+            if (areaRecuperacao) areaRecuperacao.classList.remove('hidden'); 
+            
+            const statusDiv = document.getElementById('status-ingresso-salvo');
+            if (statusDiv) statusDiv.classList.add('hidden');
+            
+            const textoBtn = document.getElementById('texto-btn');
+            if (textoBtn) textoBtn.innerText = 'COMPRAR INGRESSO VIP';
+            
+            const iconBtn = document.getElementById('icon-btn');
+            if (iconBtn) iconBtn.setAttribute('data-lucide', 'ticket');
+            
             lucide.createIcons();
         }
 
@@ -357,9 +399,13 @@
         async function abrirCheckout() {
             if(codigoAtual) { 
                 const btn = document.getElementById('btn-principal');
-                const oldText = btn.innerHTML;
-                btn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> A CARREGAR...';
-                lucide.createIcons();
+                let oldText = "";
+                
+                if (btn) {
+                    oldText = btn.innerHTML;
+                    btn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> A CARREGAR...';
+                    lucide.createIcons();
+                }
                 
                 try {
                     const res = await fetch(`${dominioCloudflare}/api/recuperar`, {
@@ -379,31 +425,49 @@
                         mostrarPixModal(data.chave_pix, data.codigo, data.valor);
                     }
                 } catch(e) {}
-                btn.innerHTML = oldText;
-                lucide.createIcons();
+                
+                if (btn) {
+                    btn.innerHTML = oldText;
+                    lucide.createIcons();
+                }
                 return; 
             }
             
-            document.getElementById('checkout-modal').classList.remove('hidden');
-            document.getElementById('step-form').classList.remove('hidden'); 
-            document.getElementById('step-payment').classList.add('hidden'); 
-            document.getElementById('modal-titulo').innerText = "Novo Ingresso VIP";
+            const checkoutModal = document.getElementById('checkout-modal');
+            if (checkoutModal) checkoutModal.classList.remove('hidden');
+            
+            const stepForm = document.getElementById('step-form');
+            if (stepForm) stepForm.classList.remove('hidden'); 
+            
+            const stepPayment = document.getElementById('step-payment');
+            if (stepPayment) stepPayment.classList.add('hidden'); 
+            
+            const modalTitulo = document.getElementById('modal-titulo');
+            if (modalTitulo) modalTitulo.innerText = "Novo Ingresso VIP";
         }
 
-        function fecharModais() { document.getElementById('checkout-modal').classList.add('hidden'); }
+        function fecharModais() { 
+            const checkoutModal = document.getElementById('checkout-modal');
+            if (checkoutModal) checkoutModal.classList.add('hidden'); 
+        }
 
         // === COMPRAR NOVO INGRESSO (AQUI ESTAVA O BLOQUEIO) ===
         async function gerarPix() {
-            const nome = document.getElementById('nome-input').value.trim();
-            const cpf = document.getElementById('cpf-input').value.trim();
+            const nomeInput = document.getElementById('nome-input');
+            const cpfInput = document.getElementById('cpf-input');
+            
+            const nome = nomeInput ? nomeInput.value.trim() : "";
+            const cpf = cpfInput ? cpfInput.value.trim() : "";
             
             if(nome.length < 3) return alert("Por favor, digite um nome válido.");
             if(!isCPFValido(cpf)) return alert("CPF Inválido. Verifique os números digitados.");
 
             const btn = document.getElementById('btn-gerar');
-            btn.innerHTML = 'A PROCESSAR... <i data-lucide="loader" class="w-5 h-5 animate-spin"></i>';
-            lucide.createIcons();
-            btn.disabled = true;
+            if (btn) {
+                btn.innerHTML = 'A PROCESSAR... <i data-lucide="loader" class="w-5 h-5 animate-spin"></i>';
+                lucide.createIcons();
+                btn.disabled = true;
+            }
 
             try {
                 const cpfLimpo = cpf.replace(/\D/g, '');
@@ -424,9 +488,11 @@
 
                 if (!res.ok) {
                     alert("Aviso do Servidor: " + (data.message || "Erro desconhecido ao comunicar com a Base de Dados."));
-                    btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
-                    btn.disabled = false;
-                    lucide.createIcons();
+                    if (btn) {
+                        btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
+                        btn.disabled = false;
+                        lucide.createIcons();
+                    }
                     return;
                 }
                 
@@ -439,22 +505,28 @@
                     mostrarPixModal(data.chave_pix, data.codigo, data.valor);
                 } else {
                     alert(data.message || "Erro ao gerar PIX. Tente novamente.");
-                    btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
-                    btn.disabled = false;
-                    lucide.createIcons();
+                    if (btn) {
+                        btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
+                        btn.disabled = false;
+                        lucide.createIcons();
+                    }
                 }
             } catch(e) { 
                 console.error("Detalhes do Erro Fetch:", e);
                 alert("Bloqueio de Navegador! Detalhes: " + e.message + "\nCertifique-se de que a janela do servidor Python está rodando e que você instalou a biblioteca 'flask-cors'."); 
-                btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
-                btn.disabled = false;
-                lucide.createIcons();
+                if (btn) {
+                    btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
+                    btn.disabled = false;
+                    lucide.createIcons();
+                }
             }
         }
 
         // === RECUPERAR INGRESSO PELA TELA INICIAL ===
         async function recuperarAcessoHome() {
-            const chave = document.getElementById('home-cpf-input').value.trim();
+            const homeCpfInput = document.getElementById('home-cpf-input');
+            const chave = homeCpfInput ? homeCpfInput.value.trim() : "";
+            
             if(!chave) return alert("Digite o seu CPF ou Código VIP para entrar.");
             
             if(chave.includes('.') || chave.includes('-') || chave.length === 11 || chave.length === 14) {
@@ -466,9 +538,11 @@
             }
 
             const btn = document.getElementById('btn-entrar');
-            btn.innerHTML = 'A BUSCAR... <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>';
-            lucide.createIcons();
-            btn.disabled = true;
+            if (btn) {
+                btn.innerHTML = 'A BUSCAR... <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>';
+                lucide.createIcons();
+                btn.disabled = true;
+            }
 
             try {
                 const chaveLimpa = chave.toUpperCase().includes('VIP') ? chave : chave.replace(/\D/g, '');
@@ -503,28 +577,46 @@
                 alert("Servidor offline ou bloqueio de CORS. Tente novamente."); 
             }
             
-            btn.innerHTML = 'BUSCAR MEU ACESSO <i data-lucide="search" class="w-4 h-4"></i>';
-            btn.disabled = false;
-            lucide.createIcons();
+            if (btn) {
+                btn.innerHTML = 'BUSCAR MEU ACESSO <i data-lucide="search" class="w-4 h-4"></i>';
+                btn.disabled = false;
+                lucide.createIcons();
+            }
         }
 
         // === LÓGICA DO MODAL PIX ===
         function mostrarPixModal(chave, codigo, valor) {
-            document.getElementById('pix-copy-input').value = chave;
-            document.getElementById('codigo-vip').innerText = codigo;
-            document.getElementById('valor-ingresso').innerText = valor;
+            const pixCopyInput = document.getElementById('pix-copy-input');
+            if (pixCopyInput) pixCopyInput.value = chave;
             
-            document.getElementById('step-form').classList.add('hidden'); 
-            document.getElementById('step-payment').classList.remove('hidden'); 
-            document.getElementById('modal-titulo').innerText = "Finalizar Pagamento";
-            document.getElementById('checkout-modal').classList.remove('hidden');
+            const codigoVip = document.getElementById('codigo-vip');
+            if (codigoVip) codigoVip.innerText = codigo;
+            
+            const valorIngresso = document.getElementById('valor-ingresso');
+            if (valorIngresso) valorIngresso.innerText = valor;
+            
+            const stepForm = document.getElementById('step-form');
+            if (stepForm) stepForm.classList.add('hidden'); 
+            
+            const stepPayment = document.getElementById('step-payment');
+            if (stepPayment) stepPayment.classList.remove('hidden'); 
+            
+            const modalTitulo = document.getElementById('modal-titulo');
+            if (modalTitulo) modalTitulo.innerText = "Finalizar Pagamento";
+            
+            const checkoutModal = document.getElementById('checkout-modal');
+            if (checkoutModal) checkoutModal.classList.remove('hidden');
             
             iniciarMonitoramento();
         }
 
         function copiarPix() {
             const copyText = document.getElementById("pix-copy-input");
-            copyText.select(); document.execCommand("copy"); alert("Chave Copiada!");
+            if (copyText) {
+                copyText.select(); 
+                document.execCommand("copy"); 
+                alert("Chave Copiada!");
+            }
         }
 
         function iniciarMonitoramento() {
@@ -565,18 +657,31 @@
 
         // === PLAYER DE VÍDEO ===
         function abrirVideo() {
-            document.getElementById('view-home').classList.add('hidden');
-            document.getElementById('view-player').classList.remove('hidden');
-            document.getElementById('view-player').classList.add('flex');
+            const viewHome = document.getElementById('view-home');
+            if (viewHome) viewHome.classList.add('hidden');
+            
+            const viewPlayer = document.getElementById('view-player');
+            if (viewPlayer) {
+                viewPlayer.classList.remove('hidden');
+                viewPlayer.classList.add('flex');
+            }
             iniciarPlayerDoVideo();
             conectarChat();
         }
 
         function voltarHome() {
-            document.getElementById('view-player').classList.add('hidden');
-            document.getElementById('view-player').classList.remove('flex');
-            document.getElementById('view-home').classList.remove('hidden');
-            document.getElementById('video-player').pause();
+            const viewPlayer = document.getElementById('view-player');
+            if (viewPlayer) {
+                viewPlayer.classList.add('hidden');
+                viewPlayer.classList.remove('flex');
+            }
+            
+            const viewHome = document.getElementById('view-home');
+            if (viewHome) viewHome.classList.remove('hidden');
+            
+            const videoPlayer = document.getElementById('video-player');
+            if (videoPlayer) videoPlayer.pause();
+            
             if(window.hlsPlayer) window.hlsPlayer.destroy();
             if(socket) socket.disconnect();
             socket = null;
@@ -587,16 +692,25 @@
             const overlay = document.getElementById('loading-overlay');
             const src = dominioCloudflare + '/stream/stream.m3u8'; 
 
-            overlay.style.display = 'flex';
+            if (overlay) overlay.style.display = 'flex';
+            
+            if (!video) return;
+
             if (Hls.isSupported()) {
                 window.hlsPlayer = new Hls({ manifestLoadingMaxRetry: Infinity, fragLoadingMaxRetry: Infinity });
                 window.hlsPlayer.loadSource(`${src}?t=${new Date().getTime()}`);
                 window.hlsPlayer.attachMedia(video);
-                window.hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => { overlay.style.display = 'none'; video.play().catch(e => { video.muted = true; video.play(); }); });
+                window.hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => { 
+                    if (overlay) overlay.style.display = 'none'; 
+                    video.play().catch(e => { video.muted = true; video.play(); }); 
+                });
                 window.hlsPlayer.on(Hls.Events.ERROR, (e, data) => { if(data.fatal) setTimeout(iniciarPlayerDoVideo, 2000); });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = `${src}?t=${new Date().getTime()}`;
-                video.addEventListener('loadedmetadata', () => { overlay.style.display = 'none'; video.play(); });
+                video.addEventListener('loadedmetadata', () => { 
+                    if (overlay) overlay.style.display = 'none'; 
+                    video.play(); 
+                });
                 video.addEventListener('error', () => { setTimeout(iniciarPlayerDoVideo, 2000); });
             }
         }
@@ -604,8 +718,15 @@
         // === WEB SOCKETS (CHAT AO VIVO) ===
         function toggleChat() {
             const sidebar = document.getElementById('chat-sidebar');
-            if(sidebar.classList.contains('hidden')) { sidebar.classList.remove('hidden'); sidebar.classList.add('flex'); }
-            else { sidebar.classList.add('hidden'); sidebar.classList.remove('flex'); }
+            if (!sidebar) return;
+            
+            if(sidebar.classList.contains('hidden')) { 
+                sidebar.classList.remove('hidden'); 
+                sidebar.classList.add('flex'); 
+            } else { 
+                sidebar.classList.add('hidden'); 
+                sidebar.classList.remove('flex'); 
+            }
         }
 
         function conectarChat() {
@@ -617,8 +738,10 @@
                 headers: { 'Accept': 'application/json' }
             }).then(r=>r.json()).then(msgs => {
                 const box = document.getElementById('chat-messages');
-                box.innerHTML = '<p class="text-center text-xs text-neutral-500">Bem-vindo ao chat da partida!</p>';
-                msgs.forEach(m => renderizarMensagem(m.autor, m.mensagem, m.hora));
+                if (box) {
+                    box.innerHTML = '<p class="text-center text-xs text-neutral-500">Bem-vindo ao chat da partida!</p>';
+                    msgs.forEach(m => renderizarMensagem(m.autor, m.mensagem, m.hora));
+                }
             }).catch(e => console.log('Sem histórico do chat.'));
 
             socket.on('nova_mensagem', (data) => {
@@ -626,16 +749,20 @@
             });
 
             socket.on('chat_limpo', () => {
-                document.getElementById('chat-messages').innerHTML = '<p class="text-center text-xs text-neutral-500">Chat limpo pelo Administrador.</p>';
+                const box = document.getElementById('chat-messages');
+                if (box) {
+                    box.innerHTML = '<p class="text-center text-xs text-neutral-500">Chat limpo pelo Administrador.</p>';
+                }
             });
         }
 
         function enviarChat() {
             const input = document.getElementById('chat-input');
-            const msg = input.value.trim();
+            const msg = input ? input.value.trim() : "";
+            
             if(msg && socket) {
                 socket.emit('chat_message', { autor: nomeAtual, mensagem: msg });
-                input.value = '';
+                if (input) input.value = '';
             }
         }
 
@@ -643,9 +770,12 @@
             const div = document.createElement('div');
             div.className = "text-sm text-white fade-in";
             div.innerHTML = `<span class="text-xs text-neutral-500">[${hora}]</span> <span class="font-bold text-indigo-400">${autor}:</span> ${msg}`;
+            
             const box = document.getElementById('chat-messages');
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
+            if (box) {
+                box.appendChild(div);
+                box.scrollTop = box.scrollHeight;
+            }
         }
     </script>
 </body>
