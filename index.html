@@ -338,9 +338,14 @@
                     body: JSON.stringify({ nome: nome, cpf: cpfLimpo })
                 });
                 
-                // Se o servidor Python devolver Erro 500, apanhamos o erro graciosamente
                 if (!res.ok) {
-                    alert("Ocorreu um erro no Servidor Python. Por favor, verifique o seu painel.");
+                    let errorMessage = "Ocorreu um erro. Verifique o seu painel Python.";
+                    try {
+                        const errorData = await res.json();
+                        if (errorData.message) errorMessage = errorData.message;
+                    } catch(e) {}
+                    
+                    alert("Atenção: " + errorMessage);
                     btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
                     btn.disabled = false;
                     lucide.createIcons();
@@ -356,9 +361,12 @@
                     mostrarPix(data.chave_pix, data.codigo, data.valor);
                 } else {
                     alert(data.message);
+                    btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
+                    btn.disabled = false;
+                    lucide.createIcons();
                 }
             } catch(e) { 
-                alert("Servidor offline. Tente novamente mais tarde."); 
+                alert("Falha de Comunicação com a Nuvem. Tente novamente mais tarde."); 
                 btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
                 btn.disabled = false;
                 lucide.createIcons();
