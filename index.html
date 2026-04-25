@@ -56,8 +56,11 @@
             <button id="btn-logout" onclick="logout()" class="hidden text-xs font-bold text-neutral-400 hover:text-white bg-white/10 px-3 py-1.5 rounded-lg z-50 transition-colors cursor-pointer">Sair da Conta</button>
         </header>
 
-        <!-- min-h-full em vez de my-auto permite scroll até ao fim sem cortar nada -->
-        <div class="relative z-10 w-full max-w-5xl px-4 flex flex-col items-center justify-center min-h-full py-24 pb-32">
+        <!-- ESPAÇADOR DE TOPO: Protege o cabeçalho. Garante distância de segurança para não invadir o botão de Sair. -->
+        <div class="w-full flex-grow min-h-[100px] md:min-h-[120px] shrink-0"></div>
+
+        <!-- CONTEÚDO PRINCIPAL (sem o justify-center forçado que estava a causar a sobreposição) -->
+        <div class="relative z-10 w-full max-w-5xl px-4 flex flex-col items-center shrink-0">
             <div class="mb-4 px-4 py-1.5 rounded-full border border-red-500/40 bg-gradient-to-r from-red-600/20 to-red-500/10 text-red-400 text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
                 <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)]"></span> TRANSMISSÃO EXCLUSIVA
             </div>
@@ -125,6 +128,9 @@
                 </div>
             </div>
         </div>
+
+        <!-- ESPAÇADOR DE FUNDO -->
+        <div class="w-full flex-grow min-h-[60px] shrink-0"></div>
     </div>
 
     <!-- ========================================== -->
