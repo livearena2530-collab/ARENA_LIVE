@@ -69,7 +69,7 @@
             const statusDot = document.getElementById('status-dot');
             const statusText = document.getElementById('status-text');
             
-            // Rota de onde o servidor Python está servindo o arquivo de playlist do HLS
+            // Rota de onde o servidor Python está a servir o ficheiro de playlist do HLS
             const videoSrc = '/stream/stream.m3u8'; 
 
             function setOnlineStatus() {
@@ -81,52 +81,71 @@
             function setOfflineStatus() {
                 loadingOverlay.style.display = 'flex';
                 statusDot.classList.replace('bg-green-500', 'bg-red-500');
-                statusText.textContent = 'Aguardando sinal...';
+                statusText.textContent = 'A aguardar sinal...';
             }
 
-            if (Hls.isSupported()) {
-                const hls = new Hls({
-                    // Configurações para tentar recuperar a stream se houver travamentos
-                    manifestLoadingMaxRetry: Infinity,
-                    manifestLoadingRetryDelay: 2000,
-                    levelLoadingMaxRetry: 10,
-                });
-                
-                hls.loadSource(videoSrc);
-                hls.attachMedia(video);
-                
-                hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    setOnlineStatus();
-                    video.play().catch(e => console.log("Erro de autoplay:", e));
-                });
+            let hls;
 
-                hls.on(Hls.Events.ERROR, function (event, data) {
-                    if (data.fatal) {
-                        setOfflineStatus();
-                        switch (data.type) {
-                            case Hls.ErrorTypes.NETWORK_ERROR:
-                                // Tenta carregar novamente se o servidor caiu e voltou
-                                setTimeout(() => hls.startLoad(), 2000);
-                                break;
-                            case Hls.ErrorTypes.MEDIA_ERROR:
-                                hls.recoverMediaError();
-                                break;
-                            default:
-                                hls.destroy();
-                                break;
-                        }
+            function iniciarPlayer() {
+                if (Hls.isSupported()) {
+                    if (hls) {
+                        hls.destroy();
                     }
-                });
+
+                    hls = new Hls({
+                        // Configurações agressivas para nunca desistir de procurar o vídeo
+                        manifestLoadingMaxRetry: Infinity,
+                        manifestLoadingRetryDelay: 2000,
+                        levelLoadingMaxRetry: Infinity,
+                        fragLoadingMaxRetry: Infinity,
+                    });
+                    
+                    // O Cache Buster impede o navegador de guardar o erro 404 em memória
+                    const cacheBuster = new Date().getTime();
+                    hls.loadSource(`${videoSrc}?t=${cacheBuster}`);
+                    hls.attachMedia(video);
+                    
+                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                        setOnlineStatus();
+                        video.play().catch(e => console.log("Erro de autoplay:", e));
+                    });
+
+                    hls.on(Hls.Events.ERROR, function (event, data) {
+                        if (data.fatal) {
+                            setOfflineStatus();
+                            switch (data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    // Tenta carregar novamente se o servidor caiu e voltou
+                                    setTimeout(() => hls.startLoad(), 2000);
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    hls.recoverMediaError();
+                                    break;
+                                default:
+                                    // Em vez de destruir e desistir, ele reinicia todo o processo após 3 segundos
+                                    setTimeout(iniciarPlayer, 3000);
+                                    break;
+                            }
+                        }
+                    });
+                }
+                // Suporte nativo para navegadores como o Safari (iOS/macOS)
+                else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    const cacheBuster = new Date().getTime();
+                    video.src = `${videoSrc}?t=${cacheBuster}`;
+                    video.addEventListener('loadedmetadata', function() {
+                        setOnlineStatus();
+                        video.play();
+                    });
+                    video.addEventListener('error', function() {
+                        setOfflineStatus();
+                        setTimeout(iniciarPlayer, 3000); // Tenta de novo no Safari
+                    });
+                }
             }
-            // Suporte nativo para navegadores como o Safari (iOS/macOS)
-            else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = videoSrc;
-                video.addEventListener('loadedmetadata', function() {
-                    setOnlineStatus();
-                    video.play();
-                });
-                video.addEventListener('error', setOfflineStatus);
-            }
+
+            // Inicia o ciclo de procura do leitor
+            iniciarPlayer();
         });
     </script>
 </body>
