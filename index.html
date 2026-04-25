@@ -1,112 +1,1728 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minha Transmissão ao Vivo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+    <title>ArenaLive PPV - Premium Streaming</title>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- HLS.js -->
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Biblioteca HLS.js -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-</head>
-<body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans">
 
-    <!-- Barra de Navegação -->
-    <nav class="bg-gray-800 border-b border-gray-700 p-4 shadow-md">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-                Arena Live
-            </h1>
-            <div class="flex items-center gap-2">
-                <span id="status-dot" class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
-                <span id="status-text" class="text-sm font-medium text-gray-300">Aguardando sinal...</span>
+    <!-- OTIMIZAÇÃO: Pré-conectar aos servidores para remover latência de rede -->
+    <link rel="preconnect" href="https://api.arenalive.shop">
+    <link rel="preconnect" href="http://localhost">
+
+    <!-- OTIMIZAÇÃO MÁXIMA: Pulo Instantâneo (Zero-Second Bypass) -->
+    <script>
+        if(localStorage.getItem('arenaLiveTicket')) {
+            // Impede a tela Home de renderizar. Força a tela preta do player IMEDIATAMENTE no milissegundo 1.
+            document.documentElement.style.backgroundColor = '#000';
+            document.write('<style>body { background-color: #000 !important; } #main-header, #view-home { display: none !important; } #view-player { display: flex !important; }</style>');
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #050505; 
+            -webkit-tap-highlight-color: transparent;
+            color: #f5f5f5;
+        }
+        
+        .glass { background: rgba(15, 15, 15, 0.4); backdrop-filter: blur(24px); }
+        .glass-card {
+            background: linear-gradient(145deg, rgba(30, 30, 30, 0.6) 0%, rgba(15, 15, 15, 0.8) 100%);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .fade-in { animation: fadeIn 0.4s ease forwards; }
+        .slide-up { animation: slideUp 0.6s ease forwards; }
+        .slide-down-toast { animation: slideDownToast 0.4s ease forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideDownToast { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+        
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        video { 
+            width: 100%; 
+            height: 100%; 
+            max-height: 100vh;
+            background-color: #000; 
+            outline: none; 
+            object-fit: contain !important;
+        }
+        :-webkit-full-screen video { width: 100vw; height: 100vh; object-fit: contain !important; }
+        :fullscreen video { width: 100vw; height: 100vh; object-fit: contain !important; }
+        .h-dvh-real { height: 100vh; height: 100dvh; }
+        
+        /* Volume Slider */
+        input[type=range]#volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            border-radius: 8px;
+            height: 4px;
+        }
+        input[type=range]#volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.8);
+        }
+
+        /* Timeline Slider (Estilo YouTube) */
+        input[type=range]#progress-bar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 14px;
+            width: 14px;
+            background: #dc2626;
+            border-radius: 50%;
+            opacity: 0; 
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .group\/timeline:hover input[type=range]#progress-bar::-webkit-slider-thumb,
+        input[type=range]#progress-bar:active::-webkit-slider-thumb {
+            opacity: 1;
+            transform: scale(1.3);
+        }
+
+        /* CORREÇÃO DO CURSOR EM TELA CHEIA */
+        .cursor-hidden, .cursor-hidden * {
+            cursor: none !important;
+        }
+
+        /* ESCONDER ÍCONES DE PESQUISA DO INPUT (TRUQUE PARA BLOQUEAR AUTOFILL) */
+        input[type="search"]::-webkit-search-decoration,
+        input[type="search"]::-webkit-search-cancel-button,
+        input[type="search"]::-webkit-search-results-button,
+        input[type="search"]::-webkit-search-results-decoration {
+            display: none;
+        }
+    </style>
+</head>
+<body class="min-h-dvh-real flex flex-col overflow-x-hidden selection:bg-indigo-500 selection:text-white bg-[#050505]">
+
+    <div id="toast-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999] flex flex-col gap-3 pointer-events-none w-full max-w-sm px-4"></div>
+
+    <header id="main-header" class="fixed top-0 w-full border-b border-white/5 glass z-40 px-4 sm:px-8 h-[72px] flex items-center justify-between transition-all">
+        <div class="flex items-center gap-6">
+            <button onclick="goHome();" class="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95">
+                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-2 rounded-xl shadow-lg shadow-indigo-500/30">
+                    <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+                </div>
+                <span class="text-xl font-black tracking-tighter text-white uppercase drop-shadow-md">
+                    ARENA<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">LIVE</span>
+                </span>
+            </button>
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="btn-logout" onclick="logout()" class="hidden items-center gap-2 text-xs font-bold text-neutral-400 hover:text-red-400 transition-colors bg-white/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg">
+                <i data-lucide="log-out" class="w-4 h-4"></i> <span class="hidden sm:inline">Sair</span>
+            </button>
+            <div id="connection-status" class="flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-amber-500 uppercase bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20 backdrop-blur-md cursor-pointer">
+                <span class="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]"></span> A ligar...
             </div>
         </div>
-    </nav>
+    </header>
 
-    <!-- Conteúdo Principal -->
-    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-6xl mx-auto">
-        <div class="w-full bg-black rounded-xl shadow-2xl overflow-hidden border border-gray-800 relative group">
+    <div id="view-home" class="flex-1 w-full fade-in pb-20 pt-[72px]">
+        <div class="relative w-full min-h-[85vh] flex flex-col items-center justify-start pb-16 bg-neutral-950 overflow-hidden pt-8 sm:pt-12">
             
-            <!-- Container do Vídeo -->
-            <div class="aspect-video relative w-full h-full">
-                <video id="video-player" class="w-full h-full object-contain" controls autoplay muted></video>
+            <div class="absolute inset-0 z-0">
+                <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover opacity-[0.15] scale-105 transform origin-center animate-[pulse_20s_ease-in-out_infinite]">
+                <div class="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-[#050505]"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent"></div>
+            </div>
+            
+            <div class="relative z-10 max-w-screen-xl mx-auto px-4 sm:px-6 w-full slide-up flex flex-col items-center text-center">
                 
-                <!-- Overlay de Carregamento -->
-                <div id="loading-overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/90 backdrop-blur-sm z-10">
-                    <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <p class="text-gray-300 text-lg font-medium">Aguardando transmissão do OBS Studio...</p>
+                <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-red-600/20 to-red-500/10 border border-red-500/40 text-red-400 text-xs sm:text-sm font-black uppercase mb-6 backdrop-blur-md shadow-[0_0_20px_rgba(239,68,68,0.2)] tracking-widest">
+                    <span class="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)]"></span> TRANSMISSÃO EXCLUSIVA AO VIVO
+                </div>
+
+                <h1 id="event-title-display" class="text-4xl sm:text-5xl md:text-7xl font-black text-white max-w-5xl mb-12 leading-[1.1] drop-shadow-2xl tracking-tight">
+                    ArenaLive Premium
+                </h1>
+
+                <div class="flex flex-row items-center justify-center w-full mb-12 gap-1 sm:gap-12 md:gap-20">
+                    <div class="flex flex-col items-center relative w-[40%] sm:w-auto">
+                        <div class="absolute inset-0 bg-indigo-500 rounded-full blur-[40px] opacity-20"></div>
+                        <div class="w-24 h-24 sm:w-56 sm:h-56 rounded-full border-[3px] sm:border-[6px] border-indigo-500/80 overflow-hidden mb-3 sm:mb-6 bg-neutral-900 flex items-center justify-center relative z-10 shadow-[0_0_20px_rgba(99,102,241,0.3)] mx-auto">
+                            <img id="team-a-img-display" src="" class="w-full h-full object-cover transform hover:scale-110 transition-transform duration-700">
+                        </div>
+                        <h2 id="team-a-name-display" class="text-lg sm:text-5xl font-black tracking-tighter text-white drop-shadow-xl text-center leading-tight break-words">---</h2>
+                    </div>
+
+                    <div class="flex flex-col items-center justify-center z-10 relative w-[20%] sm:w-auto">
+                        <div class="text-3xl sm:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-br from-indigo-400 via-white to-purple-500 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] filter">VS</div>
+                    </div>
+
+                    <div class="flex flex-col items-center relative w-[40%] sm:w-auto">
+                        <div class="absolute inset-0 bg-purple-500 rounded-full blur-[40px] opacity-20"></div>
+                        <div class="w-24 h-24 sm:w-56 sm:h-56 rounded-full border-[3px] sm:border-[6px] border-purple-500/80 overflow-hidden mb-3 sm:mb-6 bg-neutral-900 flex items-center justify-center relative z-10 shadow-[0_0_20px_rgba(168,85,247,0.3)] mx-auto">
+                            <img id="team-b-img-display" src="" class="w-full h-full object-cover transform hover:scale-110 transition-transform duration-700">
+                        </div>
+                        <h2 id="team-b-name-display" class="text-lg sm:text-5xl font-black tracking-tighter text-white drop-shadow-xl text-center leading-tight break-words">---</h2>
+                    </div>
+                </div>
+
+                <div class="relative w-full max-w-lg mx-auto mt-4 group">
+                    <div class="absolute -inset-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 rounded-[2rem] blur-xl opacity-50 group-hover:opacity-80 transition duration-500 animate-[pulse_3s_ease-in-out_infinite]"></div>
+                    
+                    <div class="relative bg-neutral-950/80 backdrop-blur-2xl border border-white/10 rounded-[1.8rem] p-8 flex flex-col items-center text-center shadow-2xl">
+                        
+                        <div class="flex items-center gap-2 mb-4 bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20">
+                            <i data-lucide="ticket" class="w-4 h-4 text-indigo-400"></i>
+                            <span class="text-indigo-300 font-bold text-xs uppercase tracking-widest">Ingresso Digital VIP</span>
+                        </div>
+
+                        <div class="flex items-start justify-center gap-1.5 mb-6">
+                            <span class="text-2xl text-neutral-400 font-bold mt-2">R$</span>
+                            <span id="home-price-display" class="text-7xl font-black text-white tracking-tighter drop-shadow-2xl">--,--</span>
+                        </div>
+
+                        <div id="ticket-urgency-container" class="w-full bg-gradient-to-r from-red-600/20 to-orange-500/20 border border-red-500/30 rounded-xl p-4 mb-8 flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(239,68,68,0.15)] relative overflow-hidden transition-all">
+                            <div class="absolute inset-0 bg-red-500/10 animate-[pulse_2s_ease-in-out_infinite]"></div>
+                            <div class="relative flex items-center gap-3">
+                                <i id="urgency-icon" data-lucide="flame" class="w-6 h-6 text-red-500 animate-bounce"></i>
+                                <span id="tickets-remaining-text" class="text-red-400 font-black text-lg uppercase tracking-wide drop-shadow-md">A CARREGAR INGRESSOS...</span>
+                            </div>
+                        </div>
+
+                        <button id="btn-assistir" onclick="iniciarCompra()" class="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:via-purple-500 hover:to-indigo-500 text-white font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_30px_rgba(99,102,241,0.5)] text-xl group-hover:shadow-[0_0_50px_rgba(99,102,241,0.7)] bg-[length:200%_auto] animate-[gradient_3s_ease_infinite] relative z-20 cursor-pointer">
+                            <i data-lucide="zap" class="w-6 h-6 fill-current"></i> GARANTIR O MEU ACESSO
+                        </button>
+
+                        <div class="w-full grid grid-cols-2 gap-y-4 gap-x-2 mt-8 text-left">
+                            <div class="flex items-center gap-2 text-sm font-semibold text-neutral-300"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-500"></i> Liberação Imediata</div>
+                            <div class="flex items-center gap-2 text-sm font-semibold text-neutral-300"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-500"></i> Qualidade Full HD</div>
+                            <div class="flex items-center gap-2 text-sm font-semibold text-neutral-300"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-500"></i> Sem Travamentos</div>
+                            <div class="flex items-center gap-2 text-sm font-semibold text-neutral-300"><i data-lucide="lock" class="w-5 h-5 text-emerald-500"></i> Pagamento Seguro</div>
+                        </div>
+                        
+                        <div class="w-full border-t border-white/10 mt-8 pt-6">
+                            <button onclick="openPlayer()" class="text-sm font-bold text-neutral-400 hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto bg-white/5 hover:bg-white/10 py-3 px-6 rounded-xl w-full relative z-20 cursor-pointer">
+                                <i data-lucide="log-in" class="w-4 h-4"></i> Já comprei o ingresso! (Entrar)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Vista Player (Dividida entre Vídeo e Chat) -->
+    <main id="view-player" class="hidden fixed top-0 left-0 w-full flex-col lg:flex-row bg-black z-50">
+        
+        <div id="player-wrapper" class="relative w-full flex-1 flex flex-col bg-black overflow-hidden transition-all shrink-0">
+            
+            <div id="locked-state" class="absolute inset-0 z-40 flex flex-col items-center justify-start sm:justify-center p-6 bg-black/90 backdrop-blur-md text-center overflow-y-auto pt-12 sm:pt-6">
+                <div class="relative z-30 glass-card p-8 sm:p-12 rounded-[2.5rem] max-w-md w-full shadow-2xl slide-up my-auto">
+                    <button onclick="goHome()" class="absolute top-6 left-6 text-neutral-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-bold bg-white/5 px-3 py-2 rounded-xl">
+                        <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
+                    </button>
+
+                    <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-gradient-to-br from-indigo-500 to-purple-600 w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/40 rotate-12 transition-transform hover:rotate-0 duration-300">
+                        <i data-lucide="lock" class="text-white w-8 h-8 -rotate-12 group-hover:rotate-0"></i>
+                    </div>
+
+                    <div class="pt-8">
+                        <h2 class="text-3xl font-black mb-2 text-white drop-shadow-md">Acesso Restrito</h2>
+                        <p class="text-neutral-400 text-sm mb-8 font-medium" id="lock-event-subtitle">Acesso Premium</p>
+
+                        <button id="btn-comprar" onclick="openCheckout()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold py-4 px-6 rounded-xl mb-8 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.5)] active:scale-95 flex justify-center items-center gap-2">
+                            <i data-lucide="unlock" class="w-5 h-5"></i> COMPRAR / DESBLOQUEAR
+                        </button>
+
+                        <div class="relative flex items-center py-5">
+                            <div class="flex-grow border-t border-white/10"></div>
+                            <span class="flex-shrink-0 mx-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Já tens um ingresso?</span>
+                            <div class="flex-grow border-t border-white/10"></div>
+                        </div>
+
+                        <div class="flex flex-col gap-3">
+                            <label class="text-xs text-neutral-400 text-left pl-2 font-semibold">Entra usando o teu CPF ou VIP Code:</label>
+                            <input id="existing-ticket-input" type="text" placeholder="Digita CPF ou Código" oninput="maskCpfOrCode(this)" class="bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white text-center font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-neutral-600">
+                            
+                            <button onclick="checkExistingTicket()" class="w-full bg-indigo-950/40 border border-indigo-500/50 text-indigo-300 font-bold text-sm hover:bg-indigo-600 hover:text-white hover:border-indigo-400 rounded-xl transition-all duration-300 py-4 mt-1 flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(99,102,241,0.1)] hover:shadow-[0_0_25px_rgba(99,102,241,0.5)] active:scale-95 group">
+                                ASSISTIR AO EVENTO <i data-lucide="play-circle" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Player Desbloqueado -->
+            <div id="unlocked-state" class="hidden absolute inset-0 bg-black flex items-center justify-center z-10 overflow-hidden">
+                
+                <!-- OVERLAY DE INTERAÇÃO (RESOLVE BLOQUEIOS DE AUTOPLAY DOS NAVEGADORES) -->
+                <div id="interaction-overlay" class="absolute inset-0 z-[70] bg-black/80 backdrop-blur-md flex-col items-center justify-center hidden cursor-pointer" onclick="forcePlay()">
+                    <div class="w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center animate-[pulse_2s_ease-in-out_infinite] mb-6 shadow-[0_0_30px_rgba(99,102,241,0.6)] hover:scale-110 transition-transform">
+                        <i data-lucide="play" class="w-10 h-10 text-white fill-current ml-2"></i>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-black text-white drop-shadow-md text-center px-4">CLIQUE PARA ASSISTIR</h2>
+                    <p class="text-neutral-400 text-sm mt-3 text-center px-4">O teu navegador exige um clique para iniciar o vídeo.</p>
+                </div>
+
+                <!-- TELA DE ESPERA PRÉ-JOGO -->
+                <div id="waiting-screen" class="hidden absolute inset-0 z-[60] flex-col items-center justify-center bg-black/95 backdrop-blur-md transition-opacity duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-indigo-900/20 via-black to-black pointer-events-none"></div>
+                    <div class="relative z-10 flex flex-col items-center justify-center w-full h-full p-2 sm:p-6 overflow-hidden">
+                        
+                        <div class="relative w-12 h-12 sm:w-24 sm:h-24 mb-2 sm:mb-6 flex-shrink-0">
+                            <div class="absolute inset-0 border-2 sm:border-4 border-indigo-500/20 rounded-full"></div>
+                            <div class="absolute inset-0 border-2 sm:border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                            <i data-lucide="clock" class="absolute inset-0 m-auto w-5 h-5 sm:w-10 sm:h-10 text-indigo-400"></i>
+                        </div>
+                        
+                        <h2 class="text-lg sm:text-3xl md:text-4xl font-black text-white mb-1 sm:mb-2 text-center drop-shadow-lg px-2 flex-shrink-0 leading-tight">A Transmissão Começa Em Breve</h2>
+                        
+                        <p class="hidden sm:block text-xs sm:text-sm text-neutral-400 mb-6 text-center max-w-md px-6 leading-relaxed flex-shrink-0">O teu acesso VIP já está garantido! Prepara os petiscos, o vídeo será ativado automaticamente assim que a transmissão iniciar.</p>
+                        <p class="block sm:hidden text-[10px] text-neutral-400 mb-3 text-center px-4 leading-tight flex-shrink-0">Acesso garantido! O vídeo inicia automaticamente.</p>
+                        
+                        <div id="countdown-container" class="flex gap-2 sm:gap-4 text-center transition-opacity duration-300 flex-shrink-0">
+                            <div class="bg-white/5 border border-white/10 rounded-lg sm:rounded-2xl p-2 sm:p-5 min-w-[55px] sm:min-w-[90px] shadow-2xl backdrop-blur-md flex flex-col items-center justify-center">
+                                <span id="count-h" class="text-xl sm:text-5xl font-black text-white tracking-tighter leading-none">00</span>
+                                <p class="text-[7px] sm:text-[10px] text-neutral-400 font-bold uppercase mt-1 tracking-widest">Horas</p>
+                            </div>
+                            <div class="bg-white/5 border border-white/10 rounded-lg sm:rounded-2xl p-2 sm:p-5 min-w-[55px] sm:min-w-[90px] shadow-2xl backdrop-blur-md flex flex-col items-center justify-center">
+                                <span id="count-m" class="text-xl sm:text-5xl font-black text-white tracking-tighter leading-none">00</span>
+                                <p class="text-[7px] sm:text-[10px] text-neutral-400 font-bold uppercase mt-1 tracking-widest">Minutos</p>
+                            </div>
+                            <div class="bg-white/5 border border-white/10 rounded-lg sm:rounded-2xl p-2 sm:p-5 min-w-[55px] sm:min-w-[90px] shadow-2xl backdrop-blur-md flex flex-col items-center justify-center">
+                                <span id="count-s" class="text-xl sm:text-5xl font-black text-white tracking-tighter leading-none">00</span>
+                                <p class="text-[7px] sm:text-[10px] text-neutral-400 font-bold uppercase mt-1 tracking-widest">Segundos</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <video id="live-video" playsinline class="w-full h-full object-contain z-10"></video>
+                
+                <div id="ui-hitbox" class="absolute inset-0 z-20 cursor-pointer" onclick="showUI(event)"></div>
+
+                <!-- OVERLAY DOS CONTROLOS -->
+                <div id="video-ui-overlay" class="absolute inset-0 z-30 flex flex-col justify-between opacity-0 transition-opacity duration-300 pointer-events-none cursor-pointer" onclick="hideUI(event)">
+                    
+                    <div class="absolute inset-0 bg-black/40 pointer-events-none"></div>
+
+                    <!-- Topo -->
+                    <div class="relative px-3 pt-3 sm:px-5 sm:pt-5 w-full flex justify-end items-start cursor-default pointer-events-auto" onclick="event.stopPropagation()">
+                        <div class="flex items-center gap-2 sm:gap-4">
+                            <div class="flex items-center group/volume cursor-pointer">
+                                <button onclick="toggleMute(event)" id="btn-mute" class="text-white p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95">
+                                    <i data-lucide="volume-2" id="icon-mute" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                                </button>
+                                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1" class="hidden sm:block w-0 sm:group-hover/volume:w-20 opacity-0 sm:group-hover/volume:opacity-100 transition-all duration-300 origin-right bg-white/20" oninput="changeVolume(this.value)">
+                            </div>
+
+                            <div class="relative">
+                                <button onclick="toggleQualityMenu(event)" class="text-white p-2 hover:bg-white/10 rounded-full transition-colors transform active:scale-95">
+                                    <i data-lucide="settings" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                                </button>
+                                <div id="quality-menu" class="hidden absolute top-full right-0 mt-2 bg-neutral-900 border border-white/10 rounded-xl flex flex-col min-w-[120px] overflow-hidden shadow-2xl z-50">
+                                    <button onclick="setQuality(-1)" class="px-4 py-3 text-sm font-bold text-white hover:bg-indigo-600 text-left border-b border-white/5 transition-colors">Auto</button>
+                                    <div id="quality-levels" class="flex flex-col"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Centro -->
+                    <div class="relative flex-1 flex items-center justify-center pointer-events-none">
+                        <button onclick="togglePlay(event)" class="text-white hover:scale-110 active:scale-95 transition-transform bg-black/40 p-4 sm:p-5 rounded-full backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.5)] pointer-events-auto">
+                            <i data-lucide="pause" id="icon-center-play-pause" class="w-10 h-10 sm:w-14 sm:h-14 fill-current"></i>
+                        </button>
+                    </div>
+
+                    <!-- Base -->
+                    <div class="relative w-full bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-8 pb-3 px-3 sm:px-5 cursor-default pointer-events-auto" onclick="event.stopPropagation()">
+                        
+                        <div class="flex items-center justify-between w-full mb-2">
+                            <div class="flex items-center gap-2 sm:gap-3">
+                                <span id="current-time" class="text-white text-[11px] sm:text-xs font-medium drop-shadow-md">00:00</span>
+                                <span class="text-white/50 text-[10px]">•</span>
+                                <button id="btn-live" onclick="jumpToLive(event)" class="cursor-pointer text-red-500 font-bold text-[11px] sm:text-xs flex items-center gap-1.5 uppercase active:scale-95 px-2 py-1 -ml-2 rounded hover:bg-white/10 transition-colors pointer-events-auto">
+                                    <span id="dot-live" class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span> Ao vivo
+                                </button>
+                            </div>
+                            
+                            <button onclick="toggleFullScreen(event)" class="text-white p-1.5 hover:bg-white/10 rounded-full transition-colors active:scale-95 pointer-events-auto">
+                                <i data-lucide="maximize" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                            </button>
+                        </div>
+
+                        <!-- Timeline -->
+                        <div class="w-full flex items-center relative h-1 sm:h-1.5 group/timeline cursor-pointer pointer-events-auto">
+                            <div class="absolute left-0 right-0 h-full bg-white/30 rounded-full pointer-events-none"></div>
+                            <div id="progress-fill" class="absolute left-0 h-full bg-red-600 rounded-full pointer-events-none transition-all duration-75" style="width: 0%;"></div>
+                            <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" class="w-full h-full bg-transparent appearance-none cursor-pointer z-10 focus:outline-none absolute inset-0 m-0 p-0" oninput="scrubVideo(this)" onchange="seekVideo(this)">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="video-loading" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 hidden z-50 backdrop-blur-sm pointer-events-none">
+                    <div class="relative w-16 h-16">
+                        <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
+                        <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <p class="mt-4 text-indigo-400 font-bold animate-pulse text-sm">A ligar ao Stream...</p>
                 </div>
             </div>
         </div>
+
+        <!-- ABA DO CHAT AO VIVO -->
+        <div id="chat-container" class="hidden flex-col w-full lg:w-[400px] bg-neutral-900 border-t lg:border-t-0 lg:border-l border-white/10 flex-1 min-h-0 relative z-20 transition-all">
+            <!-- Header do Chat -->
+            <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-neutral-950 shrink-0">
+                <h3 class="text-white font-bold text-sm flex items-center gap-2">
+                    Chat ao vivo <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                </h3>
+                <div class="flex items-center gap-2">
+                    <div class="hidden sm:block text-[10px] text-neutral-500 font-medium px-2 py-1 bg-white/5 rounded">Exclusivo para VIPs</div>
+                    <button onclick="logout()" class="flex items-center gap-1.5 text-[10px] font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 transition-colors px-2 py-1.5 rounded cursor-pointer">
+                        <i data-lucide="log-out" class="w-3 h-3"></i> Sair
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mensagens -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col bg-[#0a0a0a]">
+                <div class="text-center text-xs text-neutral-500 my-2">Bem-vindo ao chat ao vivo! Lembra-te de ser respeitoso.</div>
+                <!-- As mensagens vão aparecer aqui via JS -->
+            </div>
+
+            <!-- Input do Chat -->
+            <div id="chat-input-container" class="p-3 pb-6 sm:pb-3 bg-neutral-950 border-t border-white/5 flex items-center gap-2 shrink-0">
+                <input type="search" id="chat-input" name="field_blq_autofill" autocomplete="nope" autocorrect="off" placeholder="Conversar publicamente..." class="flex-1 bg-neutral-800 text-white rounded-full px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-neutral-500" maxlength="200" onfocus="onChatFocus()" onkeypress="if(event.key === 'Enter') enviarMensagemChat()">
+                <button onclick="enviarMensagemChat()" id="btn-send-chat" class="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center text-white shrink-0 active:scale-95 transition-transform disabled:opacity-50">
+                    <i data-lucide="send" class="w-4 h-4 -ml-0.5"></i>
+                </button>
+            </div>
+        </div>
+
     </main>
 
-    <!-- Lógica do Player -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const video = document.getElementById('video-player');
-            const loadingOverlay = document.getElementById('loading-overlay');
-            const statusDot = document.getElementById('status-dot');
-            const statusText = document.getElementById('status-text');
+    <!-- Modal Checkout / Conflito -->
+    <div id="checkout-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 hidden">
+        <div class="bg-neutral-900 border border-white/10 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col slide-up relative">
             
-            // ============================================================
-            // ATENÇÃO: AQUI ESTÁ A MUDANÇA PRINCIPAL!
-            // Como o site agora está no Cloudflare Pages, ele precisa
-            // saber o endereço exato do seu computador (Túnel) para pegar o vídeo.
-            // ============================================================
-            const videoSrc = 'https://video.arenalive.shop/stream/stream.m3u8'; 
+            <div class="bg-gradient-to-r from-neutral-800 to-neutral-900 px-6 py-5 flex justify-between items-center border-b border-white/5">
+                <button onclick="closeModal()" class="text-neutral-400 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
+                </button>
+                <h3 class="font-bold flex items-center gap-2 text-white text-sm">
+                    Liberação VIP
+                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                </h3>
+            </div>
+            
+            <div class="p-6 sm:p-8">
+                <div id="step-form" class="fade-in">
+                    <p class="text-neutral-400 text-sm mb-6 leading-relaxed">Para gerar o teu ingresso VIP, introduz os teus dados. <strong class="text-white">Eles serão usados para recuperar o acesso caso feches a página.</strong></p>
+                    
+                    <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-6 text-left flex items-start gap-3">
+                        <i data-lucide="alert-circle" class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5"></i>
+                        <p class="text-[10px] sm:text-xs text-amber-200/80 leading-relaxed font-medium">
+                            <strong class="text-amber-500">Aviso Importante:</strong> Este ingresso é válido <strong class="text-white">APENAS para o jogo de hoje</strong>. O acesso expira automaticamente e será bloqueado assim que a transmissão oficial terminar.
+                        </p>
+                    </div>
 
-            function setOnlineStatus() {
-                loadingOverlay.style.display = 'none';
-                statusDot.classList.replace('bg-red-500', 'bg-green-500');
-                statusText.textContent = 'AO VIVO';
+                    <label class="block text-xs text-neutral-500 font-black mb-2 uppercase tracking-wide">O TEU NOME</label>
+                    <input type="text" id="nome-input" placeholder="O teu nome e apelido" class="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white mb-4 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-center text-lg">
+
+                    <label class="block text-xs text-neutral-500 font-black mb-2 uppercase tracking-wide">O TEU CPF</label>
+                    <input type="text" id="cpf-input" placeholder="000.000.000-00 (000 p/ testes)" oninput="maskCPFOnly(this)" class="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white mb-6 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-mono text-center text-lg">
+                    
+                    <button id="btn-gerar-pix" onclick="generateTicket()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 py-4 rounded-xl font-bold text-white hover:from-indigo-500 hover:to-indigo-400 transition-all active:scale-95 shadow-[0_0_15px_rgba(99,102,241,0.3)] flex justify-center items-center gap-2 relative z-20 cursor-pointer">
+                        GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <div id="step-payment" class="hidden text-center fade-in">
+                    <div id="timer-container" class="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-red-400">
+                            <i data-lucide="timer" class="w-5 h-5 animate-pulse"></i>
+                            <span class="text-[10px] font-bold uppercase tracking-wider">O código expira em:</span>
+                        </div>
+                        <span id="payment-timer" class="text-xl font-mono font-black text-red-400">10:00</span>
+                    </div>
+
+                    <h4 id="ticket-price-display" class="text-4xl font-black mb-1 text-white">R$ --,--</h4>
+                    <p class="text-xs text-neutral-400 mb-6 px-4">Faz o pagamento via QR Code ou Copia e Cola para ativar o teu acesso.</p>
+                    
+                    <div id="qr-wrapper" class="bg-white p-3 rounded-2xl mb-6 inline-block glow-qr relative transition-opacity duration-300">
+                        <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-indigo-500 rounded-tl-xl -translate-x-1 -translate-y-1"></div>
+                        <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-indigo-500 rounded-tr-xl translate-x-1 -translate-y-1"></div>
+                        <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-indigo-500 rounded-bl-xl -translate-x-1 translate-y-1"></div>
+                        <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-indigo-500 rounded-br-xl translate-x-1 translate-y-1"></div>
+                        <img id="qr-code-img" class="w-36 h-36" alt="QR PIX">
+                        
+                        <div id="expired-overlay" class="hidden absolute inset-0 bg-white/90 backdrop-blur-sm rounded-xl flex-col items-center justify-center text-center z-10">
+                            <i data-lucide="x-circle" class="w-10 h-10 text-red-600 mb-2"></i>
+                            <p class="text-black font-black text-sm uppercase">EXPIRADO</p>
+                        </div>
+                    </div>
+
+                    <div class="w-full text-left mb-6">
+                        <label class="block text-[10px] text-neutral-500 font-bold mb-2 uppercase tracking-wider pl-1">Pix Copia e Cola:</label>
+                        <div class="flex items-center bg-black border border-white/10 rounded-xl overflow-hidden p-1 focus-within:border-indigo-500 transition-colors relative">
+                            <input type="text" id="pix-copy-input" class="bg-transparent text-white text-xs px-3 py-3 w-full outline-none font-mono opacity-70" readonly>
+                            <button id="btn-copy-pix" onclick="copyPixText()" class="bg-neutral-800 hover:bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap active:scale-95 z-20 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i data-lucide="copy" class="w-4 h-4"></i> Copiar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col items-center justify-center gap-2 mb-6">
+                        <div class="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/20">
+                            <div class="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                            <span class="text-xs font-bold uppercase tracking-wide">A aguardar pagamento...</span>
+                        </div>
+                        <p class="text-[10px] text-neutral-500">O vídeo será libertado automaticamente.</p>
+                    </div>
+
+                    <button id="btn-gerar-novo" onclick="resetPayment()" class="hidden w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold items-center justify-center gap-2 transition-all active:scale-95 mb-4">
+                        <i data-lucide="refresh-cw" class="w-5 h-5"></i> GERAR NOVO PIX
+                    </button>
+
+                    <div class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 mb-4">
+                        <p class="text-[10px] text-indigo-400 font-bold mb-1 uppercase tracking-wider">O TEU CÓDIGO VIP</p>
+                        <h4 id="ticket-code-display" class="text-2xl font-black text-white tracking-[0.2em] font-mono">---</h4>
+                    </div>
+
+                    <button onclick="sendTelegram()" class="w-full bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95">
+                        <i data-lucide="send" class="w-5 h-5"></i> SUPORTE / DÚVIDAS
+                    </button>
+                </div>
+
+                <div id="step-conflict" class="hidden text-center fade-in py-6">
+                    <div class="mx-auto w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
+                        <i data-lucide="alert-triangle" class="w-8 h-8 text-red-500"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-white mb-2">Sessão em Uso!</h2>
+                    <p class="text-sm text-neutral-400 mb-8">Este ingresso já está a ser utilizado noutro ecrã ou dispositivo. Gostarias de derrubar o outro acesso e entrar por aqui?</p>
+                    
+                    <button onclick="forcarAcesso()" class="w-full bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl font-bold transition-all active:scale-95 mb-3 shadow-[0_0_15px_rgba(220,38,38,0.4)]">
+                        SIM, FORÇAR ACESSO
+                    </button>
+                    <button onclick="resetPayment(); closeModal();" class="w-full text-neutral-400 hover:text-white py-2 font-bold text-sm transition-colors">
+                        Cancelar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        try { lucide.createIcons(); } catch(e){}
+
+        window.API_URL = "https://api.arenalive.shop";
+        // Apontando para o seu servidor local Nginx/Flask:
+        window.VIDEO_URL = "/stream/stream.m3u8";
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let bgClass = type === 'error' ? 'bg-red-600' : (type === 'warning' ? 'bg-amber-600' : 'bg-emerald-600');
+            let icon = type === 'error' ? 'alert-circle' : (type === 'warning' ? 'info' : 'check-circle');
+
+            toast.className = `${bgClass} text-white px-5 py-3.5 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] text-sm font-bold flex items-center gap-3 slide-down-toast transition-all duration-300 pointer-events-auto border border-white/20 z-[999]`;
+            toast.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5 flex-shrink-0"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            try { lucide.createIcons(); } catch(e){}
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        let checkInterval = null;
+        let countdownInterval = null;
+        let eventDetailsInterval = null;
+        let currentTicketCode = "";
+        let currentTicketCpf = "";
+        let currentTicketNome = "";
+        let hlsInstance = null;
+        let eventTargetDate = null;
+        let countdownTimer = null;
+        window.STATUS_PLAYER = 'auto'; 
+        
+        let videoConfig = {
+            low_latency: false,
+            sync_duration: 3,
+            max_latency: 8,
+            max_buffer: 15
+        };
+
+        function adjustPlayerHeight() {
+            const vp = document.getElementById('view-player');
+            if (vp && !vp.classList.contains('hidden')) {
+                let currentHeight = window.innerHeight;
+                let offsetTop = 0;
+                
+                if (window.visualViewport) {
+                    currentHeight = window.visualViewport.height;
+                    offsetTop = window.visualViewport.offsetTop;
+                }
+                
+                document.body.style.height = currentHeight + 'px';
+                vp.style.height = currentHeight + 'px';
+                vp.style.top = offsetTop + 'px'; 
+            }
+        }
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => {
+                adjustPlayerHeight();
+                setTimeout(() => {
+                    const chatMsgs = document.getElementById('chat-messages');
+                    if(chatMsgs) chatMsgs.scrollTop = chatMsgs.scrollHeight;
+                }, 50);
+            });
+            window.visualViewport.addEventListener('scroll', () => {
+                adjustPlayerHeight();
+            });
+        } else {
+            window.addEventListener('resize', adjustPlayerHeight);
+        }
+
+        function onChatFocus() {
+            setTimeout(() => {
+                adjustPlayerHeight();
+                const inputContainer = document.getElementById('chat-input-container');
+                if(inputContainer) inputContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                const chatMsgs = document.getElementById('chat-messages');
+                if(chatMsgs) chatMsgs.scrollTop = chatMsgs.scrollHeight;
+            }, 300);
+            
+            setTimeout(() => {
+                adjustPlayerHeight();
+                const inputContainer = document.getElementById('chat-input-container');
+                if(inputContainer) inputContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 600);
+        }
+
+        let lastChatId = 0;
+        let chatInterval = null;
+
+        function iniciarChat() {
+            document.getElementById('chat-container').classList.remove('hidden');
+            document.getElementById('chat-container').classList.add('flex');
+            
+            document.getElementById('chat-messages').innerHTML = '<div class="text-center text-xs text-neutral-500 my-2">Bem-vindo ao chat ao vivo! Lembra-te de ser respeitoso.</div>';
+            lastChatId = 0;
+            buscarMensagensChat();
+            if(chatInterval) clearInterval(chatInterval);
+            chatInterval = setInterval(buscarMensagensChat, 2000); 
+        }
+
+        function pararChat() {
+            document.getElementById('chat-container').classList.add('hidden');
+            document.getElementById('chat-container').classList.remove('flex');
+            if(chatInterval) clearInterval(chatInterval);
+        }
+
+        function getAvatarColor(name) {
+            const colors = ['bg-red-500', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500', 'bg-cyan-500', 'bg-rose-500'];
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            return colors[Math.abs(hash) % colors.length];
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag]));
+        }
+
+        async function buscarMensagensChat() {
+            if(!window.API_URL) return;
+            try {
+                const res = await fetch(`${window.API_URL}/api/chat?last_id=${lastChatId}`);
+                if(res.ok) {
+                    const data = await res.json();
+                    if(data.status === 'success' && data.mensagens.length > 0) {
+                        const container = document.getElementById('chat-messages');
+                        let isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 50;
+                        
+                        data.mensagens.forEach(msg => {
+                            if(msg.id > lastChatId) lastChatId = msg.id;
+                            
+                            const color = getAvatarColor(msg.nome || '?');
+                            const initial = (msg.nome || '?').charAt(0).toUpperCase();
+                            
+                            const msgDiv = document.createElement('div');
+                            msgDiv.className = 'flex items-start gap-3 fade-in';
+                            msgDiv.innerHTML = `
+                                <div class="w-7 h-7 rounded-full ${color} flex items-center justify-center text-[11px] font-bold text-white shrink-0 mt-0.5">${initial}</div>
+                                <div class="flex flex-col">
+                                    <span class="text-neutral-400 text-[11px] font-bold mb-0.5">${escapeHTML(msg.nome)} <span class="text-neutral-600 font-normal text-[9px] ml-1">${msg.hora}</span></span>
+                                    <span class="text-white text-sm break-words leading-snug">${escapeHTML(msg.texto)}</span>
+                                </div>
+                            `;
+                            container.appendChild(msgDiv);
+                        });
+                        
+                        if(isScrolledToBottom || data.mensagens.length > 5) {
+                            container.scrollTop = container.scrollHeight;
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+
+        async function enviarMensagemChat() {
+            const input = document.getElementById('chat-input');
+            const btn = document.getElementById('btn-send-chat');
+            const texto = input.value.trim();
+            
+            if(!texto || !currentTicketCode) return;
+            
+            input.disabled = true;
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch(`${window.API_URL}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigo: currentTicketCode, texto: texto })
+                });
+                
+                if(res.ok) {
+                    input.value = '';
+                    buscarMensagensChat(); 
+                } else {
+                    showToast("Erro ao enviar mensagem.", "error");
+                }
+            } catch(e) {
+                showToast("Erro de ligação com o chat.", "error");
+            }
+            
+            input.disabled = false;
+            btn.disabled = false;
+            input.focus();
+        }
+
+        let isUIVisible = false;
+        let idleTimeout;
+        const videoElement = document.getElementById('live-video');
+
+        let isTouchDevice = false;
+        window.addEventListener('touchstart', () => { isTouchDevice = true; }, {passive: true});
+
+        function showUI(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            const overlay = document.getElementById('video-ui-overlay');
+            if(overlay) {
+                overlay.classList.remove('opacity-0', 'pointer-events-none');
+                overlay.classList.add('opacity-100');
+                isUIVisible = true;
+                document.getElementById('unlocked-state').classList.remove('cursor-hidden');
+                resetIdleTimer();
+            }
+        }
+
+        function hideUI(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            const overlay = document.getElementById('video-ui-overlay');
+            if(overlay) {
+                overlay.classList.add('opacity-0', 'pointer-events-none');
+                overlay.classList.remove('opacity-100');
+                document.getElementById('quality-menu').classList.add('hidden');
+                isUIVisible = false;
+                if (!videoElement.paused) {
+                    document.getElementById('unlocked-state').classList.add('cursor-hidden');
+                }
+                clearTimeout(idleTimeout);
+            }
+        }
+
+        function resetIdleTimer() {
+            clearTimeout(idleTimeout);
+            if (isUIVisible && !videoElement.paused) {
+                idleTimeout = setTimeout(() => { hideUI(); }, 3500); 
+            }
+        }
+
+        document.getElementById('unlocked-state').addEventListener('mousemove', () => {
+            if (isTouchDevice) return; 
+            if (!isUIVisible) showUI();
+            else resetIdleTimer();
+        });
+
+        let deviceId = localStorage.getItem('arenaLiveDeviceId');
+        if (!deviceId) {
+            deviceId = 'DEV-' + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('arenaLiveDeviceId', deviceId);
+        }
+
+        const progressBar = document.getElementById('progress-bar');
+        const progressFill = document.getElementById('progress-fill');
+        const currentTimeDisplay = document.getElementById('current-time');
+        const totalTimeDisplay = document.getElementById('total-time');
+        let isSeeking = false;
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || !isFinite(seconds)) return "00:00";
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        videoElement.addEventListener('timeupdate', () => {
+            if (!isSeeking) {
+                const current = videoElement.currentTime;
+                const duration = videoElement.duration;
+                currentTimeDisplay.textContent = formatTime(current);
+                
+                if (duration && isFinite(duration)) {
+                    totalTimeDisplay.textContent = formatTime(duration);
+                    const percent = (current / duration) * 100;
+                    progressBar.value = percent;
+                    progressFill.style.width = `${percent}%`;
+                } else {
+                    progressBar.value = 100;
+                    progressFill.style.width = `100%`;
+                    totalTimeDisplay.textContent = "AO VIVO";
+                }
             }
 
-            function setOfflineStatus() {
-                loadingOverlay.style.display = 'flex';
-                statusDot.classList.replace('bg-green-500', 'bg-red-500');
-                statusText.textContent = 'Aguardando sinal...';
+            const btnLive = document.getElementById('btn-live');
+            const dotLive = document.getElementById('dot-live');
+            if (btnLive && dotLive) {
+                let isLiveEdge = true;
+                
+                if (hlsInstance && hlsInstance.liveSyncPosition !== null && hlsInstance.liveSyncPosition !== undefined) {
+                    if (videoElement.currentTime < (hlsInstance.liveSyncPosition - 5)) isLiveEdge = false;
+                } else if (videoElement.seekable && videoElement.seekable.length > 0) {
+                    if (videoElement.currentTime < (videoElement.seekable.end(videoElement.seekable.length - 1) - 5)) isLiveEdge = false;
+                } else if (videoElement.duration && isFinite(videoElement.duration)) {
+                    if (videoElement.currentTime < (videoElement.duration - 5)) isLiveEdge = false;
+                }
+
+                if (isLiveEdge) {
+                    btnLive.className = "cursor-pointer text-red-500 font-bold text-[11px] sm:text-xs flex items-center gap-1.5 uppercase active:scale-95 px-2 py-1 -ml-2 rounded hover:bg-white/10 transition-colors pointer-events-auto";
+                    dotLive.className = "w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]";
+                } else {
+                    btnLive.className = "cursor-pointer text-neutral-400 font-bold text-[11px] sm:text-xs flex items-center gap-1.5 uppercase active:scale-95 px-2 py-1 -ml-2 rounded bg-white/10 border border-transparent hover:bg-white/20 transition-colors pointer-events-auto";
+                    dotLive.className = "w-2 h-2 bg-neutral-400 rounded-full";
+                }
             }
+        });
+
+        videoElement.addEventListener('loadedmetadata', () => {
+            if (videoElement.duration && isFinite(videoElement.duration)) {
+                totalTimeDisplay.textContent = formatTime(videoElement.duration);
+            }
+        });
+
+        function scrubVideo(slider) {
+            isSeeking = true;
+            const percent = slider.value;
+            progressFill.style.width = `${percent}%`;
+            if (videoElement.duration && isFinite(videoElement.duration)) {
+                currentTimeDisplay.textContent = formatTime((percent / 100) * videoElement.duration);
+            }
+            resetIdleTimer();
+        }
+
+        function seekVideo(slider) {
+            isSeeking = false;
+            if (videoElement.duration && isFinite(videoElement.duration)) {
+                videoElement.currentTime = (slider.value / 100) * videoElement.duration;
+            }
+            resetIdleTimer();
+        }
+
+        function setStatus(isOnline, msg = "A ligar...") {
+            const status = document.getElementById('connection-status');
+            if (!status) return;
+            if(isOnline) {
+                status.innerHTML = '<span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> Servidor Ativo';
+                status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-emerald-400 uppercase bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 backdrop-blur-md";
+            } else {
+                status.innerHTML = `<span class="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]"></span> ${msg}`;
+                status.className = "flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-amber-500 uppercase bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20 backdrop-blur-md cursor-pointer";
+            }
+        }
+
+        async function fetchEventDetails() {
+            if (!window.API_URL) {
+                setStatus(false, "A aguardar Ligações...");
+                return;
+            }
+            try {
+                const noCache = new Date().getTime();
+                const cleanApiUrl = window.API_URL.replace(/\/$/, ""); 
+                
+                const res = await fetch(`${cleanApiUrl}/api/evento?_t=${noCache}`, {
+                    headers: { 'Accept': 'application/json', 'Bypass-Tunnel-Reminder': 'true' }
+                });
+                
+                if (!res.ok) throw new Error("Cloudflare Bloqueou ou Servidor Offline");
+                
+                const data = await res.json();
+                setStatus(true); 
+                
+                if (data.titulo_evento) {
+                    document.getElementById('event-title-display').innerText = data.titulo_evento;
+                    document.getElementById('team-a-name-display').innerText = data.time_a_nome;
+                    document.getElementById('team-b-name-display').innerText = data.time_b_nome;
+                    if (data.time_a_img) document.getElementById('team-a-img-display').src = data.time_a_img;
+                    if (data.time_b_img) document.getElementById('team-b-img-display').src = data.time_b_img;
+                    document.getElementById('lock-event-subtitle').innerText = `${data.time_a_nome} vs ${data.time_b_nome}`;
+                }
+                
+                if (data.valor) {
+                    const numValor = parseFloat(data.valor.toString().replace(',', '.'));
+                    if (!isNaN(numValor)) {
+                        document.getElementById('home-price-display').innerText = numValor.toFixed(2).replace('.', ',');
+                    }
+                }
+
+                if (data.data_hora_evento) {
+                    const parts = data.data_hora_evento.split(/[\s/:]+/);
+                    if(parts.length >= 5) {
+                        eventTargetDate = new Date(parts[2], parts[1] - 1, parts[0], parts[3], parts[4]);
+                    } else { eventTargetDate = null; }
+                } else { eventTargetDate = null; }
+
+                if (data.status_player) {
+                    window.STATUS_PLAYER = data.status_player;
+                    localStorage.setItem('arenaLiveStatus', data.status_player); 
+                } else {
+                    window.STATUS_PLAYER = 'auto';
+                    localStorage.setItem('arenaLiveStatus', 'auto');
+                }
+
+                if (data.video_config) videoConfig = data.video_config;
+
+                if (!document.getElementById('unlocked-state').classList.contains('hidden')) {
+                    avaliarStatusPlayer();
+                }
+
+                if (data.ingressos_restantes !== undefined) {
+                    const counterText = document.getElementById('tickets-remaining-text');
+                    const urgencyContainer = document.getElementById('ticket-urgency-container');
+                    const urgencyIcon = document.getElementById('urgency-icon');
+                    const btnAssistir = document.getElementById('btn-assistir');
+                    const btnComprar = document.getElementById('btn-comprar'); 
+                    
+                    if (data.ingressos_restantes <= 0) {
+                        if (counterText) counterText.innerText = "INGRESSOS ESGOTADOS";
+                        if (urgencyContainer) urgencyContainer.className = "w-full bg-neutral-900 border border-white/10 rounded-xl p-4 mb-8 flex items-center justify-center gap-3 relative overflow-hidden transition-all";
+                        if (counterText) counterText.className = "text-neutral-400 font-black text-lg uppercase tracking-wide drop-shadow-md";
+                        if(urgencyIcon) {
+                            urgencyIcon.setAttribute('data-lucide', 'x-circle');
+                            urgencyIcon.className = "w-6 h-6 text-neutral-500";
+                        }
+                        
+                        if (btnAssistir) {
+                            btnAssistir.innerHTML = '<i data-lucide="lock" class="w-6 h-6"></i> VENDAS ENCERRADAS';
+                            btnAssistir.onclick = () => showToast("As vendas para este evento estão encerradas!", "error");
+                            btnAssistir.className = "w-full bg-neutral-800 text-neutral-400 font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 text-xl cursor-not-allowed";
+                        }
+                        
+                        if(btnComprar) {
+                            btnComprar.onclick = () => showToast("As vendas para este evento estão encerradas!", "error");
+                            btnComprar.innerHTML = '<i data-lucide="x-circle" class="w-5 h-5"></i> VENDAS ENCERRADAS';
+                            btnComprar.className = "w-full bg-neutral-800 text-neutral-400 font-bold py-4 px-6 rounded-xl mb-8 flex justify-center items-center gap-2 cursor-not-allowed";
+                        }
+                        try { lucide.createIcons(); } catch(e){}
+                    } else {
+                        if (counterText) counterText.innerText = `CORRE! FALTAM APENAS ${data.ingressos_restantes} INGRESSOS`;
+                        if (urgencyContainer) urgencyContainer.className = "w-full bg-gradient-to-r from-red-600/20 to-orange-500/20 border border-red-500/30 rounded-xl p-4 mb-8 flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(239,68,68,0.15)] relative overflow-hidden transition-all";
+                        if (counterText) counterText.className = "text-red-400 font-black text-lg uppercase tracking-wide drop-shadow-md";
+                        if(urgencyIcon) {
+                            urgencyIcon.setAttribute('data-lucide', 'flame');
+                            urgencyIcon.className = "w-6 h-6 text-red-500 animate-bounce";
+                        }
+                        
+                        if (btnAssistir) {
+                            btnAssistir.innerHTML = '<i data-lucide="zap" class="w-6 h-6 fill-current"></i> GARANTIR O MEU ACESSO';
+                            btnAssistir.onclick = iniciarCompra;
+                            btnAssistir.className = "w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:via-purple-500 hover:to-indigo-500 text-white font-black py-6 px-8 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_30px_rgba(99,102,241,0.5)] text-xl group-hover:shadow-[0_0_50px_rgba(99,102,241,0.7)] bg-[length:200%_auto] animate-[gradient_3s_ease_infinite] relative z-20 cursor-pointer";
+                        }
+
+                        if(btnComprar) {
+                            btnComprar.onclick = openCheckout;
+                            btnComprar.innerHTML = '<i data-lucide="unlock" class="w-5 h-5"></i> COMPRAR / DESBLOQUEAR';
+                            btnComprar.className = "w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold py-4 px-6 rounded-xl mb-8 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.5)] active:scale-95 flex justify-center items-center gap-2 relative z-20 cursor-pointer";
+                        }
+                        try { lucide.createIcons(); } catch(e){}
+                    }
+                }
+            } catch(e) { 
+                setStatus(false, "A reconectar..."); 
+                console.error("Falha ao comunicar com a API:", e);
+            }
+        }
+
+        function unlockContent() {
+            closeModal();
+            document.getElementById('locked-state').classList.add('hidden');
+            document.getElementById('unlocked-state').classList.remove('hidden');
+            document.getElementById('unlocked-state').classList.add('fade-in');
+            
+            const wrapper = document.getElementById('player-wrapper');
+            wrapper.classList.remove('flex-1');
+            wrapper.classList.add('shrink-0', 'aspect-video', 'lg:aspect-auto', 'lg:flex-1');
+            
+            showUI(); 
+            iniciarChat();
+            avaliarStatusPlayer();
+        }
+
+        function lockContent() {
+            if (videoElement) videoElement.pause();
+            document.getElementById('unlocked-state').classList.add('hidden');
+            document.getElementById('locked-state').classList.remove('hidden');
+            
+            const wrapper = document.getElementById('player-wrapper');
+            wrapper.classList.remove('shrink-0', 'aspect-video', 'lg:aspect-auto', 'lg:flex-1');
+            wrapper.classList.add('flex-1');
+            
+            pararChat();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.API_URL) {
+                const saved = localStorage.getItem('arenaLiveTicket');
+                
+                // MÁGICA DO PULO IMEDIATO: Abre o vídeo imediatamente antes de consultar o servidor.
+                if(saved && !currentTicketCode) { 
+                    currentTicketCode = saved;
+                    const inputTicket = document.getElementById('existing-ticket-input');
+                    if (inputTicket) inputTicket.value = saved;
+                    
+                    showLogoutButton();
+                    openPlayer();
+                    
+                    document.getElementById('locked-state').classList.add('hidden');
+                    document.getElementById('unlocked-state').classList.remove('hidden');
+                    document.getElementById('unlocked-state').classList.add('fade-in');
+                    const wrapper = document.getElementById('player-wrapper');
+                    wrapper.classList.remove('flex-1');
+                    wrapper.classList.add('shrink-0', 'aspect-video', 'lg:aspect-auto', 'lg:flex-1');
+                    showUI(); 
+                    iniciarChat();
+                    
+                    window.STATUS_PLAYER = localStorage.getItem('arenaLiveStatus') || 'live';
+                    avaliarStatusPlayer();
+
+                    // Validação de segurança corre invisível no fundo
+                    checkExistingTicket(saved, true);
+                }
+
+                if (localStorage.getItem('arenaLiveStatus')) {
+                    setStatus(true, "Servidor Ativo");
+                }
+
+                fetchEventDetails();
+                if(!eventDetailsInterval) eventDetailsInterval = setInterval(fetchEventDetails, 2500); 
+
+            } else {
+                showToast("A aguardar ligação ao servidor...", "warning");
+                if(!eventDetailsInterval) eventDetailsInterval = setInterval(() => {
+                    if(window.API_URL) fetchEventDetails();
+                }, 2500);
+            }
+
+            videoElement.addEventListener('play', () => { updatePlayPauseIcon(true); resetIdleTimer(); });
+            videoElement.addEventListener('pause', () => { updatePlayPauseIcon(false); showUI(); clearTimeout(idleTimeout); });
+            videoElement.addEventListener('volumechange', () => {
+                document.getElementById('volume-slider').value = videoElement.volume;
+                const icon = document.getElementById('icon-mute');
+                if(icon) {
+                    icon.setAttribute('data-lucide', (videoElement.muted || videoElement.volume === 0) ? 'volume-x' : 'volume-2');
+                    lucide.createIcons();
+                }
+            });
+        });
+
+        function isValidCPF(cpf) {
+            cpf = cpf.replace(/[^\d]+/g, ''); 
+            if (cpf === '00000000000') return true; 
+            if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false; 
+            let soma = 0, resto;
+            for (let i = 1; i <= 9; i++) soma += parseInt(cpf.substring(i - 1, i)) * (11 - i);
+            resto = (soma * 10) % 11;
+            if (resto === 10 || resto === 11) resto = 0;
+            if (resto !== parseInt(cpf.substring(9, 10))) return false;
+            soma = 0;
+            for (let i = 1; i <= 10; i++) soma += parseInt(cpf.substring(i - 1, i)) * (12 - i);
+            resto = (soma * 10) % 11;
+            if (resto === 10 || resto === 11) resto = 0;
+            if (resto !== parseInt(cpf.substring(10, 11))) return false;
+            return true;
+        }
+
+        function startPaymentTimer(durationInSeconds) {
+            let timer = durationInSeconds;
+            const display = document.getElementById('payment-timer');
+            const overlay = document.getElementById('expired-overlay');
+            const btnNovo = document.getElementById('btn-gerar-novo');
+            const copyBtn = document.getElementById('btn-copy-pix');
+
+            overlay.classList.add('hidden'); overlay.classList.remove('flex');
+            btnNovo.classList.add('hidden'); btnNovo.classList.remove('flex');
+            copyBtn.disabled = false;
+
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            countdownInterval = setInterval(function () {
+                let minutes = parseInt(timer / 60, 10);
+                let seconds = parseInt(timer % 60, 10);
+
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                display.textContent = minutes + ":" + seconds;
+
+                if (--timer < 0) {
+                    clearInterval(countdownInterval);
+                    display.textContent = "00:00";
+                    overlay.classList.remove('hidden'); overlay.classList.add('flex');
+                    btnNovo.classList.remove('hidden'); btnNovo.classList.add('flex');
+                    copyBtn.disabled = true;
+                    showToast("O teu código PIX expirou. Por favor, gera um novo.", "error");
+                }
+            }, 1000);
+        }
+
+        function resetPayment() {
+            document.getElementById('step-payment').classList.add('hidden');
+            document.getElementById('step-conflict').classList.add('hidden');
+            document.getElementById('step-form').classList.remove('hidden');
+            document.getElementById('cpf-input').value = '';
+            document.getElementById('nome-input').value = '';
+            
+            if (countdownInterval) clearInterval(countdownInterval);
+            if (checkInterval) clearInterval(checkInterval);
+            
+            localStorage.removeItem('arenaLiveTicket');
+            currentTicketCode = "";
+            currentTicketNome = "";
+        }
+
+        function togglePlay(e) { 
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            videoElement.paused ? videoElement.play() : videoElement.pause(); 
+            resetIdleTimer();
+        }
+
+        function forcePlay() {
+            document.getElementById('interaction-overlay').classList.add('hidden');
+            document.getElementById('interaction-overlay').classList.remove('flex');
+            if (videoElement) {
+                videoElement.muted = false;
+                videoElement.volume = 1;
+                document.getElementById('volume-slider').value = 1;
+                const icon = document.getElementById('icon-mute');
+                if(icon) { icon.setAttribute('data-lucide', 'volume-2'); lucide.createIcons(); }
+                videoElement.play().catch(e=>{});
+            }
+        }
+        
+        function updatePlayPauseIcon(isPlaying) {
+            const icon = document.getElementById('icon-center-play-pause');
+            if (icon) {
+                icon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+                lucide.createIcons();
+            }
+        }
+
+        function toggleMute(e) {
+            if(e) e.stopPropagation();
+            videoElement.muted = !videoElement.muted;
+            if(!videoElement.muted && videoElement.volume === 0) videoElement.volume = 1;
+            resetIdleTimer();
+        }
+
+        function changeVolume(val) { 
+            videoElement.volume = val; 
+            videoElement.muted = (val == 0); 
+            resetIdleTimer();
+        }
+        
+        function jumpToLive(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            if (videoElement) {
+                isSeeking = false; 
+                try {
+                    if (hlsInstance && hlsInstance.liveSyncPosition !== null && hlsInstance.liveSyncPosition !== undefined) {
+                        videoElement.currentTime = hlsInstance.liveSyncPosition;
+                    } else if (videoElement.seekable && videoElement.seekable.length > 0) {
+                        videoElement.currentTime = videoElement.seekable.end(videoElement.seekable.length - 1) - 2;
+                    }
+                    if (videoElement.paused) videoElement.play().catch(e=>{});
+                    showToast("Sincronizado com o Ao Vivo!", "info");
+                } catch(error) {}
+                resetIdleTimer();
+            }
+        }
+
+        async function toggleFullScreen(e) {
+            if(e) e.stopPropagation();
+            const wrapper = document.getElementById('unlocked-state');
+            if (!document.fullscreenElement) {
+                try {
+                    if (wrapper.requestFullscreen) await wrapper.requestFullscreen();
+                    else if (wrapper.webkitRequestFullscreen) await wrapper.webkitRequestFullscreen();
+                    if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(e => {});
+                } catch (e) {}
+            } else {
+                try {
+                    if (document.exitFullscreen) await document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+                    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+                } catch (e) {}
+            }
+            resetIdleTimer();
+        }
+        
+        function toggleQualityMenu(e) { 
+            if(e) e.stopPropagation();
+            document.getElementById('quality-menu').classList.toggle('hidden'); 
+            resetIdleTimer();
+        }
+
+        function setQuality(levelIndex) {
+            if(hlsInstance) {
+                hlsInstance.currentLevel = levelIndex;
+                document.getElementById('quality-menu').classList.add('hidden');
+                showToast(levelIndex === -1 ? "Qualidade: Automática" : `Qualidade: ${hlsInstance.levels[levelIndex].height}p`, "info");
+            }
+        }
+
+        function updatePriceDisplay(valor) {
+            const numValor = parseFloat(valor.toString().replace(',', '.'));
+            if (!isNaN(numValor)) {
+                document.getElementById('ticket-price-display').innerText = `R$ ${numValor.toFixed(2).replace('.', ',')}`;
+            }
+        }
+
+        function goHome() {
+            if (videoElement) videoElement.pause();
+            
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.width = '';
+            document.body.style.height = '';
+            document.body.style.overflow = '';
+            document.body.style.backgroundColor = '#050505';
+            
+            document.getElementById('main-header').classList.remove('hidden');
+            
+            const wrapper = document.getElementById('player-wrapper');
+            wrapper.classList.remove('shrink-0', 'aspect-video', 'lg:aspect-auto', 'lg:flex-1');
+            wrapper.classList.add('flex-1');
+
+            document.getElementById('view-player').classList.add('hidden');
+            document.getElementById('view-player').classList.remove('flex', 'lg:flex-row');
+            document.getElementById('view-home').classList.remove('hidden');
+            
+            closeModal();
+            pararChat();
+            fetchEventDetails();
+            window.scrollTo(0,0);
+        }
+
+        function openPlayer() {
+            document.body.style.position = 'fixed';
+            document.body.style.top = '0';
+            document.body.style.left = '0';
+            document.body.style.width = '100%';
+            document.body.style.height = '100%';
+            document.body.style.overflow = 'hidden';
+            document.body.style.backgroundColor = '#000';
+            
+            document.getElementById('main-header').classList.add('hidden');
+            document.getElementById('view-home').classList.add('hidden');
+            
+            const vp = document.getElementById('view-player');
+            vp.classList.remove('hidden');
+            vp.classList.add('flex', 'lg:flex-row');
+            
+            adjustPlayerHeight();
+        }
+        
+        function iniciarCompra() {
+            openPlayer();
+            openCheckout();
+        }
+
+        function openCheckout() {
+            document.getElementById('checkout-modal').classList.remove('hidden');
+            document.getElementById('step-form').classList.remove('hidden');
+            document.getElementById('step-payment').classList.add('hidden');
+            document.getElementById('step-conflict').classList.add('hidden');
+            setTimeout(() => document.getElementById('nome-input').focus(), 100);
+        }
+
+        function closeModal() { document.getElementById('checkout-modal').classList.add('hidden'); }
+        function showLogoutButton() { document.getElementById('btn-logout').classList.remove('hidden'); document.getElementById('btn-logout').classList.add('flex'); }
+        function logout() { localStorage.removeItem('arenaLiveTicket'); localStorage.removeItem('arenaLiveStatus'); pararChat(); showToast("A desconectar...", "warning"); setTimeout(() => location.reload(), 1500); }
+
+        function maskCPFOnly(input) {
+            let v = input.value.replace(/\D/g, ''); if (v.length > 11) v = v.substring(0, 11);
+            v = v.replace(/(\d{3})(\d)/, '$1.$2'); v = v.replace(/(\d{3})(\d)/, '$1.$2');
+            input.value = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        }
+
+        function maskCpfOrCode(input) {
+            let v = input.value;
+            if (/^\d/.test(v)) {
+                v = v.replace(/\D/g, ''); if (v.length > 11) v = v.substring(0, 11);
+                v = v.replace(/(\d{3})(\d)/, '$1.$2'); v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                input.value = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            }
+        }
+
+        async function generateTicket() {
+            const nome = document.getElementById('nome-input').value.trim();
+            const cpf = document.getElementById('cpf-input').value;
+            
+            if (nome.length < 3) return showToast("Por favor, insere um nome válido.", "error");
+            if (!isValidCPF(cpf)) return showToast("CPF Inválido.", "error");
+            if (!window.API_URL) return showToast("A aguardar ligação com o sistema...", "warning");
+            
+            const btnGerar = document.getElementById('btn-gerar-pix');
+            const originalBtnHtml = btnGerar.innerHTML;
+            
+            try {
+                btnGerar.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> A PROCESSAR...';
+                btnGerar.disabled = true;
+
+                const res = await fetch(`${window.API_URL}/api/gerar_ingresso`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ nome: nome, cpf: cpf, device_id: deviceId })
+                });
+                
+                if (!res.ok) {
+                    btnGerar.innerHTML = originalBtnHtml; btnGerar.disabled = false;
+                    if (res.status === 400) {
+                        const errorData = await res.json();
+                        fetchEventDetails();
+                        return showToast(errorData.message, "error");
+                    }
+                    return showToast("O servidor Python está offline. Verifica o teu painel.", "error");
+                }
+
+                const data = await res.json();
+                if(data.status === 'error') {
+                    btnGerar.innerHTML = originalBtnHtml; btnGerar.disabled = false;
+                    return showToast("Erro: " + data.message, "error");
+                }
+                
+                currentTicketCode = data.codigo; currentTicketCpf = cpf; currentTicketNome = nome;
+                if(data.whatsapp) adminContact = data.whatsapp; 
+                if(data.valor) updatePriceDisplay(data.valor);
+
+                try {
+                    const checkRes = await fetch(`${window.API_URL}/api/ingresso/${data.codigo}?device=${deviceId}`);
+                    const checkData = await checkRes.json();
+                    
+                    btnGerar.innerHTML = originalBtnHtml; btnGerar.disabled = false;
+
+                    if (checkData.status === 'aprovado') {
+                        localStorage.setItem('arenaLiveTicket', data.codigo);
+                        showLogoutButton();
+                        showToast("Ingresso já estava pago! Acesso libertado.", "success");
+                        openPlayer(); 
+                        unlockContent();
+                        iniciarPolling(data.codigo);
+                        return;
+                    } else if (checkData.status === 'conflict') {
+                        document.getElementById('step-form').classList.add('hidden');
+                        document.getElementById('step-conflict').classList.remove('hidden');
+                        return;
+                    }
+                } catch(e) {}
+
+                btnGerar.innerHTML = originalBtnHtml; btnGerar.disabled = false;
+                document.getElementById('step-form').classList.add('hidden');
+                document.getElementById('ticket-code-display').innerText = data.codigo;
+                document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(data.chave_pix)}`;
+                document.getElementById('pix-copy-input').value = data.chave_pix;
+                document.getElementById('step-payment').classList.remove('hidden');
+                
+                showToast("Ticket gerado! Realiza o pagamento para aceder.", "success");
+                localStorage.setItem('arenaLiveTicket', data.codigo); 
+                showLogoutButton();
+                startPaymentTimer(600);
+                iniciarPolling(data.codigo);
+                
+            } catch(e) { 
+                btnGerar.innerHTML = originalBtnHtml; btnGerar.disabled = false;
+                showToast("Falha ao comunicar com o servidor.", "error"); 
+            }
+        }
+
+        function copyPixText() {
+            document.getElementById("pix-copy-input").select(); document.execCommand("copy"); showToast("Código PIX copiado!", "success");
+            const btn = document.getElementById("btn-copy-pix"); const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> Copiado!'; btn.classList.replace('bg-neutral-800', 'bg-emerald-600'); btn.classList.replace('hover:bg-indigo-600', 'hover:bg-emerald-500'); try { lucide.createIcons(); } catch(e){}
+            setTimeout(() => { btn.innerHTML = originalHTML; btn.classList.replace('bg-emerald-600', 'bg-neutral-800'); btn.classList.replace('hover:bg-emerald-500', 'hover:bg-indigo-600'); try { lucide.createIcons(); } catch(e){} }, 2000);
+        }
+
+        async function checkExistingTicket(val = null, silent = false) {
+            const inputVal = val || document.getElementById('existing-ticket-input').value.trim();
+            if (!inputVal) return;
+            if (/^[\d.-]+$/.test(inputVal) && inputVal.length >= 11) {
+                if(!isValidCPF(inputVal)) return showToast("CPF Inválido.", "error");
+            }
+            if (!window.API_URL) return showToast("A aguardar servidor...", "warning");
+            
+            try {
+                const noCache = new Date().getTime();
+                let endpoint = /^[\d.-]+$/.test(inputVal) ? `${window.API_URL}/api/ingresso_cpf/${inputVal.replace(/\D/g, '')}?device=${deviceId}&_t=${noCache}` : `${window.API_URL}/api/ingresso/${inputVal}?device=${deviceId}&_t=${noCache}`;
+                const res = await fetch(endpoint); 
+                
+                if (!res.ok && res.status !== 404) {
+                    if(!silent) showToast("O servidor Python está offline.", "error");
+                    return;
+                }
+                
+                const data = await res.json();
+                
+                if (data.status === 'conflict') {
+                    currentTicketCode = data.codigo;
+                    if(!silent) {
+                        openPlayer();
+                        lockContent();
+                        document.getElementById('checkout-modal').classList.remove('hidden');
+                        document.getElementById('step-form').classList.add('hidden');
+                        document.getElementById('step-payment').classList.add('hidden');
+                        document.getElementById('step-conflict').classList.remove('hidden');
+                    } else {
+                        lockContent();
+                        document.getElementById('checkout-modal').classList.remove('hidden');
+                        document.getElementById('step-form').classList.add('hidden');
+                        document.getElementById('step-payment').classList.add('hidden');
+                        document.getElementById('step-conflict').classList.remove('hidden');
+                    }
+                } else if (res.ok && data.status === 'aprovado') {
+                    currentTicketCode = data.codigo;
+                    localStorage.setItem('arenaLiveTicket', data.codigo); showLogoutButton();
+                    if(!silent) {
+                        showToast("Acesso libertado! Bom evento.", "success");
+                        openPlayer(); 
+                        unlockContent();
+                    }
+                    iniciarPolling(data.codigo);
+                    
+                } else if (res.ok && data.status === 'pendente') {
+                    currentTicketCode = data.codigo; currentTicketCpf = data.cpf || inputVal;
+                    if(data.whatsapp) adminContact = data.whatsapp; 
+                    if(data.valor) updatePriceDisplay(data.valor);
+
+                    localStorage.setItem('arenaLiveTicket', data.codigo); showLogoutButton();
+                    if(!silent) {
+                        showToast("Pagamento pendente. Finaliza para aceder.", "warning");
+                        openPlayer();
+                        lockContent();
+                        document.getElementById('ticket-code-display').innerText = data.codigo;
+                        document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(data.chave_pix)}`;
+                        document.getElementById('pix-copy-input').value = data.chave_pix;
+                        document.getElementById('checkout-modal').classList.remove('hidden');
+                        document.getElementById('step-form').classList.add('hidden');
+                        document.getElementById('step-payment').classList.remove('hidden');
+                        startPaymentTimer(300);
+                        iniciarPolling(data.codigo);
+                    } else {
+                        lockContent();
+                        document.getElementById('ticket-code-display').innerText = data.codigo;
+                        document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(data.chave_pix)}`;
+                        document.getElementById('pix-copy-input').value = data.chave_pix;
+                        document.getElementById('checkout-modal').classList.remove('hidden');
+                        document.getElementById('step-form').classList.add('hidden');
+                        document.getElementById('step-payment').classList.remove('hidden');
+                        startPaymentTimer(300);
+                        iniciarPolling(data.codigo);
+                    }
+                } else { 
+                    if(!silent) showToast("Ingresso não encontrado.", "error"); 
+                    else {
+                        localStorage.removeItem('arenaLiveTicket');
+                        location.reload(); 
+                    }
+                }
+            } catch(e) { if(!silent) showToast("Erro de ligação ao servidor.", "error"); }
+        }
+
+        async function forcarAcesso() {
+            try {
+                const res = await fetch(`${window.API_URL}/api/forcar_acesso`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ codigo: currentTicketCode, device_id: deviceId })
+                });
+                if(res.ok) {
+                    closeModal(); // Garante que o modal sai do ecrã
+                    document.getElementById('step-conflict').classList.add('hidden');
+                    checkExistingTicket(currentTicketCode);
+                }
+            } catch(e) { showToast("Erro ao processar alteração de sessão.", "error"); }
+        }
+
+        function iniciarPolling(codigo) {
+            if (checkInterval) clearInterval(checkInterval);
+            checkInterval = setInterval(async () => {
+                try {
+                    const noCache = new Date().getTime();
+                    const res = await fetch(`${window.API_URL}/api/ingresso/${codigo}?device=${deviceId}&_t=${noCache}`);
+                    
+                    if (!res.ok) {
+                        if (res.status === 404) {
+                            clearInterval(checkInterval);
+                            localStorage.removeItem('arenaLiveTicket');
+                            showToast("O evento foi encerrado! A redirecionar...", "warning");
+                            setTimeout(() => location.reload(), 3000);
+                        }
+                        return;
+                    }
+                    
+                    const data = await res.json();
+                    
+                    if (data.status === 'aprovado') {
+                        if (!document.getElementById('locked-state').classList.contains('hidden')) {
+                            if (countdownInterval) clearInterval(countdownInterval);
+                            showToast("Pagamento Confirmado! A libertar...", "success");
+                            setTimeout(() => unlockContent(), 1000);
+                        }
+                    } else if (data.status === 'pendente') {
+                        if (!document.getElementById('unlocked-state').classList.contains('hidden')) {
+                            clearInterval(checkInterval);
+                            localStorage.removeItem('arenaLiveTicket');
+                            showToast("O teu acesso foi suspenso.", "error");
+                            setTimeout(() => location.reload(), 2500);
+                        }
+                    } else if (data.status === 'conflict') {
+                        clearInterval(checkInterval);
+                        if (!document.getElementById('unlocked-state').classList.contains('hidden')) {
+                            lockContent();
+                        }
+                        checkExistingTicket(codigo);
+                    }
+                } catch (e) {}
+            }, 3000); 
+        }
+
+        function sendTelegram() {
+            if (!currentTicketCode) return;
+            let cleanContact = adminContact.replace('@', '').trim();
+            if (/^\d+$/.test(cleanContact)) cleanContact = '+' + cleanContact;
+            
+            const nomeTexto = currentTicketNome ? `\n*👤 Nome:* ${currentTicketNome}` : '';
+            window.open(`https://t.me/${cleanContact}?text=${encodeURIComponent(`Olá! Preciso de ajuda com o meu acesso.${nomeTexto}\n*🎫 Ingresso VIP:* ${currentTicketCode}\n*📄 CPF:* ${currentTicketCpf}`)}`, '_blank');
+        }
+
+        // LÓGICA DE OVERRIDE (SUBSTITUIÇÃO DE EMERGÊNCIA)
+        function avaliarStatusPlayer() {
+            const waitingScreen = document.getElementById('waiting-screen');
+            const liveVideo = document.getElementById('live-video');
+            const videoUiOverlay = document.getElementById('video-ui-overlay');
+            const uiHitbox = document.getElementById('ui-hitbox');
+            const videoLoading = document.getElementById('video-loading');
+
+            if (window.STATUS_PLAYER === 'live') {
+                if (countdownTimer) clearInterval(countdownTimer);
+                waitingScreen.classList.remove('flex');
+                waitingScreen.classList.add('hidden');
+                liveVideo.classList.remove('hidden');
+                videoUiOverlay.classList.remove('hidden');
+                uiHitbox.classList.remove('hidden');
+                if(!hlsInstance && !liveVideo.src) iniciarVideoHLS(); 
+                else liveVideo.play().catch(e => {
+                    document.getElementById('interaction-overlay').classList.remove('hidden');
+                    document.getElementById('interaction-overlay').classList.add('flex');
+                });
+
+            } else if (window.STATUS_PLAYER === 'waiting') {
+                waitingScreen.classList.remove('hidden');
+                waitingScreen.classList.add('flex');
+                liveVideo.classList.add('hidden');
+                videoUiOverlay.classList.add('hidden');
+                uiHitbox.classList.add('hidden');
+                videoLoading.classList.add('hidden'); 
+                if(liveVideo) liveVideo.pause();
+                
+                if (eventTargetDate) iniciarContagemRegressiva(true);
+                else document.getElementById('countdown-container').classList.add('opacity-0');
+
+            } else {
+                document.getElementById('countdown-container').classList.remove('opacity-0');
+                if (eventTargetDate && new Date() < eventTargetDate) {
+                    iniciarContagemRegressiva(false);
+                } else {
+                    if (countdownTimer) clearInterval(countdownTimer);
+                    waitingScreen.classList.remove('flex');
+                    waitingScreen.classList.add('hidden');
+                    liveVideo.classList.remove('hidden');
+                    videoUiOverlay.classList.remove('hidden');
+                    uiHitbox.classList.remove('hidden');
+                    if(!hlsInstance && !liveVideo.src) iniciarVideoHLS();
+                    else liveVideo.play().catch(e => {
+                        document.getElementById('interaction-overlay').classList.remove('hidden');
+                        document.getElementById('interaction-overlay').classList.add('flex');
+                    });
+                }
+            }
+        }
+
+        function iniciarContagemRegressiva(apenasVisual = false) {
+            const waitingScreen = document.getElementById('waiting-screen');
+            if(!apenasVisual) {
+                waitingScreen.classList.remove('hidden');
+                waitingScreen.classList.add('flex');
+                document.getElementById('live-video').classList.add('hidden');
+                document.getElementById('video-ui-overlay').classList.add('hidden');
+                document.getElementById('ui-hitbox').classList.add('hidden');
+                document.getElementById('video-loading').classList.add('hidden');
+            }
+
+            if(countdownTimer) clearInterval(countdownTimer);
+
+            countdownTimer = setInterval(() => {
+                if(!eventTargetDate) { clearInterval(countdownTimer); return; }
+                const now = new Date();
+                const diff = eventTargetDate - now;
+
+                if (diff <= 0) {
+                    clearInterval(countdownTimer);
+                    if(!apenasVisual && window.STATUS_PLAYER === 'auto') {
+                        waitingScreen.classList.remove('flex');
+                        waitingScreen.classList.add('hidden');
+                        document.getElementById('live-video').classList.remove('hidden');
+                        document.getElementById('video-ui-overlay').classList.remove('hidden');
+                        document.getElementById('ui-hitbox').classList.remove('hidden');
+                        iniciarVideoHLS();
+                    }
+                    return;
+                }
+
+                const h = Math.floor(diff / (1000 * 60 * 60));
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+                document.getElementById('count-h').innerText = h.toString().padStart(2, '0');
+                document.getElementById('count-m').innerText = m.toString().padStart(2, '0');
+                document.getElementById('count-s').innerText = s.toString().padStart(2, '0');
+            }, 1000);
+        }
+
+        function iniciarVideoHLS() {
+            const loading = document.getElementById('video-loading');
+            loading.classList.remove('hidden');
 
             if (Hls.isSupported()) {
-                const hls = new Hls({
-                    manifestLoadingMaxRetry: Infinity,
-                    manifestLoadingRetryDelay: 2000,
-                    levelLoadingMaxRetry: 10,
+                if(hlsInstance) { hlsInstance.destroy(); }
+                
+                // MODO DE COMPATIBILIDADE MÁXIMA PARA O NGINX E CLOUDFLARE TÚNEL
+                hlsInstance = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: false,
+                    manifestLoadingMaxRetry: 5,
+                    manifestLoadingRetryDelay: 3000,
+                    levelLoadingMaxRetry: 5,
+                    fragLoadingMaxRetry: 5
                 });
                 
-                hls.loadSource(videoSrc);
-                hls.attachMedia(video);
-                
-                hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    setOnlineStatus();
-                    video.play().catch(e => console.log("Autoplay bloqueado:", e));
-                });
+                // DESTRUIDOR DE CACHE (Cache Buster)
+                // Garante que a Cloudflare não envia um ficheiro offline preso no tempo
+                const timestamp_atual = new Date().getTime();
+                const videoURL_Limpa = window.VIDEO_URL + "?nocache=" + timestamp_atual;
 
-                hls.on(Hls.Events.ERROR, function (event, data) {
+                hlsInstance.loadSource(videoURL_Limpa);
+                hlsInstance.attachMedia(videoElement);
+                
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+                    loading.classList.add('hidden');
+                    videoElement.play().catch(e => {
+                        console.warn("Autoplay bloqueado pelo Navegador.");
+                        document.getElementById('interaction-overlay').classList.remove('hidden');
+                        document.getElementById('interaction-overlay').classList.add('flex');
+                    });
+                    
+                    const qualityContainer = document.getElementById('quality-levels');
+                    qualityContainer.innerHTML = '';
+                    hlsInstance.levels.forEach((level, index) => {
+                        const btn = document.createElement('button');
+                        btn.className = 'px-4 py-3 text-sm font-bold text-white hover:bg-indigo-600 text-left border-b border-white/5 transition-colors';
+                        btn.innerText = `${level.height}p`;
+                        btn.onclick = (e) => { e.stopPropagation(); setQuality(index); }
+                        qualityContainer.appendChild(btn);
+                    });
+                });
+                
+                hlsInstance.on(Hls.Events.ERROR, function (event, data) {
                     if (data.fatal) {
-                        setOfflineStatus();
-                        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                            setTimeout(() => hls.startLoad(), 2000);
-                        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                            hls.recoverMediaError();
-                        } else {
-                            hls.destroy();
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.warn("Erro de rede HLS. A tentar ligar ao Cloudflare Tunnel...");
+                                loading.classList.add('hidden');
+                                
+                                if (!window.hlsErrorSpamBlock) {
+                                    showToast("A tentar conectar ao servidor de vídeo. Se demorar, verifica o Cloudflare Tunnel no PC!", "warning");
+                                    window.hlsErrorSpamBlock = true;
+                                    setTimeout(() => { window.hlsErrorSpamBlock = false; }, 8000);
+                                }
+                                hlsInstance.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                hlsInstance.recoverMediaError();
+                                break;
+                            default:
+                                hlsInstance.destroy();
+                                setTimeout(() => iniciarVideoHLS(), 4000);
+                                break;
                         }
                     }
                 });
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = videoSrc;
-                video.addEventListener('loadedmetadata', function() {
-                    setOnlineStatus();
-                    video.play();
+            } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                const timestamp_atual = new Date().getTime();
+                videoElement.src = window.VIDEO_URL + "?nocache=" + timestamp_atual;
+                videoElement.addEventListener('loadedmetadata', () => {
+                    loading.classList.add('hidden');
+                    videoElement.play().catch(e => {
+                        document.getElementById('interaction-overlay').classList.remove('hidden');
+                        document.getElementById('interaction-overlay').classList.add('flex');
+                    });
                 });
-                video.addEventListener('error', setOfflineStatus);
             }
-        });
+        }
     </script>
 </body>
 </html>
