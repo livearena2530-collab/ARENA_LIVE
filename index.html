@@ -6,7 +6,7 @@
     <title>Minha Transmissão ao Vivo</title>
     <!-- Tailwind CSS para estilização rápida e responsiva -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- HLS.js para reproduzir o formato de streaming da Apple (m3u8) nativamente no navegador -->
+    <!-- HLS.js para reproduzir o formato de streaming -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans">
@@ -19,7 +19,7 @@
             </h1>
             <div class="flex items-center gap-2">
                 <span id="status-dot" class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
-                <span id="status-text" class="text-sm font-medium text-gray-300">Aguardando sinal...</span>
+                <span id="status-text" class="text-sm font-medium text-gray-300">Aguardando sinal do Túnel...</span>
             </div>
         </div>
     </nav>
@@ -39,8 +39,8 @@
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <p class="text-gray-300 text-lg font-medium">Aguardando transmissão do software...</p>
-                    <p class="text-gray-500 text-sm mt-2">Certifique-se de que o servidor Python e a gravação estão rodando.</p>
+                    <p class="text-gray-300 text-lg font-medium text-center px-4">Aguardando transmissão remota...</p>
+                    <p class="text-gray-500 text-sm mt-2 text-center px-4">Conectando ao seu computador via Cloudflare Tunnel.</p>
                 </div>
             </div>
             
@@ -48,9 +48,9 @@
 
         <!-- Descrição da Live -->
         <div class="w-full mt-6 bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
-            <h2 class="text-2xl font-bold mb-2">Transmissão Principal</h2>
+            <h2 class="text-2xl font-bold mb-2">Transmissão Global</h2>
             <p class="text-gray-400">
-                Bem-vindo à minha transmissão ao vivo! Este player está consumindo o feed HLS gerado pelo software de transmissão e distribuído através do nosso servidor Python local.
+                Este site está hospedado na nuvem (Cloudflare Pages) e puxando o vídeo em tempo real diretamente do seu computador através de um Túnel Seguro!
             </p>
         </div>
 
@@ -58,7 +58,7 @@
 
     <!-- Rodapé -->
     <footer class="bg-gray-950 py-6 text-center text-gray-500 text-sm border-t border-gray-800 mt-auto">
-        <p>&copy; 2026 - Sistema de Streaming Customizado</p>
+        <p>&copy; 2026 - Sistema de Streaming em Nuvem</p>
     </footer>
 
     <!-- Lógica do Player -->
@@ -69,8 +69,14 @@
             const statusDot = document.getElementById('status-dot');
             const statusText = document.getElementById('status-text');
             
-            // Rota de onde o servidor Python está a servir o ficheiro de playlist do HLS
-            const videoSrc = '/stream/stream.m3u8'; 
+            // 🔴================================================================🔴
+            // 🔴 ATENÇÃO: ALTERAÇÃO FEITA AQUI 🔴
+            // Inserimos o link exato do seu túnel Cloudflare que vimos na imagem!
+            // 🔴================================================================🔴
+            const dominioCloudflare = 'https://video.arenalive.shop'; 
+            
+            // Agora o site pega o domínio e adiciona a rota do vídeo
+            const videoSrc = dominioCloudflare + '/stream/stream.m3u8'; 
 
             function setOnlineStatus() {
                 loadingOverlay.style.display = 'none';
@@ -81,7 +87,7 @@
             function setOfflineStatus() {
                 loadingOverlay.style.display = 'flex';
                 statusDot.classList.replace('bg-green-500', 'bg-red-500');
-                statusText.textContent = 'A aguardar sinal...';
+                statusText.textContent = 'Buscando sinal remoto...';
             }
 
             let hls;
@@ -93,14 +99,12 @@
                     }
 
                     hls = new Hls({
-                        // Configurações agressivas para nunca desistir de procurar o vídeo
                         manifestLoadingMaxRetry: Infinity,
                         manifestLoadingRetryDelay: 2000,
                         levelLoadingMaxRetry: Infinity,
                         fragLoadingMaxRetry: Infinity,
                     });
                     
-                    // O Cache Buster impede o navegador de guardar o erro 404 em memória
                     const cacheBuster = new Date().getTime();
                     hls.loadSource(`${videoSrc}?t=${cacheBuster}`);
                     hls.attachMedia(video);
@@ -115,21 +119,18 @@
                             setOfflineStatus();
                             switch (data.type) {
                                 case Hls.ErrorTypes.NETWORK_ERROR:
-                                    // Tenta carregar novamente se o servidor caiu e voltou
                                     setTimeout(() => hls.startLoad(), 2000);
                                     break;
                                 case Hls.ErrorTypes.MEDIA_ERROR:
                                     hls.recoverMediaError();
                                     break;
                                 default:
-                                    // Em vez de destruir e desistir, ele reinicia todo o processo após 3 segundos
                                     setTimeout(iniciarPlayer, 3000);
                                     break;
                             }
                         }
                     });
                 }
-                // Suporte nativo para navegadores como o Safari (iOS/macOS)
                 else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                     const cacheBuster = new Date().getTime();
                     video.src = `${videoSrc}?t=${cacheBuster}`;
@@ -139,12 +140,11 @@
                     });
                     video.addEventListener('error', function() {
                         setOfflineStatus();
-                        setTimeout(iniciarPlayer, 3000); // Tenta de novo no Safari
+                        setTimeout(iniciarPlayer, 3000);
                     });
                 }
             }
 
-            // Inicia o ciclo de procura do leitor
             iniciarPlayer();
         });
     </script>
