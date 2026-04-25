@@ -45,7 +45,7 @@
                 </div>
                 <span class="text-xl font-black tracking-tighter text-white uppercase">ARENA<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">LIVE</span></span>
             </div>
-            <!-- O botão sair só aparece se o utilizador estiver aprovado e logado -->
+            <!-- O botão sair só aparece se o utilizador estiver logado -->
             <button id="btn-logout" onclick="logout()" class="hidden text-xs font-bold text-neutral-400 hover:text-white bg-white/10 px-3 py-1.5 rounded-lg z-50 transition-colors cursor-pointer">Sair da Conta</button>
         </header>
 
@@ -54,12 +54,35 @@
                 <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)]"></span> TRANSMISSÃO EXCLUSIVA
             </div>
 
-            <h1 id="event-title-display" class="text-3xl md:text-5xl font-black mb-10 drop-shadow-xl text-center text-neutral-300 uppercase tracking-wide">A CARREGAR...</h1>
+            <h1 id="event-title-display" class="text-3xl md:text-5xl font-black mb-4 drop-shadow-xl text-center text-neutral-300 uppercase tracking-wide">A CARREGAR...</h1>
+
+            <!-- ⏳ NOVO: CONTAGEM DECRESCENTE (TIMER) ⏳ -->
+            <div id="timer-container" class="hidden flex-col items-center justify-center mb-8 fade-in">
+                <span id="timer-title" class="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-3 drop-shadow-md">A Transmissão Começa Em:</span>
+                <div class="flex gap-2 sm:gap-4 text-center">
+                    <div class="bg-black/50 backdrop-blur-md rounded-xl p-3 sm:p-4 min-w-[70px] sm:min-w-[90px] border border-white/10 shadow-lg">
+                        <span id="timer-d" class="text-3xl sm:text-4xl font-black text-white drop-shadow-md">00</span>
+                        <p class="text-[10px] sm:text-xs text-neutral-400 uppercase tracking-widest mt-1">Dias</p>
+                    </div>
+                    <div class="bg-black/50 backdrop-blur-md rounded-xl p-3 sm:p-4 min-w-[70px] sm:min-w-[90px] border border-white/10 shadow-lg">
+                        <span id="timer-h" class="text-3xl sm:text-4xl font-black text-white drop-shadow-md">00</span>
+                        <p class="text-[10px] sm:text-xs text-neutral-400 uppercase tracking-widest mt-1">Horas</p>
+                    </div>
+                    <div class="bg-black/50 backdrop-blur-md rounded-xl p-3 sm:p-4 min-w-[70px] sm:min-w-[90px] border border-white/10 shadow-lg">
+                        <span id="timer-m" class="text-3xl sm:text-4xl font-black text-white drop-shadow-md">00</span>
+                        <p class="text-[10px] sm:text-xs text-neutral-400 uppercase tracking-widest mt-1">Min</p>
+                    </div>
+                    <div class="bg-black/50 backdrop-blur-md rounded-xl p-3 sm:p-4 min-w-[70px] sm:min-w-[90px] border border-white/10 shadow-lg">
+                        <span id="timer-s" class="text-3xl sm:text-4xl font-black text-white drop-shadow-md">00</span>
+                        <p class="text-[10px] sm:text-xs text-neutral-400 uppercase tracking-widest mt-1">Seg</p>
+                    </div>
+                </div>
+            </div>
 
             <div class="flex items-center justify-center gap-4 md:gap-16 w-full mb-10">
                 <div class="flex flex-col items-center w-1/3">
-                    <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-[4px] md:border-[6px] border-indigo-500/80 shadow-[0_0_30px_rgba(99,102,241,0.4)] overflow-hidden bg-neutral-900 flex items-center justify-center">
-                        <img id="team-a-img-display" src="" class="w-full h-full object-cover" alt="Equipa Local">
+                    <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-[4px] md:border-[6px] border-indigo-500/80 shadow-[0_0_30px_rgba(99,102,241,0.4)] overflow-hidden bg-neutral-900 flex items-center justify-center relative">
+                        <img id="team-a-img-display" src="" class="w-full h-full object-cover relative z-10" alt="Equipa Local">
                     </div>
                     <h2 id="team-a-name-display" class="mt-4 text-lg md:text-3xl font-black drop-shadow-lg text-center break-words">---</h2>
                 </div>
@@ -67,8 +90,8 @@
                 <div class="text-3xl md:text-6xl font-black italic text-transparent bg-clip-text bg-gradient-to-b from-white to-neutral-500 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] w-1/3 text-center">VS</div>
 
                 <div class="flex flex-col items-center w-1/3">
-                    <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-[4px] md:border-[6px] border-purple-500/80 shadow-[0_0_30px_rgba(168,85,247,0.4)] overflow-hidden bg-neutral-900 flex items-center justify-center">
-                        <img id="team-b-img-display" src="" class="w-full h-full object-cover" alt="Equipa Visitante">
+                    <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-[4px] md:border-[6px] border-purple-500/80 shadow-[0_0_30px_rgba(168,85,247,0.4)] overflow-hidden bg-neutral-900 flex items-center justify-center relative">
+                        <img id="team-b-img-display" src="" class="w-full h-full object-cover relative z-10" alt="Equipa Visitante">
                     </div>
                     <h2 id="team-b-name-display" class="mt-4 text-lg md:text-3xl font-black drop-shadow-lg text-center break-words">---</h2>
                 </div>
@@ -152,7 +175,7 @@
                     <h4 id="valor-ingresso" class="text-3xl font-black mb-1 text-white">R$ --,--</h4>
                     <p class="text-xs text-neutral-400 mb-4">Pague via PIX para libertar o vídeo. A liberação é automática após o pagamento.</p>
                     
-                    <!-- NOVO: Container do QR Code Visual -->
+                    <!-- Container do QR Code Visual -->
                     <div class="flex justify-center mb-4">
                         <div id="qr-container" class="p-2 bg-white rounded-xl hidden">
                             <img id="pix-qrcode-img" src="" alt="QR Code PIX" class="w-40 h-40 object-contain">
@@ -179,7 +202,7 @@
     <!-- ECRÃ DO PLAYER (C/ CHAT LATERAL)           -->
     <!-- ========================================== -->
     <div id="view-player" class="hidden fixed inset-0 z-50 bg-black flex-row fade-in">
-        <div class="flex-1 relative h-full bg-black flex items-center justify-center">
+        <div class="flex-1 relative h-full bg-black flex items-center justify-center overflow-hidden">
             <div class="absolute top-0 w-full p-4 flex justify-between items-center z-20 bg-gradient-to-b from-black/80 to-transparent">
                 <button onclick="voltarHome()" class="text-white flex items-center gap-2 hover:text-indigo-400 bg-white/10 px-4 py-2 rounded-xl backdrop-blur font-bold text-sm cursor-pointer transition-colors">
                     <i data-lucide="arrow-left" class="w-4 h-4"></i> Sair do Vídeo
@@ -189,18 +212,21 @@
                 </div>
             </div>
             
-            <video id="video-player" class="w-full h-full object-contain" controls autoplay></video>
+            <video id="video-player" class="w-full h-full object-contain relative z-10" controls autoplay playsinline></video>
             
-            <div id="loading-overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm z-10">
+            <!-- 🕵️‍♂️ NOVO: MARCA DE ÁGUA ANTI-PIRATARIA (FLUTUANTE) -->
+            <div id="watermark" class="absolute text-white/30 font-black text-sm md:text-xl pointer-events-none select-none z-30 mix-blend-overlay transition-all duration-1000 hidden drop-shadow-md"></div>
+            
+            <div id="loading-overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm z-40">
                 <div class="relative w-16 h-16 mb-6">
                     <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
                     <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
-                <p class="text-white font-bold tracking-wide animate-pulse">A ligar à Transmissão...</p>
+                <p class="text-white font-bold tracking-wide animate-pulse">A Desbloquear Transmissão...</p>
             </div>
         </div>
 
-        <div id="chat-sidebar" class="hidden md:flex w-full md:w-80 h-full bg-neutral-900 border-l border-white/10 flex-col absolute md:relative right-0 z-40 transition-transform">
+        <div id="chat-sidebar" class="hidden md:flex w-full md:w-80 h-full bg-neutral-900 border-l border-white/10 flex-col absolute md:relative right-0 z-50 transition-transform">
             <div class="p-4 border-b border-white/5 bg-neutral-950 flex justify-between items-center">
                 <h3 class="font-bold text-white text-sm flex items-center gap-2"><i data-lucide="message-square" class="w-4 h-4 text-indigo-400"></i> Chat VIP Ao Vivo</h3>
                 <button onclick="toggleChat()" class="md:hidden text-neutral-400 hover:text-white cursor-pointer transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -226,6 +252,9 @@
         let codigoAtual = localStorage.getItem('ingresso_vip');
         let nomeAtual = localStorage.getItem('nome_vip') || "Anónimo";
         let checkInterval = null;
+        let timerInterval = null;
+        let watermarkInterval = null;
+        let targetEventDate = null;
         let socket = null;
 
         // === MÁSCARA E VALIDAÇÃO DE CPF ===
@@ -256,21 +285,56 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchEventDetails(); 
-            setInterval(fetchEventDetails, 5000); 
+            setInterval(fetchEventDetails, 10000); 
             
             if (codigoAtual) {
                 const areaRecuperacao = document.getElementById('area-recuperacao');
-                if (areaRecuperacao) {
-                    areaRecuperacao.classList.add('hidden');
-                }
+                if (areaRecuperacao) areaRecuperacao.classList.add('hidden');
                 verificarStatusAPI(); 
             }
         });
 
+        // === LÓGICA DO TIMER (CONTAGEM DECRESCENTE) ===
+        function iniciarRelogio() {
+            if(!targetEventDate) return;
+            if(timerInterval) clearInterval(timerInterval);
+
+            timerInterval = setInterval(() => {
+                const now = new Date().getTime();
+                const diff = targetEventDate - now;
+
+                const timerContainer = document.getElementById('timer-container');
+                const title = document.getElementById('timer-title');
+
+                if (diff <= 0) {
+                    clearInterval(timerInterval);
+                    if(title) title.innerText = "A Transmissão Começou!";
+                    if(title) title.classList.replace('text-indigo-400', 'text-emerald-400');
+                    document.getElementById('timer-d').innerText = "00";
+                    document.getElementById('timer-h').innerText = "00";
+                    document.getElementById('timer-m').innerText = "00";
+                    document.getElementById('timer-s').innerText = "00";
+                    return;
+                }
+
+                if(timerContainer) timerContainer.classList.remove('hidden');
+                if(timerContainer) timerContainer.classList.add('flex');
+
+                const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+                document.getElementById('timer-d').innerText = d.toString().padStart(2, '0');
+                document.getElementById('timer-h').innerText = h.toString().padStart(2, '0');
+                document.getElementById('timer-m').innerText = m.toString().padStart(2, '0');
+                document.getElementById('timer-s').innerText = s.toString().padStart(2, '0');
+            }, 1000);
+        }
+
         // === CARREGA DADOS DO EVENTO ===
         async function fetchEventDetails() {
             try {
-                // Adicionamos os cabeçalhos corretos para evitar falhas de CORS
                 const res = await fetch(`${dominioCloudflare}/api/evento?t=${new Date().getTime()}`, {
                     method: 'GET',
                     headers: { 'Accept': 'application/json' }
@@ -299,6 +363,20 @@
                     
                     const ticketsRemaining = document.getElementById('tickets-remaining-text');
                     if (ticketsRemaining) ticketsRemaining.innerText = data.ingressos_restantes;
+
+                    // PROCESSA A DATA DO JOGO
+                    if(data.data_hora && data.data_hora.trim() !== "") {
+                        // Converte o texto "2026-12-31 20:00" em data real de forma segura
+                        let p = data.data_hora.split(/[- :]/);
+                        if(p.length >= 5) {
+                            targetEventDate = new Date(p[0], p[1]-1, p[2], p[3], p[4]).getTime();
+                            iniciarRelogio();
+                        }
+                    } else {
+                        const tc = document.getElementById('timer-container');
+                        if(tc) tc.classList.add('hidden');
+                        if(tc) tc.classList.remove('flex');
+                    }
 
                     const btnPrincipal = document.getElementById('btn-principal');
                     const txtBtn = document.getElementById('texto-btn');
@@ -603,7 +681,6 @@
             const qrContainer = document.getElementById('qr-container');
             const qrImg = document.getElementById('pix-qrcode-img');
             if (qrContainer && qrImg && base64 && base64.trim() !== "") {
-                // Previne imagens mal formatadas injetando o cabeçalho base64 do HTML
                 if (base64.startsWith('data:image')) {
                     qrImg.src = base64;
                 } else {
@@ -611,7 +688,6 @@
                 }
                 qrContainer.classList.remove('hidden');
             } else if (qrContainer) {
-                // Esconde a caixinha se for uma simulação ou houver um erro
                 qrContainer.classList.add('hidden');
             }
             
@@ -672,10 +748,11 @@
             localStorage.removeItem('ingresso_vip'); localStorage.removeItem('nome_vip');
             codigoAtual = null; nomeAtual = "Anónimo";
             if(checkInterval) clearInterval(checkInterval);
+            if(watermarkInterval) clearInterval(watermarkInterval);
             setUIDeslogado();
         }
 
-        // === PLAYER DE VÍDEO ===
+        // === PLAYER DE VÍDEO (COM TOKEN ANTI-PIRATARIA) ===
         function abrirVideo() {
             const viewHome = document.getElementById('view-home');
             if (viewHome) viewHome.classList.add('hidden');
@@ -686,6 +763,7 @@
                 viewPlayer.classList.add('flex');
             }
             iniciarPlayerDoVideo();
+            iniciarMarcaDagua(); // Ativa a proteção anti-gravação
             conectarChat();
         }
 
@@ -704,13 +782,17 @@
             
             if(window.hlsPlayer) window.hlsPlayer.destroy();
             if(socket) socket.disconnect();
+            if(watermarkInterval) clearInterval(watermarkInterval);
             socket = null;
         }
 
         function iniciarPlayerDoVideo() {
             const video = document.getElementById('video-player');
             const overlay = document.getElementById('loading-overlay');
-            const src = dominioCloudflare + '/stream/stream.m3u8'; 
+            
+            // 🔒 HLS TOKEN DE SEGURANÇA: Só carrega se apresentar o bilhete (token)
+            const paramToken = codigoAtual ? `&token=${codigoAtual}` : '';
+            const src = `${dominioCloudflare}/stream/stream.m3u8?t=${new Date().getTime()}${paramToken}`; 
 
             if (overlay) overlay.style.display = 'flex';
             
@@ -718,15 +800,23 @@
 
             if (Hls.isSupported()) {
                 window.hlsPlayer = new Hls({ manifestLoadingMaxRetry: Infinity, fragLoadingMaxRetry: Infinity });
-                window.hlsPlayer.loadSource(`${src}?t=${new Date().getTime()}`);
+                window.hlsPlayer.loadSource(src);
                 window.hlsPlayer.attachMedia(video);
                 window.hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => { 
                     if (overlay) overlay.style.display = 'none'; 
                     video.play().catch(e => { video.muted = true; video.play(); }); 
                 });
-                window.hlsPlayer.on(Hls.Events.ERROR, (e, data) => { if(data.fatal) setTimeout(iniciarPlayerDoVideo, 2000); });
+                window.hlsPlayer.on(Hls.Events.ERROR, (e, data) => { 
+                    // Se o Python recusar a conexão (Erro 403)
+                    if(data.response && data.response.code === 403) {
+                        alert("Acesso Negado! O seu ingresso não tem permissão para assistir a este vídeo.");
+                        voltarHome();
+                    } else if(data.fatal) {
+                        setTimeout(iniciarPlayerDoVideo, 2000); 
+                    }
+                });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = `${src}?t=${new Date().getTime()}`;
+                video.src = src;
                 video.addEventListener('loadedmetadata', () => { 
                     if (overlay) overlay.style.display = 'none'; 
                     video.play(); 
@@ -735,7 +825,24 @@
             }
         }
 
-        // === WEB SOCKETS (CHAT AO VIVO) ===
+        // 🕵️‍♂️ MARCA DE ÁGUA (Flutua na tela de forma aleatória a cada 8 segundos)
+        function iniciarMarcaDagua() {
+            const wm = document.getElementById('watermark');
+            if(!wm) return;
+            wm.classList.remove('hidden');
+            wm.innerText = `${nomeAtual} - ${codigoAtual}`;
+            
+            if(watermarkInterval) clearInterval(watermarkInterval);
+            
+            watermarkInterval = setInterval(() => {
+                const top = Math.floor(Math.random() * 80) + 10; 
+                const left = Math.floor(Math.random() * 80) + 10;
+                wm.style.top = `${top}%`;
+                wm.style.left = `${left}%`;
+            }, 8000);
+        }
+
+        // === WEB SOCKETS (CHAT E SEGURANÇA DE LOGIN) ===
         function toggleChat() {
             const sidebar = document.getElementById('chat-sidebar');
             if (!sidebar) return;
@@ -752,6 +859,19 @@
         function conectarChat() {
             if(socket) return;
             socket = io(dominioCloudflare);
+
+            // 📱 SISTEMA ANTI-PARTILHA (Comunica o ingresso atual ao servidor)
+            socket.on('connect', () => {
+                if(codigoAtual) socket.emit('join_stream', { codigo: codigoAtual });
+            });
+
+            // 🚫 RECEBE ORDEM DE EXPULSÃO DO SERVIDOR (Se outra pessoa entrar)
+            socket.on('force_logout', (data) => {
+                alert(data.msg || "Sessão encerrada por segurança.");
+                voltarHome();
+                logout();
+                location.reload();
+            });
             
             fetch(`${dominioCloudflare}/api/chat/history`, {
                 method: 'GET',
