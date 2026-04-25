@@ -2,151 +2,265 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minha Transmissão ao Vivo</title>
-    <!-- Tailwind CSS para estilização rápida e responsiva -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ArenaLive - Transmissão Premium</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- HLS.js para reproduzir o formato de streaming -->
+    
+    <!-- Ícones Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Biblioteca HLS.js para o vídeo -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-</head>
-<body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans">
 
-    <!-- Barra de Navegação -->
-    <nav class="bg-gray-800 border-b border-gray-700 p-4 shadow-md">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-                LiveStream Pro
-            </h1>
-            <div class="flex items-center gap-2">
-                <span id="status-dot" class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
-                <span id="status-text" class="text-sm font-medium text-gray-300">Aguardando sinal do Túnel...</span>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Conteúdo Principal -->
-    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-6xl mx-auto">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
         
-        <div class="w-full bg-black rounded-xl shadow-2xl overflow-hidden border border-gray-800 relative group">
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #050505; 
+            color: #f5f5f5;
+        }
+        
+        .glass { 
+            background: rgba(15, 15, 15, 0.6); 
+            backdrop-filter: blur(20px); 
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .fade-in { animation: fadeIn 0.5s ease forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        video { 
+            background-color: #000; 
+            outline: none; 
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-hidden">
+
+    <!-- ========================================== -->
+    <!-- TELA INICIAL (VISUAL PREMIUM DOS TIMES)    -->
+    <!-- ========================================== -->
+    <div id="view-home" class="relative w-full h-screen flex flex-col items-center justify-center fade-in">
+        
+        <!-- Fundo Escuro com Imagem de Estádio -->
+        <div class="absolute inset-0 z-0">
+            <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover opacity-20 scale-105" alt="Background">
+            <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]"></div>
+        </div>
+
+        <!-- Cabeçalho (Logo) -->
+        <header class="absolute top-0 w-full p-6 z-20 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-xl">
+                    <i data-lucide="play" class="w-5 h-5 text-white fill-current"></i>
+                </div>
+                <span class="text-xl font-black tracking-tighter text-white uppercase">
+                    ARENA<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">LIVE</span>
+                </span>
+            </div>
+        </header>
+
+        <!-- Conteúdo Principal -->
+        <div class="relative z-10 w-full max-w-5xl px-4 flex flex-col items-center mt-8">
             
-            <!-- Container do Vídeo -->
-            <div class="aspect-video relative w-full h-full">
-                <video id="video-player" class="w-full h-full object-contain" controls autoplay muted></video>
+            <!-- Etiqueta Ao Vivo -->
+            <div class="mb-6 px-4 py-1.5 rounded-full border border-red-500/40 bg-gradient-to-r from-red-600/20 to-red-500/10 text-red-400 text-xs sm:text-sm font-black uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                <span class="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)]"></span> TRANSMISSÃO EXCLUSIVA AO VIVO
+            </div>
+
+            <h1 class="text-4xl md:text-6xl font-black mb-12 drop-shadow-xl text-center">ArenaLive Premium</h1>
+
+            <!-- ========================================== -->
+            <!-- ÁREA DOS TIMES (Pode alterar os nomes/imagens aqui) -->
+            <!-- ========================================== -->
+            <div class="flex items-center justify-center gap-6 md:gap-16 w-full mb-12">
                 
-                <!-- Overlay de Carregamento / Sem Sinal -->
-                <div id="loading-overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/90 backdrop-blur-sm z-10">
-                    <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <p class="text-gray-300 text-lg font-medium text-center px-4">Aguardando transmissão remota...</p>
-                    <p class="text-gray-500 text-sm mt-2 text-center px-4">Conectando ao seu computador via Cloudflare Tunnel.</p>
+                <!-- Time A (Mandante) -->
+                <div class="flex flex-col items-center">
+                    <div class="w-28 h-28 sm:w-40 sm:h-40 md:w-48 md:h-48 rounded-full border-[4px] md:border-[6px] border-indigo-500/80 shadow-[0_0_30px_rgba(99,102,241,0.4)] overflow-hidden bg-neutral-900 flex items-center justify-center">
+                        <!-- Imagem do Time A -->
+                        <img src="https://placehold.co/400x400/1e1b4b/6366f1?text=TIME+A&font=Montserrat" class="w-full h-full object-cover">
+                    </div>
+                    <h2 class="mt-4 text-xl md:text-3xl font-black drop-shadow-lg text-center">Time Local</h2>
+                </div>
+
+                <!-- VS -->
+                <div class="text-4xl md:text-7xl font-black italic text-transparent bg-clip-text bg-gradient-to-b from-white to-neutral-500 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">VS</div>
+
+                <!-- Time B (Visitante) -->
+                <div class="flex flex-col items-center">
+                    <div class="w-28 h-28 sm:w-40 sm:h-40 md:w-48 md:h-48 rounded-full border-[4px] md:border-[6px] border-purple-500/80 shadow-[0_0_30px_rgba(168,85,247,0.4)] overflow-hidden bg-neutral-900 flex items-center justify-center">
+                        <!-- Imagem do Time B -->
+                        <img src="https://placehold.co/400x400/3b0764/a855f7?text=TIME+B&font=Montserrat" class="w-full h-full object-cover">
+                    </div>
+                    <h2 class="mt-4 text-xl md:text-3xl font-black drop-shadow-lg text-center">Visitante</h2>
                 </div>
             </div>
+
+            <!-- Botão de Assistir -->
+            <div class="glass rounded-[2rem] p-6 md:p-8 max-w-md w-full shadow-2xl relative group">
+                <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+                
+                <div class="relative flex flex-col items-center text-center">
+                    <button onclick="assistirJogo()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black py-5 md:py-6 px-8 rounded-xl transition-transform active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.5)] flex items-center justify-center gap-3 text-lg md:text-xl">
+                        <i data-lucide="play-circle" class="w-6 h-6 md:w-7 md:h-7"></i> ASSISTIR JOGO AGORA
+                    </button>
+                    
+                    <div class="grid grid-cols-2 gap-y-3 gap-x-2 w-full mt-6 text-sm text-neutral-300 font-medium text-left px-2">
+                        <div class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i> Qualidade Full HD</div>
+                        <div class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i> Sem Travamentos</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TELA DO PLAYER (Abre ao clicar em assistir)-->
+    <!-- ========================================== -->
+    <div id="view-player" class="hidden absolute inset-0 z-50 bg-black flex-col fade-in">
+        
+        <!-- Header do Player -->
+        <div class="absolute top-0 w-full p-4 flex justify-between items-center z-20 bg-gradient-to-b from-black/80 to-transparent">
+            <button onclick="voltarHome()" class="text-white flex items-center gap-2 hover:text-indigo-400 transition bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl backdrop-blur font-bold text-sm">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
+            </button>
+            <div class="flex items-center gap-2 bg-black/60 border border-white/10 px-4 py-2 rounded-full backdrop-blur">
+                <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                <span id="status-text" class="text-xs font-bold text-gray-300 uppercase tracking-wide">Aguardando sinal...</span>
+            </div>
+        </div>
+
+        <!-- Container do Vídeo -->
+        <div class="flex-1 relative w-full h-full flex items-center justify-center bg-black">
+            <video id="video-player" class="w-full h-full object-contain" controls autoplay></video>
             
+            <!-- Overlay de Carregamento -->
+            <div id="loading-overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm z-10">
+                <div class="relative w-16 h-16 mb-6">
+                    <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
+                    <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <p class="text-white font-bold text-lg tracking-wide animate-pulse mb-2">Conectando à Transmissão...</p>
+                <p class="text-neutral-500 text-sm">Via Cloudflare Tunnel Local</p>
+            </div>
         </div>
+    </div>
 
-        <!-- Descrição da Live -->
-        <div class="w-full mt-6 bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
-            <h2 class="text-2xl font-bold mb-2">Transmissão Global</h2>
-            <p class="text-gray-400">
-                Este site está hospedado na nuvem (Cloudflare Pages) e puxando o vídeo em tempo real diretamente do seu computador através de um Túnel Seguro!
-            </p>
-        </div>
-
-    </main>
-
-    <!-- Rodapé -->
-    <footer class="bg-gray-950 py-6 text-center text-gray-500 text-sm border-t border-gray-800 mt-auto">
-        <p>&copy; 2026 - Sistema de Streaming em Nuvem</p>
-    </footer>
-
-    <!-- Lógica do Player -->
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const video = document.getElementById('video-player');
-            const loadingOverlay = document.getElementById('loading-overlay');
-            const statusDot = document.getElementById('status-dot');
-            const statusText = document.getElementById('status-text');
+        // Inicializa os ícones do Lucide
+        lucide.createIcons();
+
+        // 🔴================================================================🔴
+        // SEU DOMÍNIO DO CLOUDFLARE
+        const dominioCloudflare = 'https://video.arenalive.shop'; 
+        const videoSrc = dominioCloudflare + '/stream/stream.m3u8'; 
+        // 🔴================================================================🔴
+
+        const video = document.getElementById('video-player');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const viewHome = document.getElementById('view-home');
+        const viewPlayer = document.getElementById('view-player');
+        
+        let hlsInstance = null;
+
+        function setOnlineStatus() {
+            loadingOverlay.style.display = 'none';
+            statusDot.classList.replace('bg-red-500', 'bg-emerald-500');
+            statusText.textContent = 'AO VIVO';
+        }
+
+        function setOfflineStatus() {
+            loadingOverlay.style.display = 'flex';
+            statusDot.classList.replace('bg-emerald-500', 'bg-red-500');
+            statusText.textContent = 'BUSCANDO SINAL...';
+        }
+
+        // Função chamada quando o botão "ASSISTIR JOGO AGORA" é clicado
+        function assistirJogo() {
+            viewHome.classList.add('hidden');
+            viewPlayer.classList.remove('hidden');
+            viewPlayer.classList.add('flex');
+            iniciarPlayer();
+        }
+
+        // Função chamada quando o botão "Voltar" do player é clicado
+        function voltarHome() {
+            viewPlayer.classList.add('hidden');
+            viewPlayer.classList.remove('flex');
+            viewHome.classList.remove('hidden');
             
-            // 🔴================================================================🔴
-            // 🔴 ATENÇÃO: ALTERAÇÃO FEITA AQUI 🔴
-            // Inserimos o link exato do seu túnel Cloudflare que vimos na imagem!
-            // 🔴================================================================🔴
-            const dominioCloudflare = 'https://video.arenalive.shop'; 
-            
-            // Agora o site pega o domínio e adiciona a rota do vídeo
-            const videoSrc = dominioCloudflare + '/stream/stream.m3u8'; 
-
-            function setOnlineStatus() {
-                loadingOverlay.style.display = 'none';
-                statusDot.classList.replace('bg-red-500', 'bg-green-500');
-                statusText.textContent = 'AO VIVO';
+            // Para o vídeo para não gastar internet em segundo plano
+            video.pause();
+            if(hlsInstance) {
+                hlsInstance.destroy();
+                hlsInstance = null;
             }
+        }
 
-            function setOfflineStatus() {
-                loadingOverlay.style.display = 'flex';
-                statusDot.classList.replace('bg-green-500', 'bg-red-500');
-                statusText.textContent = 'Buscando sinal remoto...';
-            }
+        function iniciarPlayer() {
+            setOfflineStatus();
 
-            let hls;
+            if (Hls.isSupported()) {
+                if (hlsInstance) { hlsInstance.destroy(); }
 
-            function iniciarPlayer() {
-                if (Hls.isSupported()) {
-                    if (hls) {
-                        hls.destroy();
-                    }
-
-                    hls = new Hls({
-                        manifestLoadingMaxRetry: Infinity,
-                        manifestLoadingRetryDelay: 2000,
-                        levelLoadingMaxRetry: Infinity,
-                        fragLoadingMaxRetry: Infinity,
-                    });
-                    
-                    const cacheBuster = new Date().getTime();
-                    hls.loadSource(`${videoSrc}?t=${cacheBuster}`);
-                    hls.attachMedia(video);
-                    
-                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                        setOnlineStatus();
-                        video.play().catch(e => console.log("Erro de autoplay:", e));
-                    });
-
-                    hls.on(Hls.Events.ERROR, function (event, data) {
-                        if (data.fatal) {
-                            setOfflineStatus();
-                            switch (data.type) {
-                                case Hls.ErrorTypes.NETWORK_ERROR:
-                                    setTimeout(() => hls.startLoad(), 2000);
-                                    break;
-                                case Hls.ErrorTypes.MEDIA_ERROR:
-                                    hls.recoverMediaError();
-                                    break;
-                                default:
-                                    setTimeout(iniciarPlayer, 3000);
-                                    break;
-                            }
-                        }
-                    });
-                }
-                else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    const cacheBuster = new Date().getTime();
-                    video.src = `${videoSrc}?t=${cacheBuster}`;
-                    video.addEventListener('loadedmetadata', function() {
-                        setOnlineStatus();
+                hlsInstance = new Hls({
+                    manifestLoadingMaxRetry: Infinity,
+                    manifestLoadingRetryDelay: 2000,
+                    levelLoadingMaxRetry: Infinity,
+                    fragLoadingMaxRetry: Infinity,
+                });
+                
+                const cacheBuster = new Date().getTime();
+                hlsInstance.loadSource(`${videoSrc}?t=${cacheBuster}`);
+                hlsInstance.attachMedia(video);
+                
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+                    setOnlineStatus();
+                    video.play().catch(e => {
+                        console.log("O navegador bloqueou o áudio automático. O utilizador tem que dar play.");
+                        video.muted = true; // Força mute se for bloqueado para poder tocar a imagem
                         video.play();
                     });
-                    video.addEventListener('error', function() {
-                        setOfflineStatus();
-                        setTimeout(iniciarPlayer, 3000);
-                    });
-                }
-            }
+                });
 
-            iniciarPlayer();
-        });
+                hlsInstance.on(Hls.Events.ERROR, function (event, data) {
+                    if (data.fatal) {
+                        setOfflineStatus();
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                setTimeout(() => hlsInstance.startLoad(), 2000);
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                hlsInstance.recoverMediaError();
+                                break;
+                            default:
+                                setTimeout(iniciarPlayer, 3000);
+                                break;
+                        }
+                    }
+                });
+            }
+            else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                const cacheBuster = new Date().getTime();
+                video.src = `${videoSrc}?t=${cacheBuster}`;
+                video.addEventListener('loadedmetadata', function() {
+                    setOnlineStatus();
+                    video.play();
+                });
+                video.addEventListener('error', function() {
+                    setOfflineStatus();
+                    setTimeout(iniciarPlayer, 3000);
+                });
+            }
+        }
     </script>
 </body>
 </html>
