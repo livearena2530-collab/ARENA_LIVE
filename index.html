@@ -42,6 +42,7 @@
                 </div>
                 <span class="text-xl font-black tracking-tighter text-white uppercase">ARENA<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">LIVE</span></span>
             </div>
+            <!-- O botão sair fica escondido até a pessoa estar APROVADA -->
             <button id="btn-logout" onclick="logout()" class="hidden text-xs font-bold text-neutral-400 hover:text-white bg-white/10 px-3 py-1.5 rounded-lg z-50 transition-colors cursor-pointer">Sair da Conta</button>
         </header>
 
@@ -97,13 +98,13 @@
                         <i data-lucide="ticket" id="icon-btn" class="w-6 h-6"></i> <span id="texto-btn">COMPRAR INGRESSO VIP</span>
                     </button>
                     
-                    <!-- RECUPERAÇÃO DE ACESSO DIRETA NA TELA INICIAL -->
+                    <!-- RECUPERAÇÃO DE ACESSO -->
                     <div id="area-recuperacao" class="w-full border-t border-white/10 pt-5 mt-2">
-                        <p class="text-xs text-neutral-400 mb-3 font-bold uppercase tracking-wider">Já tem ingresso? Entre abaixo:</p>
+                        <p class="text-xs text-neutral-400 mb-3 font-bold uppercase tracking-wider">Já gerou um ingresso? Entre abaixo:</p>
                         <div class="flex flex-col gap-2">
                             <input type="text" id="home-cpf-input" placeholder="Digite o seu CPF ou Código VIP" oninput="maskCPF(this)" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-center text-sm outline-none focus:border-indigo-500 transition-colors">
                             <button id="btn-entrar" onclick="recuperarAcessoHome()" class="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 rounded-xl transition-colors flex justify-center items-center gap-2 text-sm cursor-pointer active:scale-95">
-                                ACESSAR TRANSMISSÃO <i data-lucide="log-in" class="w-4 h-4"></i>
+                                BUSCAR MEU ACESSO <i data-lucide="search" class="w-4 h-4"></i>
                             </button>
                         </div>
                     </div>
@@ -126,7 +127,7 @@
             </div>
             
             <div class="p-6 sm:p-8">
-                <!-- COMPRAR -->
+                <!-- COMPRAR (ETAPA 1) -->
                 <div id="step-form">
                     <p class="text-neutral-400 text-sm mb-5 text-center">Informe os seus dados corretos. O CPF será a sua chave de acesso.</p>
                     
@@ -141,10 +142,10 @@
                     </button>
                 </div>
 
-                <!-- PIX GERADO / PENDENTE -->
+                <!-- PIX GERADO (ETAPA 2) -->
                 <div id="step-payment" class="hidden text-center fade-in">
                     <h4 id="valor-ingresso" class="text-3xl font-black mb-1 text-white">R$ --,--</h4>
-                    <p class="text-xs text-neutral-400 mb-6">Pague via PIX para libertar o vídeo. A liberação é automática.</p>
+                    <p class="text-xs text-neutral-400 mb-6">Pague via PIX para libertar o vídeo. A liberação é automática após o pagamento.</p>
                     
                     <div class="flex items-center bg-black border border-white/10 rounded-xl overflow-hidden p-1 mb-6">
                         <input type="text" id="pix-copy-input" class="bg-transparent text-white text-xs px-3 py-3 w-full outline-none" readonly>
@@ -224,7 +225,6 @@
             input.value = v;
         }
 
-        // Algoritmo Real de Validação Matemática de CPF
         function isCPFValido(cpfString) {
             let cpf = cpfString.replace(/[^\d]+/g, '');
             if (cpf.length !== 11 || !!cpf.match(/(\d)\1{10}/)) return false;
@@ -246,12 +246,9 @@
             setInterval(fetchEventDetails, 5000); 
             
             if (codigoAtual) {
-                document.getElementById('btn-logout').classList.remove('hidden');
-                document.getElementById('status-ingresso-salvo').classList.remove('hidden');
+                // Ao abrir, oculta a área de recuperar porque ele já tem ticket no dispositivo
                 document.getElementById('area-recuperacao').classList.add('hidden');
-                
-                // O estado do botão será definido pela API consoante for aprovado ou pendente.
-                verificarStatusAPI();
+                verificarStatusAPI(); // Vai decidir se mostra "Aprovado" ou "Finalizar Pagamento"
             }
         });
 
@@ -304,7 +301,48 @@
             } catch(e) {}
         }
 
-        // === MODAIS ===
+        // ==========================================
+        // GESTÃO DE ESTADOS DA INTERFACE (UI)
+        // ==========================================
+        function setUIAprovado() {
+            document.getElementById('btn-logout').classList.remove('hidden'); // Mostrar "Sair" APENAS aprovado
+            document.getElementById('area-recuperacao').classList.add('hidden');
+            
+            const statusDiv = document.getElementById('status-ingresso-salvo');
+            statusDiv.classList.remove('hidden', 'bg-amber-500/20', 'border-amber-500/40', 'text-amber-400', 'animate-pulse');
+            statusDiv.classList.add('bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-400');
+            statusDiv.innerText = "Ingresso Aprovado! Acesso Liberado.";
+
+            document.getElementById('texto-btn').innerText = 'ASSISTIR JOGO AGORA';
+            document.getElementById('icon-btn').setAttribute('data-lucide', 'play-circle');
+            lucide.createIcons();
+        }
+
+        function setUIPendente() {
+            document.getElementById('btn-logout').classList.add('hidden'); // ESCONDE "Sair da conta"
+            document.getElementById('area-recuperacao').classList.add('hidden'); // Esconde área de recuperar
+            
+            const statusDiv = document.getElementById('status-ingresso-salvo');
+            statusDiv.classList.remove('hidden', 'bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-400');
+            statusDiv.classList.add('bg-amber-500/20', 'border-amber-500/40', 'text-amber-400', 'animate-pulse');
+            statusDiv.innerText = "Pagamento Pendente. A aguardar aprovação...";
+
+            document.getElementById('texto-btn').innerText = 'FINALIZAR PAGAMENTO PIX';
+            document.getElementById('icon-btn').setAttribute('data-lucide', 'qr-code');
+            lucide.createIcons();
+        }
+
+        function setUIDeslogado() {
+            document.getElementById('btn-logout').classList.add('hidden');
+            document.getElementById('area-recuperacao').classList.remove('hidden'); // Mostra área de recuperar
+            document.getElementById('status-ingresso-salvo').classList.add('hidden');
+            
+            document.getElementById('texto-btn').innerText = 'COMPRAR INGRESSO VIP';
+            document.getElementById('icon-btn').setAttribute('data-lucide', 'ticket');
+            lucide.createIcons();
+        }
+
+        // === BOTÃO CENTRAL DE AÇÃO ===
         async function abrirCheckout() {
             if(codigoAtual) { 
                 const btn = document.getElementById('btn-principal');
@@ -320,10 +358,11 @@
                     const data = await res.json();
                     
                     if(data.status === 'aprovado') {
-                        fecharModais(); abrirVideo();
+                        fecharModais(); 
+                        abrirVideo();
                     } else if(data.status === 'pendente') {
-                        document.getElementById('checkout-modal').classList.remove('hidden');
-                        mostrarPix(data.chave_pix, data.codigo, data.valor);
+                        // Vai direto para a tela de pagamento (pula o formulário de nome/cpf)
+                        mostrarPixModal(data.chave_pix, data.codigo, data.valor);
                     }
                 } catch(e) {}
                 btn.innerHTML = oldText;
@@ -331,9 +370,10 @@
                 return; 
             }
             
+            // Se não tem ingresso (novo utilizador)
             document.getElementById('checkout-modal').classList.remove('hidden');
-            document.getElementById('step-form').classList.remove('hidden');
-            document.getElementById('step-payment').classList.add('hidden');
+            document.getElementById('step-form').classList.remove('hidden'); // Mostra pedir CPF
+            document.getElementById('step-payment').classList.add('hidden'); // Esconde o PIX
             document.getElementById('modal-titulo').innerText = "Novo Ingresso VIP";
         }
 
@@ -353,9 +393,7 @@
             btn.disabled = true;
 
             try {
-                // Limpa o CPF para enviar apenas os números
                 const cpfLimpo = cpf.replace(/\D/g, '');
-
                 const res = await fetch(`${dominioCloudflare}/api/gerar_ingresso`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ nome: nome, cpf: cpfLimpo })
@@ -369,7 +407,6 @@
                     } catch(e) {}
                     
                     alert(errorMessage);
-                    fecharModais();
                     btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
                     btn.disabled = false;
                     lucide.createIcons();
@@ -377,12 +414,13 @@
                 }
                 
                 const data = await res.json();
-                
                 if(data.status === 'success') {
                     codigoAtual = data.codigo; nomeAtual = nome;
                     localStorage.setItem('ingresso_vip', codigoAtual);
                     localStorage.setItem('nome_vip', nome);
-                    mostrarPix(data.chave_pix, data.codigo, data.valor);
+                    
+                    setUIPendente(); // Atualiza tela de fundo
+                    mostrarPixModal(data.chave_pix, data.codigo, data.valor); // Mostra o Modal
                 } else {
                     alert(data.message);
                     btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
@@ -402,7 +440,6 @@
             const chave = document.getElementById('home-cpf-input').value.trim();
             if(!chave) return alert("Digite o seu CPF ou Código VIP para entrar.");
             
-            // Se for CPF, valida
             if(chave.includes('.') || chave.includes('-') || chave.length === 11 || chave.length === 14) {
                 if(!isCPFValido(chave)) {
                     if(!chave.toUpperCase().includes('VIP')) {
@@ -417,9 +454,7 @@
             btn.disabled = true;
 
             try {
-                // Se o utilizador escreveu o CPF com pontos e traços, vamos remover antes de buscar
                 const chaveLimpa = chave.toUpperCase().includes('VIP') ? chave : chave.replace(/\D/g, '');
-
                 const res = await fetch(`${dominioCloudflare}/api/recuperar`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ chave: chaveLimpa })
@@ -431,46 +466,34 @@
                     localStorage.setItem('ingresso_vip', codigoAtual);
                     
                     if(data.status === 'aprovado') {
-                        alert("Ingresso encontrado! Acedendo à transmissão...");
-                        document.getElementById('btn-logout').classList.remove('hidden');
-                        document.getElementById('texto-btn').innerText = 'ASSISTIR JOGO AGORA';
-                        document.getElementById('icon-btn').setAttribute('data-lucide', 'play-circle');
-                        document.getElementById('area-recuperacao').classList.add('hidden');
-                        lucide.createIcons();
+                        alert("Ingresso encontrado e pago! Acedendo à transmissão...");
+                        setUIAprovado();
                         abrirVideo();
-                    } else {
-                        document.getElementById('checkout-modal').classList.remove('hidden');
-                        mostrarPix(data.chave_pix, data.codigo, data.valor);
+                    } else { // Pendente
+                        setUIPendente();
+                        mostrarPixModal(data.chave_pix, data.codigo, data.valor);
                     }
                 } else {
                     alert("Não encontrámos nenhum ingresso para este CPF ou Código.");
                 }
             } catch(e) { alert("Servidor offline. Tente novamente."); }
             
-            btn.innerHTML = 'ACESSAR TRANSMISSÃO <i data-lucide="log-in" class="w-4 h-4"></i>';
+            btn.innerHTML = 'BUSCAR MEU ACESSO <i data-lucide="search" class="w-4 h-4"></i>';
             btn.disabled = false;
             lucide.createIcons();
         }
 
-        // === LÓGICA DO PIX (E AJUSTE DE ESTADO PENDENTE) ===
-        function mostrarPix(chave, codigo, valor) {
+        // === LÓGICA DO MODAL PIX ===
+        function mostrarPixModal(chave, codigo, valor) {
             document.getElementById('pix-copy-input').value = chave;
             document.getElementById('codigo-vip').innerText = codigo;
             document.getElementById('valor-ingresso').innerText = valor;
             
-            document.getElementById('step-form').classList.add('hidden');
-            document.getElementById('step-payment').classList.remove('hidden');
+            document.getElementById('step-form').classList.add('hidden'); // ESCONDE PEDIDO NOME/CPF
+            document.getElementById('step-payment').classList.remove('hidden'); // MOSTRA PIX
+            document.getElementById('modal-titulo').innerText = "Finalizar Pagamento";
+            document.getElementById('checkout-modal').classList.remove('hidden');
             
-            document.getElementById('btn-logout').classList.remove('hidden');
-            document.getElementById('area-recuperacao').classList.add('hidden');
-            
-            // O botão central vai mudar para "FINALIZAR PAGAMENTO PIX"
-            document.getElementById('texto-btn').innerText = 'FINALIZAR PAGAMENTO PIX';
-            document.getElementById('icon-btn').setAttribute('data-lucide', 'qr-code');
-            document.getElementById('status-ingresso-salvo').classList.remove('hidden');
-            document.getElementById('status-ingresso-salvo').innerText = "Pagamento Pendente. A aguardar aprovação...";
-            
-            lucide.createIcons();
             iniciarMonitoramento();
         }
 
@@ -492,22 +515,11 @@
                     const data = await res.json();
                     
                     if(data.status === 'aprovado') {
-                        document.getElementById('status-ingresso-salvo').innerText = "Ingresso Aprovado! Acesso Libertado.";
-                        document.getElementById('status-ingresso-salvo').classList.replace('bg-amber-500/20', 'bg-emerald-500/20');
-                        document.getElementById('status-ingresso-salvo').classList.replace('text-amber-400', 'text-emerald-400');
-                        document.getElementById('status-ingresso-salvo').classList.remove('animate-pulse');
-                        
-                        document.getElementById('texto-btn').innerText = 'ASSISTIR JOGO AGORA';
-                        document.getElementById('icon-btn').setAttribute('data-lucide', 'play-circle');
-                        lucide.createIcons();
-
+                        setUIAprovado();
                         if (checkInterval) clearInterval(checkInterval);
                         if(abrirVideoAuto) { fecharModais(); abrirVideo(); }
                     } else if (data.status === 'pendente') {
-                        document.getElementById('status-ingresso-salvo').innerText = "Pagamento Pendente. A aguardar aprovação...";
-                        document.getElementById('texto-btn').innerText = 'FINALIZAR PAGAMENTO PIX';
-                        document.getElementById('icon-btn').setAttribute('data-lucide', 'qr-code');
-                        lucide.createIcons();
+                        setUIPendente();
                     }
                 } else {
                     logout(); // Ingresso foi apagado no painel
@@ -517,8 +529,9 @@
 
         function logout() {
             localStorage.removeItem('ingresso_vip'); localStorage.removeItem('nome_vip');
+            codigoAtual = null; nomeAtual = "Anónimo";
             if(checkInterval) clearInterval(checkInterval);
-            location.reload();
+            setUIDeslogado();
         }
 
         // === PLAYER DE VÍDEO ===
