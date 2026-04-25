@@ -150,9 +150,15 @@
                 <!-- PIX GERADO / PENDENTE (ETAPA 2) -->
                 <div id="step-payment" class="hidden text-center fade-in">
                     <h4 id="valor-ingresso" class="text-3xl font-black mb-1 text-white">R$ --,--</h4>
-                    <!-- REMOVIDO: O elemento que causava o erro "Cannot set properties of null (setting 'innerText')" -->
-                    <p class="text-xs text-neutral-400 mb-6">Pague via PIX para libertar o vídeo. A liberação é automática após o pagamento.</p>
+                    <p class="text-xs text-neutral-400 mb-4">Pague via PIX para libertar o vídeo. A liberação é automática após o pagamento.</p>
                     
+                    <!-- NOVO: Container do QR Code Visual -->
+                    <div class="flex justify-center mb-4">
+                        <div id="qr-container" class="p-2 bg-white rounded-xl hidden">
+                            <img id="pix-qrcode-img" src="" alt="QR Code PIX" class="w-40 h-40 object-contain">
+                        </div>
+                    </div>
+
                     <div class="flex items-center bg-black border border-white/10 rounded-xl overflow-hidden p-1 mb-6">
                         <input type="text" id="pix-copy-input" class="bg-transparent text-white text-xs px-3 py-3 w-full outline-none" readonly>
                         <button onclick="copiarPix()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-lg text-xs font-bold whitespace-nowrap active:scale-95 cursor-pointer transition-colors">Copiar</button>
@@ -422,7 +428,7 @@
                         fecharModais(); 
                         abrirVideo();
                     } else if(data.status === 'pendente') {
-                        mostrarPixModal(data.chave_pix, data.codigo, data.valor);
+                        mostrarPixModal(data.chave_pix, data.codigo, data.valor, data.pix_base64);
                     }
                 } catch(e) {}
                 
@@ -451,7 +457,7 @@
             if (checkoutModal) checkoutModal.classList.add('hidden'); 
         }
 
-        // === COMPRAR NOVO INGRESSO (AQUI ESTAVA O BLOQUEIO) ===
+        // === COMPRAR NOVO INGRESSO ===
         async function gerarPix() {
             const nomeInput = document.getElementById('nome-input');
             const cpfInput = document.getElementById('cpf-input');
@@ -472,7 +478,6 @@
             try {
                 const cpfLimpo = cpf.replace(/\D/g, '');
                 
-                // Pedido super-blindado com headers explícitos para o Nginx/Cloudflare
                 const res = await fetch(`${dominioCloudflare}/api/gerar_ingresso`, {
                     method: 'POST',
                     headers: {
@@ -482,7 +487,6 @@
                     body: JSON.stringify({ nome: nome, cpf: cpfLimpo })
                 });
                 
-                // Extrai a resposta JSON de forma segura
                 let data = {};
                 try { data = await res.json(); } catch(err) {}
 
@@ -502,7 +506,7 @@
                     localStorage.setItem('nome_vip', nome);
                     
                     setUIPendente();
-                    mostrarPixModal(data.chave_pix, data.codigo, data.valor);
+                    mostrarPixModal(data.chave_pix, data.codigo, data.valor, data.pix_base64);
                 } else {
                     alert(data.message || "Erro ao gerar PIX. Tente novamente.");
                     if (btn) {
@@ -567,7 +571,7 @@
                         abrirVideo();
                     } else {
                         setUIPendente();
-                        mostrarPixModal(data.chave_pix, data.codigo, data.valor);
+                        mostrarPixModal(data.chave_pix, data.codigo, data.valor, data.pix_base64);
                     }
                 } else {
                     alert(data.message || "Não encontrámos nenhum ingresso para este CPF ou Código.");
@@ -585,7 +589,7 @@
         }
 
         // === LÓGICA DO MODAL PIX ===
-        function mostrarPixModal(chave, codigo, valor) {
+        function mostrarPixModal(chave, codigo, valor, base64) {
             const pixCopyInput = document.getElementById('pix-copy-input');
             if (pixCopyInput) pixCopyInput.value = chave;
             
@@ -594,6 +598,22 @@
             
             const valorIngresso = document.getElementById('valor-ingresso');
             if (valorIngresso) valorIngresso.innerText = valor;
+
+            // Lógica Exclusiva do QR Code
+            const qrContainer = document.getElementById('qr-container');
+            const qrImg = document.getElementById('pix-qrcode-img');
+            if (qrContainer && qrImg && base64 && base64.trim() !== "") {
+                // Previne imagens mal formatadas injetando o cabeçalho base64 do HTML
+                if (base64.startsWith('data:image')) {
+                    qrImg.src = base64;
+                } else {
+                    qrImg.src = "data:image/png;base64," + base64;
+                }
+                qrContainer.classList.remove('hidden');
+            } else if (qrContainer) {
+                // Esconde a caixinha se for uma simulação ou houver um erro
+                qrContainer.classList.add('hidden');
+            }
             
             const stepForm = document.getElementById('step-form');
             if (stepForm) stepForm.classList.add('hidden'); 
