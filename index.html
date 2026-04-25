@@ -45,6 +45,7 @@
                 </div>
                 <span class="text-xl font-black tracking-tighter text-white uppercase">ARENA<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">LIVE</span></span>
             </div>
+            <!-- O botão sair só aparece se o utilizador estiver aprovado e logado -->
             <button id="btn-logout" onclick="logout()" class="hidden text-xs font-bold text-neutral-400 hover:text-white bg-white/10 px-3 py-1.5 rounded-lg z-50 transition-colors cursor-pointer">Sair da Conta</button>
         </header>
 
@@ -92,7 +93,7 @@
                         </div>
                     </div>
 
-                    <!-- Mensagem de Status (Aprovado ou Pendente) -->
+                    <!-- Mensagem de Status -->
                     <div id="status-ingresso-salvo" class="hidden w-full bg-amber-500/20 border border-amber-500/40 text-amber-400 p-3 rounded-xl mb-4 text-sm font-bold animate-pulse">
                         A verificar o seu ingresso...
                     </div>
@@ -119,7 +120,7 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAL DE CHECKOUT (PAYWALL)                -->
+    <!-- MODAL DE CHECKOUT E PIX                    -->
     <!-- ========================================== -->
     <div id="checkout-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 hidden fade-in">
         <div class="bg-neutral-900 border border-white/10 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col slide-up relative">
@@ -127,7 +128,7 @@
                 <button onclick="fecharModais()" class="text-neutral-400 hover:text-white bg-white/5 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 z-50 cursor-pointer transition-colors">
                     <i data-lucide="x" class="w-4 h-4"></i> Fechar
                 </button>
-                <h3 id="modal-titulo" class="font-bold text-white text-sm">Gerar Acesso VIP</h3>
+                <h3 id="modal-titulo" class="font-bold text-white text-sm">Novo Ingresso VIP</h3>
             </div>
             
             <div class="p-6 sm:p-8">
@@ -259,8 +260,12 @@
         // === CARREGA DADOS DO EVENTO ===
         async function fetchEventDetails() {
             try {
-                // Adicionamos 'mode: cors' para garantir a autorização absoluta
-                const res = await fetch(`${dominioCloudflare}/api/evento?t=${new Date().getTime()}`, { mode: 'cors' });
+                // Adicionamos os cabeçalhos corretos para evitar falhas de CORS
+                const res = await fetch(`${dominioCloudflare}/api/evento?t=${new Date().getTime()}`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
                 if (res.ok) {
                     const data = await res.json();
                     document.getElementById('event-title-display').innerText = data.titulo_evento;
@@ -358,7 +363,11 @@
                 
                 try {
                     const res = await fetch(`${dominioCloudflare}/api/recuperar`, {
-                        method: 'POST', mode: 'cors', headers: {'Content-Type': 'application/json'},
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
                         body: JSON.stringify({ chave: codigoAtual })
                     });
                     const data = await res.json();
@@ -383,7 +392,7 @@
 
         function fecharModais() { document.getElementById('checkout-modal').classList.add('hidden'); }
 
-        // === COMPRAR NOVO INGRESSO ===
+        // === COMPRAR NOVO INGRESSO (AQUI ESTAVA O BLOQUEIO) ===
         async function gerarPix() {
             const nome = document.getElementById('nome-input').value.trim();
             const cpf = document.getElementById('cpf-input').value.trim();
@@ -399,29 +408,27 @@
             try {
                 const cpfLimpo = cpf.replace(/\D/g, '');
                 
-                // Pedido blindado com CORS explícito
+                // Pedido super-blindado com headers explícitos para o Nginx/Cloudflare
                 const res = await fetch(`${dominioCloudflare}/api/gerar_ingresso`, {
-                    method: 'POST', mode: 'cors', headers: {'Content-Type': 'application/json'},
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ nome: nome, cpf: cpfLimpo })
                 });
                 
-                // Se o servidor Python devolver Erro 500 ou 400 (ex: CPF já existe)
+                // Extrai a resposta JSON de forma segura
+                let data = {};
+                try { data = await res.json(); } catch(err) {}
+
                 if (!res.ok) {
-                    let errorMessage = "Ocorreu um erro no Servidor Python. Verifique o seu painel.";
-                    try {
-                        const errorData = await res.json();
-                        if (errorData.message) errorMessage = errorData.message;
-                    } catch(e) {}
-                    
-                    alert("Aviso: " + errorMessage);
-                    fecharModais();
+                    alert("Aviso do Servidor: " + (data.message || "Erro desconhecido ao comunicar com a Base de Dados."));
                     btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
                     btn.disabled = false;
                     lucide.createIcons();
                     return;
                 }
-                
-                const data = await res.json();
                 
                 if(data.status === 'success') {
                     codigoAtual = data.codigo; nomeAtual = nome;
@@ -431,13 +438,14 @@
                     setUIPendente();
                     mostrarPixModal(data.chave_pix, data.codigo, data.valor);
                 } else {
-                    alert(data.message);
+                    alert(data.message || "Erro ao gerar PIX. Tente novamente.");
                     btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
                     btn.disabled = false;
                     lucide.createIcons();
                 }
             } catch(e) { 
-                alert("Falha de Comunicação com a Nuvem. Tente novamente mais tarde."); 
+                console.error("Detalhes do Erro Fetch:", e);
+                alert("Bloqueio de Navegador! Detalhes: " + e.message + "\nCertifique-se de que a janela do servidor Python está rodando e que você instalou a biblioteca 'flask-cors'."); 
                 btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
                 btn.disabled = false;
                 lucide.createIcons();
@@ -465,9 +473,12 @@
             try {
                 const chaveLimpa = chave.toUpperCase().includes('VIP') ? chave : chave.replace(/\D/g, '');
                 
-                // Pedido blindado com CORS explícito
                 const res = await fetch(`${dominioCloudflare}/api/recuperar`, {
-                    method: 'POST', mode: 'cors', headers: {'Content-Type': 'application/json'},
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ chave: chaveLimpa })
                 });
                 const data = await res.json();
@@ -487,7 +498,10 @@
                 } else {
                     alert(data.message || "Não encontrámos nenhum ingresso para este CPF ou Código.");
                 }
-            } catch(e) { alert("Servidor offline. Tente novamente."); }
+            } catch(e) { 
+                console.error("Erro ao recuperar:", e);
+                alert("Servidor offline ou bloqueio de CORS. Tente novamente."); 
+            }
             
             btn.innerHTML = 'BUSCAR MEU ACESSO <i data-lucide="search" class="w-4 h-4"></i>';
             btn.disabled = false;
@@ -521,7 +535,11 @@
         async function verificarStatusAPI(abrirVideoAuto = false) {
             if(!codigoAtual) return;
             try {
-                const res = await fetch(`${dominioCloudflare}/api/ingresso/${codigoAtual}?t=${new Date().getTime()}`, { mode: 'cors' });
+                const res = await fetch(`${dominioCloudflare}/api/ingresso/${codigoAtual}?t=${new Date().getTime()}`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
                 if(res.ok) {
                     const data = await res.json();
                     
@@ -594,7 +612,10 @@
             if(socket) return;
             socket = io(dominioCloudflare);
             
-            fetch(`${dominioCloudflare}/api/chat/history`, { mode: 'cors' }).then(r=>r.json()).then(msgs => {
+            fetch(`${dominioCloudflare}/api/chat/history`, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            }).then(r=>r.json()).then(msgs => {
                 const box = document.getElementById('chat-messages');
                 box.innerHTML = '<p class="text-center text-xs text-neutral-500">Bem-vindo ao chat da partida!</p>';
                 msgs.forEach(m => renderizarMensagem(m.autor, m.mensagem, m.hora));
