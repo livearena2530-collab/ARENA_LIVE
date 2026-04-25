@@ -2,7 +2,8 @@
 <html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- NOVO VIEWPORT: interative-widget=resizes-content força o teclado a encolher o chat e não empurrar a tela -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, interactive-widget=resizes-content">
     <title>ArenaLive - Transmissão Premium</title>
     
     <!-- Bibliotecas Necessárias -->
@@ -30,16 +31,17 @@
         #chat-messages::-webkit-scrollbar-track { background: transparent; }
     </style>
 </head>
-<!-- h-[100dvh] garante que o layout se adapta perfeitamente ao teclado do mobile sem bugar -->
-<body class="h-[100dvh] w-full flex flex-col overflow-hidden bg-[#050505] text-[#f5f5f5]">
+<!-- ESTRUTURA BLINDADA: fixed inset-0 impede que a página pule quando o teclado abre -->
+<body class="fixed inset-0 w-full h-full overflow-hidden bg-[#050505] text-[#f5f5f5]">
 
     <!-- ========================================== -->
     <!-- ECRÃ INICIAL -->
     <!-- ========================================== -->
-    <div id="view-home" class="relative w-full h-full flex flex-col items-center fade-in overflow-x-hidden overflow-y-auto">
+    <!-- overflow-y-auto aqui garante que se pode fazer scroll no telemóvel -->
+    <div id="view-home" class="absolute inset-0 w-full h-full flex flex-col items-center fade-in overflow-x-hidden overflow-y-auto">
         
         <!-- Fundo do Estádio -->
-        <div class="fixed inset-0 z-0">
+        <div class="fixed inset-0 z-0 pointer-events-none">
             <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover opacity-20 scale-105" alt="Estádio">
             <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]"></div>
         </div>
@@ -51,12 +53,11 @@
                 </div>
                 <span class="text-xl font-black tracking-tighter text-white uppercase">ARENA<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">LIVE</span></span>
             </div>
-            <!-- O botão sair só aparece se o utilizador estiver logado -->
             <button id="btn-logout" onclick="logout()" class="hidden text-xs font-bold text-neutral-400 hover:text-white bg-white/10 px-3 py-1.5 rounded-lg z-50 transition-colors cursor-pointer">Sair da Conta</button>
         </header>
 
-        <!-- my-auto e shrink-0 garantem que se a tela for pequena, permite rolar para baixo até ao fim -->
-        <div class="relative z-10 w-full max-w-5xl px-4 flex flex-col items-center my-auto py-24 shrink-0">
+        <!-- min-h-full em vez de my-auto permite scroll até ao fim sem cortar nada -->
+        <div class="relative z-10 w-full max-w-5xl px-4 flex flex-col items-center justify-center min-h-full py-24 pb-32">
             <div class="mb-4 px-4 py-1.5 rounded-full border border-red-500/40 bg-gradient-to-r from-red-600/20 to-red-500/10 text-red-400 text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
                 <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)]"></span> TRANSMISSÃO EXCLUSIVA
             </div>
@@ -159,7 +160,6 @@
                     <h4 id="valor-ingresso" class="text-3xl font-black mb-1 text-white">R$ --,--</h4>
                     <p class="text-xs text-neutral-400 mb-4">Pague via PIX para libertar o vídeo. A liberação é automática após o pagamento.</p>
                     
-                    <!-- Container do QR Code Visual -->
                     <div class="flex justify-center mb-4">
                         <div id="qr-container" class="p-2 bg-white rounded-xl hidden">
                             <img id="pix-qrcode-img" src="" alt="QR Code PIX" class="w-40 h-40 object-contain">
@@ -185,15 +185,13 @@
     <!-- ========================================== -->
     <!-- ECRÃ DO PLAYER (DESIGN YOUTUBE MOBILE)     -->
     <!-- ========================================== -->
-    <!-- absolute inset-0 e w-full h-full prendem a tela ao viewport exato -->
-    <div id="view-player" class="hidden absolute inset-0 z-50 bg-black flex-col md:flex-row fade-in w-full h-full">
+    <!-- absolute inset-0 força a tela a respeitar os limites, mesmo quando o teclado sobe -->
+    <div id="view-player" class="hidden absolute inset-0 z-50 bg-black flex-col md:flex-row fade-in w-full h-full overflow-hidden">
         
         <!-- SEÇÃO SUPERIOR: VÍDEO / SALA DE ESPERA -->
-        <!-- O container assume proporção 16:9 (aspect-video) no mobile, e preenche a altura no desktop -->
-        <!-- shrink-0 garante que o vídeo NÃO é esmagado quando o teclado abre -->
+        <!-- shrink-0 GARANTE QUE ESTA CAIXA NUNCA ENCOLHE E NUNCA SOME QUANDO O TECLADO ABRE -->
         <div class="relative w-full aspect-video md:h-full md:flex-1 bg-black flex items-center justify-center shrink-0 overflow-hidden shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20">
             
-            <!-- Botão Superior Flutuante (Sair) - Discreto igual YT -->
             <div class="absolute top-0 w-full p-2 md:p-3 flex justify-between items-center z-40 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
                 <button onclick="voltarHome()" class="text-white flex items-center gap-1 hover:text-gray-300 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md text-xs font-medium cursor-pointer transition-colors pointer-events-auto">
                     <i data-lucide="chevron-down" class="w-4 h-4"></i> Voltar
@@ -203,11 +201,8 @@
                 </div>
             </div>
             
-            <!-- VÍDEO DO JOGO -->
             <video id="video-player" class="w-full h-full object-contain relative z-10 hidden" controls autoplay playsinline></video>
             
-            <!-- ⏳ SALA DE ESPERA E CONTAGEM REGRESSIVA ⏳ -->
-            <!-- Textos ajustados para não sobrepor em ecrãs pequenos -->
             <div id="waiting-room" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#050505] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop');">
                 <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
                 <div class="relative z-30 flex flex-col items-center p-2 sm:p-6 w-full mt-4">
@@ -241,7 +236,6 @@
                 </div>
             </div>
 
-            <!-- OVERLAY DE CARREGAMENTO -->
             <div id="loading-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm z-50">
                 <div class="relative w-10 h-10 mb-4">
                     <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
@@ -252,11 +246,10 @@
         </div>
 
         <!-- SEÇÃO INFERIOR: CHAT TIPO YOUTUBE -->
-        <!-- Ocupa todo o resto da tela em baixo -->
+        <!-- flex-1 min-h-0 significa que APENAS o chat vai encolher quando o teclado abrir, o vídeo fica igual! -->
         <div id="chat-sidebar" class="flex flex-col flex-1 w-full md:w-[360px] md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 transition-transform">
             
-            <!-- HEADER DO CHAT (YouTube Style) -->
-            <div class="px-4 py-3 flex justify-between items-start border-b border-white/10 shadow-sm z-20">
+            <div class="px-4 py-3 flex justify-between items-start border-b border-white/10 shadow-sm z-20 shrink-0">
                 <div class="flex flex-col">
                     <h3 class="text-white font-medium text-[15px] leading-tight">Chat ao vivo</h3>
                     <div class="flex items-center gap-1.5 mt-0.5">
@@ -272,27 +265,24 @@
                 </div>
             </div>
 
-            <!-- ÁREA DE MENSAGENS -->
+            <!-- Área das mensagens que rola (scroll) -->
             <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4 relative min-h-0">
-                <!-- Fundo/Loading Mensagem Inicial -->
                 <div class="flex items-center justify-center h-full opacity-50 absolute inset-0 pointer-events-none">
                     <img src="https://arena.live/logo" onerror="this.style.display='none'" class="w-24 grayscale opacity-20" alt="">
                 </div>
             </div>
 
-            <!-- INPUT DO CHAT (YouTube Style) -->
-            <!-- shrink-0 garante que a caixa de input nunca será esmagada -->
-            <div class="p-3 bg-[#0f0f0f] border-t border-white/10 z-20 shrink-0">
-                <div class="flex items-center gap-3">
-                    <!-- Avatar Automático do User -->
-                    <img id="user-avatar-input" src="https://ui-avatars.com/api/?name=V&background=random" class="w-8 h-8 rounded-full object-cover shadow-sm shrink-0" alt="O seu Avatar">
+            <!-- Caixa de Texto / Input -->
+            <!-- shrink-0 garante que o teclado não engole a barra de escrever -->
+            <div class="p-2 sm:p-3 bg-[#0f0f0f] border-t border-white/10 z-20 shrink-0">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <img id="user-avatar-input" src="https://ui-avatars.com/api/?name=V&background=random" class="w-8 h-8 rounded-full object-cover shadow-sm shrink-0" alt="Avatar">
                     
                     <div class="flex-1 bg-[#272727] rounded-full px-4 py-2 flex items-center group focus-within:bg-[#333333] transition-colors border border-transparent focus-within:border-[#3ea6ff]">
                         <input type="text" id="chat-input" placeholder="Conversar como inscrito..." class="bg-transparent text-white text-[14px] w-full outline-none placeholder-[#aaaaaa]" autocomplete="off" onkeypress="if(event.key === 'Enter') enviarChat()">
                         <i data-lucide="smile" class="w-5 h-5 text-[#aaaaaa] ml-2 cursor-pointer hover:text-white transition-colors shrink-0"></i>
                     </div>
                     
-                    <!-- SVG do ícone limpo para não esticar (Bug Corrigido) -->
                     <button onclick="enviarChat()" class="w-10 h-10 rounded-full hover:bg-white/10 text-[#3ea6ff] cursor-pointer transition-colors flex items-center justify-center shrink-0">
                         <svg viewBox="0 0 24 24" class="w-6 h-6 fill-current shrink-0" focusable="false"><path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"></path></svg>
                     </button>
@@ -314,10 +304,9 @@
         let checkInterval = null;
         let timerInterval = null;
         let targetEventDate = null;
-        let statusTransmissao = "Em Espera"; // Guarda se o jogo começou ou não
+        let statusTransmissao = "Em Espera"; 
         let socket = null;
 
-        // Atualiza o Avatar pequeno do Input com a inicial
         document.addEventListener('DOMContentLoaded', () => {
             if (nomeAtual && nomeAtual !== "Anónimo") {
                 const avatarInput = document.getElementById('user-avatar-input');
@@ -359,7 +348,6 @@
                 const areaRecuperacao = document.getElementById('area-recuperacao');
                 if (areaRecuperacao) areaRecuperacao.classList.add('hidden');
                 
-                // Verifica o LocalStorage (MEMÓRIA DE PÁGINA)
                 const autoAbrirPlayer = (localStorage.getItem('view_state') === 'player');
                 verificarStatusAPI(autoAbrirPlayer); 
             }
@@ -378,7 +366,7 @@
 
                 if (diff <= 0) {
                     clearInterval(timerInterval);
-                    verificarEstadoTransmissao(); // Se o relógio acabar, tenta abrir o vídeo
+                    verificarEstadoTransmissao(); 
                     return;
                 }
 
@@ -399,10 +387,8 @@
             }, 1000);
         }
 
-        // MUDANÇA AUTOMÁTICA ENTRE "EM ESPERA" E "AO VIVO"
         function verificarEstadoTransmissao() {
             const viewPlayer = document.getElementById('view-player');
-            // Só executa a troca se a pessoa já estiver dentro da "Live"
             if (!viewPlayer || viewPlayer.classList.contains('hidden')) return;
 
             const waitingRoom = document.getElementById('waiting-room');
@@ -414,12 +400,10 @@
                 if (targetEventDate - now <= 0) tempoEsgotado = true;
             }
 
-            // Se o Painel Python está "Ao Vivo" ou se o Relógio zerou
             if (statusTransmissao === "Ao Vivo" || tempoEsgotado) {
-                if (waitingRoom) waitingRoom.classList.add('hidden'); // Esconde Sala de Espera
+                if (waitingRoom) waitingRoom.classList.add('hidden'); 
                 if (videoPlayer) {
-                    videoPlayer.classList.remove('hidden'); // Mostra Vídeo
-                    // Inicia o vídeo se ainda não estiver ligado
+                    videoPlayer.classList.remove('hidden'); 
                     if (!window.hlsPlayer && !videoPlayer.src) {
                         iniciarPlayerDoVideo();
                     } else if (videoPlayer.paused) {
@@ -427,10 +411,9 @@
                     }
                 }
             } else {
-                // Modo Em Espera
-                if (waitingRoom) waitingRoom.classList.remove('hidden'); // Mostra Sala de Espera
+                if (waitingRoom) waitingRoom.classList.remove('hidden'); 
                 if (videoPlayer) {
-                    videoPlayer.classList.add('hidden'); // Oculta Vídeo
+                    videoPlayer.classList.add('hidden'); 
                     videoPlayer.pause();
                 }
             }
@@ -447,7 +430,6 @@
                 if (res.ok) {
                     const data = await res.json();
                     
-                    // Guarda o status recebido do Python
                     statusTransmissao = data.status_transmissao || "Em Espera";
 
                     const titleDisplay = document.getElementById('event-title-display');
@@ -471,7 +453,6 @@
                     const ticketsRemaining = document.getElementById('tickets-remaining-text');
                     if (ticketsRemaining) ticketsRemaining.innerText = data.ingressos_restantes;
 
-                    // PROCESSA A DATA DO JOGO
                     if(data.data_hora && data.data_hora.trim() !== "") {
                         let p = data.data_hora.split(/[- :]/);
                         if(p.length >= 5) {
@@ -484,7 +465,6 @@
                         if(tc) { tc.classList.add('hidden'); tc.classList.remove('flex'); }
                     }
 
-                    // Força a tela a decidir se mostra Vídeo ou Sala de Espera
                     verificarEstadoTransmissao();
 
                     const btnPrincipal = document.getElementById('btn-principal');
@@ -692,7 +672,6 @@
                     localStorage.setItem('ingresso_vip', codigoAtual);
                     localStorage.setItem('nome_vip', nome);
                     
-                    // Atualiza logo o avatar
                     const avatarInput = document.getElementById('user-avatar-input');
                     if (avatarInput) avatarInput.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nomeAtual)}&background=3ea6ff&color=fff&rounded=true&size=64`;
                     
@@ -866,7 +845,6 @@
 
         // === PLAYER DE VÍDEO (COM MEMÓRIA E LAYOUT YT) ===
         function abrirVideo() {
-            // GUARDA A MEMÓRIA: Mesmo dando F5 na página, ele volta sempre direto para cá!
             localStorage.setItem('view_state', 'player');
 
             const viewHome = document.getElementById('view-home');
@@ -875,7 +853,6 @@
             const viewPlayer = document.getElementById('view-player');
             if (viewPlayer) {
                 viewPlayer.classList.remove('hidden');
-                // No mobile vira coluna, no PC fica lado-a-lado
                 viewPlayer.classList.add('flex');
             }
 
@@ -884,7 +861,6 @@
         }
 
         function voltarHome() {
-            // APAGA A MEMÓRIA
             localStorage.removeItem('view_state');
 
             const viewPlayer = document.getElementById('view-player');
@@ -1022,7 +998,6 @@
             let color = '#';
             for (let i = 0; i < 3; i++) {
                 let value = (hash >> (i * 8)) & 0xFF;
-                // Mantém cores um pouco mais suaves para o dark mode
                 color += ('00' + Math.max(80, value).toString(16)).substr(-2);
             }
             return color;
@@ -1032,11 +1007,9 @@
             const div = document.createElement('div');
             div.className = "flex items-start gap-3 w-full fade-in";
             
-            // Avatar gerado a partir do nome
             const bgCor = stringToColor(autor).substring(1); 
             const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(autor)}&background=${bgCor}&color=fff&rounded=true&size=64&bold=true`;
             
-            // Design clone exato das mensagens do YouTube Mobile (Foto + Nome/Hora + Mensagem limpa)
             div.innerHTML = `
                 <img src="${avatarUrl}" class="w-6 h-6 sm:w-7 sm:h-7 rounded-full mt-0.5 object-cover shadow-sm shrink-0" alt="Avatar">
                 <div class="flex-1 flex flex-col leading-[1.3]">
