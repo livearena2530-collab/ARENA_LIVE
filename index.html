@@ -12,17 +12,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Inter:wght@300;400;600;700;800;900&display=swap');
+        
+        /* Fontes: Inter para Home, Roboto para Chat (Igual ao YT) */
         body { font-family: 'Inter', sans-serif; background-color: #050505; color: #f5f5f5; }
+        .yt-font { font-family: 'Roboto', sans-serif; }
+        
         .glass { background: rgba(15, 15, 15, 0.6); backdrop-filter: blur(20px); border-top: 1px solid rgba(255, 255, 255, 0.1); border-left: 1px solid rgba(255, 255, 255, 0.05); }
         .fade-in { animation: fadeIn 0.5s ease forwards; }
         .slide-up { animation: slideUp 0.4s ease forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        video { background-color: #000; outline: none; }
-        /* Scrollbar do Chat */
-        #chat-messages::-webkit-scrollbar { width: 4px; }
-        #chat-messages::-webkit-scrollbar-thumb { background-color: #333; border-radius: 9999px; }
+        
+        /* Scrollbar estilo YouTube */
+        #chat-messages::-webkit-scrollbar { width: 6px; }
+        #chat-messages::-webkit-scrollbar-thumb { background-color: #717171; border-radius: 10px; }
+        #chat-messages::-webkit-scrollbar-track { background: transparent; }
+        
+        /* Impede que a tela do player "pule" no mobile */
+        #view-player { height: 100dvh; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col overflow-hidden">
@@ -176,18 +184,23 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- ECRÃ DO PLAYER (C/ CHAT LATERAL E TELA DE ESPERA) -->
+    <!-- ECRÃ DO PLAYER (DESIGN YOUTUBE MOBILE)     -->
     <!-- ========================================== -->
-    <div id="view-player" class="hidden fixed inset-0 z-50 bg-black flex-row fade-in">
-        <div class="flex-1 relative h-full bg-black flex items-center justify-center overflow-hidden">
+    <!-- No mobile: Flex Column (Video no topo 16:9, Chat em baixo) -->
+    <!-- No desktop: Flex Row (Video à esquerda, Chat à direita) -->
+    <div id="view-player" class="hidden fixed inset-0 z-50 bg-black flex-col md:flex-row fade-in w-full">
+        
+        <!-- SEÇÃO SUPERIOR: VÍDEO / SALA DE ESPERA -->
+        <!-- O container assume proporção 16:9 (aspect-video) no mobile, e preenche a altura no desktop -->
+        <div class="relative w-full aspect-video md:h-full md:flex-1 bg-black flex items-center justify-center shrink-0 overflow-hidden shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20">
             
-            <!-- Barra Superior com Botão de Sair -->
-            <div class="absolute top-0 w-full p-4 flex justify-between items-center z-40 bg-gradient-to-b from-black/80 to-transparent">
-                <button onclick="voltarHome()" class="text-white flex items-center gap-2 hover:text-indigo-400 bg-white/10 px-4 py-2 rounded-xl backdrop-blur font-bold text-sm cursor-pointer transition-colors shadow-lg">
-                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Sair da Transmissão
+            <!-- Botão Superior Flutuante (Sair) - Discreto igual YT -->
+            <div class="absolute top-0 w-full p-3 flex justify-between items-center z-40 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+                <button onclick="voltarHome()" class="text-white flex items-center gap-1 hover:text-gray-300 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md text-xs font-medium cursor-pointer transition-colors pointer-events-auto">
+                    <i data-lucide="chevron-down" class="w-4 h-4"></i> Voltar
                 </button>
-                <div class="flex gap-2">
-                    <button onclick="toggleChat()" class="md:hidden text-white bg-white/10 px-3 py-2 rounded-xl cursor-pointer transition-colors shadow-lg"><i data-lucide="message-square" class="w-4 h-4"></i></button>
+                <div class="flex gap-2 pointer-events-auto">
+                    <button onclick="toggleChat()" class="md:hidden text-white bg-black/40 px-2 py-1.5 rounded-full cursor-pointer transition-colors"><i data-lucide="message-square" class="w-4 h-4"></i></button>
                 </div>
             </div>
             
@@ -195,33 +208,34 @@
             <video id="video-player" class="w-full h-full object-contain relative z-10 hidden" controls autoplay playsinline></video>
             
             <!-- ⏳ SALA DE ESPERA E CONTAGEM REGRESSIVA ⏳ -->
+            <!-- Agora adaptado perfeitamente para o rectângulo de vídeo -->
             <div id="waiting-room" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#050505] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop');">
                 <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
-                <div class="relative z-30 flex flex-col items-center p-6 w-full">
+                <div class="relative z-30 flex flex-col items-center p-2 sm:p-6 w-full">
                     
-                    <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-indigo-500/50 mb-6 overflow-hidden flex items-center justify-center bg-black animate-pulse shadow-[0_0_30px_rgba(99,102,241,0.5)]">
-                        <i data-lucide="radio" class="w-10 h-10 sm:w-12 sm:h-12 text-indigo-400"></i>
+                    <div class="w-12 h-12 md:w-20 md:h-20 rounded-full border-2 md:border-4 border-indigo-500/50 mb-2 md:mb-6 overflow-hidden flex items-center justify-center bg-black animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.5)]">
+                        <i data-lucide="radio" class="w-6 h-6 md:w-10 md:h-10 text-indigo-400"></i>
                     </div>
                     
-                    <h2 class="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-8 tracking-widest text-center px-4 drop-shadow-xl uppercase">A TRANSMISSÃO <br class="sm:hidden"/>COMEÇARÁ EM BREVE</h2>
+                    <h2 class="text-sm sm:text-xl md:text-3xl font-black text-white mb-4 tracking-widest text-center px-4 drop-shadow-xl uppercase">A TRANSMISSÃO <br class="hidden sm:block"/>COMEÇARÁ EM BREVE</h2>
                     
-                    <div id="timer-container" class="hidden flex-col items-center justify-center fade-in">
-                        <div class="flex gap-3 sm:gap-6 text-center">
-                            <div class="bg-black/60 backdrop-blur-md rounded-2xl p-4 sm:p-5 min-w-[80px] sm:min-w-[110px] border border-white/10 shadow-2xl">
-                                <span id="timer-d" class="text-4xl sm:text-6xl font-black text-white drop-shadow-md">00</span>
-                                <p class="text-[10px] sm:text-sm text-indigo-400 font-bold uppercase tracking-widest mt-2">Dias</p>
+                    <div id="timer-container" class="hidden flex-col items-center justify-center fade-in scale-90 md:scale-100">
+                        <div class="flex gap-2 md:gap-4 text-center">
+                            <div class="bg-black/60 backdrop-blur-md rounded-lg md:rounded-2xl p-2 md:p-4 min-w-[50px] md:min-w-[90px] border border-white/10 shadow-lg">
+                                <span id="timer-d" class="text-xl md:text-4xl font-black text-white drop-shadow-md">00</span>
+                                <p class="text-[8px] md:text-[10px] text-indigo-400 font-bold uppercase tracking-widest md:mt-1">Dias</p>
                             </div>
-                            <div class="bg-black/60 backdrop-blur-md rounded-2xl p-4 sm:p-5 min-w-[80px] sm:min-w-[110px] border border-white/10 shadow-2xl">
-                                <span id="timer-h" class="text-4xl sm:text-6xl font-black text-white drop-shadow-md">00</span>
-                                <p class="text-[10px] sm:text-sm text-indigo-400 font-bold uppercase tracking-widest mt-2">Horas</p>
+                            <div class="bg-black/60 backdrop-blur-md rounded-lg md:rounded-2xl p-2 md:p-4 min-w-[50px] md:min-w-[90px] border border-white/10 shadow-lg">
+                                <span id="timer-h" class="text-xl md:text-4xl font-black text-white drop-shadow-md">00</span>
+                                <p class="text-[8px] md:text-[10px] text-indigo-400 font-bold uppercase tracking-widest md:mt-1">Horas</p>
                             </div>
-                            <div class="bg-black/60 backdrop-blur-md rounded-2xl p-4 sm:p-5 min-w-[80px] sm:min-w-[110px] border border-white/10 shadow-2xl">
-                                <span id="timer-m" class="text-4xl sm:text-6xl font-black text-white drop-shadow-md">00</span>
-                                <p class="text-[10px] sm:text-sm text-indigo-400 font-bold uppercase tracking-widest mt-2">Minutos</p>
+                            <div class="bg-black/60 backdrop-blur-md rounded-lg md:rounded-2xl p-2 md:p-4 min-w-[50px] md:min-w-[90px] border border-white/10 shadow-lg">
+                                <span id="timer-m" class="text-xl md:text-4xl font-black text-white drop-shadow-md">00</span>
+                                <p class="text-[8px] md:text-[10px] text-indigo-400 font-bold uppercase tracking-widest md:mt-1">Min</p>
                             </div>
-                            <div class="bg-black/60 backdrop-blur-md rounded-2xl p-4 sm:p-5 min-w-[80px] sm:min-w-[110px] border border-white/10 shadow-2xl">
-                                <span id="timer-s" class="text-4xl sm:text-6xl font-black text-white drop-shadow-md">00</span>
-                                <p class="text-[10px] sm:text-sm text-indigo-400 font-bold uppercase tracking-widest mt-2">Segundos</p>
+                            <div class="bg-black/60 backdrop-blur-md rounded-lg md:rounded-2xl p-2 md:p-4 min-w-[50px] md:min-w-[90px] border border-white/10 shadow-lg">
+                                <span id="timer-s" class="text-xl md:text-4xl font-black text-white drop-shadow-md">00</span>
+                                <p class="text-[8px] md:text-[10px] text-indigo-400 font-bold uppercase tracking-widest md:mt-1">Seg</p>
                             </div>
                         </div>
                     </div>
@@ -230,25 +244,58 @@
 
             <!-- OVERLAY DE CARREGAMENTO -->
             <div id="loading-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm z-50">
-                <div class="relative w-16 h-16 mb-6">
+                <div class="relative w-10 h-10 mb-4">
                     <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
                     <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
-                <p class="text-white font-bold tracking-wide animate-pulse">A Desbloquear Transmissão...</p>
+                <p class="text-white font-medium text-xs tracking-wide animate-pulse">A carregar...</p>
             </div>
         </div>
 
-        <div id="chat-sidebar" class="hidden md:flex w-full md:w-80 h-full bg-neutral-900 border-l border-white/10 flex-col absolute md:relative right-0 z-[60] transition-transform">
-            <div class="p-4 border-b border-white/5 bg-neutral-950 flex justify-between items-center">
-                <h3 class="font-bold text-white text-sm flex items-center gap-2"><i data-lucide="message-square" class="w-4 h-4 text-indigo-400"></i> Chat VIP Ao Vivo</h3>
-                <button onclick="toggleChat()" class="md:hidden text-neutral-400 hover:text-white cursor-pointer transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <!-- SEÇÃO INFERIOR: CHAT TIPO YOUTUBE -->
+        <!-- Ocupa todo o resto da tela em baixo -->
+        <div id="chat-sidebar" class="flex flex-col flex-1 w-full md:w-[360px] md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 transition-transform">
+            
+            <!-- HEADER DO CHAT (YouTube Style) -->
+            <div class="px-4 py-3 flex justify-between items-start border-b border-white/10 shadow-sm z-20">
+                <div class="flex flex-col">
+                    <h3 class="text-white font-medium text-[15px] leading-tight">Chat ao vivo</h3>
+                    <div class="flex items-center gap-1.5 mt-0.5">
+                        <span class="text-[12px] text-[#aaaaaa]">Mensagens principais</span>
+                        <span class="w-1 h-1 rounded-full bg-[#aaaaaa]"></span>
+                        <i data-lucide="users" class="w-3 h-3 text-[#aaaaaa]"></i>
+                        <span class="text-[12px] text-[#aaaaaa]">VIP</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 text-white mt-1">
+                    <button class="hover:bg-white/10 p-1.5 rounded-full transition-colors cursor-pointer"><i data-lucide="sliders-horizontal" class="w-[18px] h-[18px]"></i></button>
+                    <button onclick="toggleChat()" class="hover:bg-white/10 p-1.5 rounded-full transition-colors cursor-pointer"><i data-lucide="x" class="w-[20px] h-[20px]"></i></button>
+                </div>
             </div>
-            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-                <p class="text-center text-xs text-neutral-500">Bem-vindo ao chat da partida!</p>
+
+            <!-- ÁREA DE MENSAGENS -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4 relative">
+                <!-- Fundo/Loading Mensagem Inicial -->
+                <div class="flex items-center justify-center h-full opacity-50 absolute inset-0 pointer-events-none">
+                    <img src="https://arena.live/logo" onerror="this.style.display='none'" class="w-24 grayscale opacity-20" alt="">
+                </div>
             </div>
-            <div class="p-3 bg-neutral-950 border-t border-white/5 flex gap-2">
-                <input type="text" id="chat-input" placeholder="Sua mensagem..." class="flex-1 bg-black border border-white/10 rounded-lg px-3 text-sm text-white outline-none focus:border-indigo-500" onkeypress="if(event.key === 'Enter') enviarChat()">
-                <button onclick="enviarChat()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-lg text-white cursor-pointer transition-colors"><i data-lucide="send" class="w-4 h-4"></i></button>
+
+            <!-- INPUT DO CHAT (YouTube Style) -->
+            <div class="p-3 bg-[#0f0f0f] border-t border-white/10 z-20">
+                <div class="flex items-center gap-3">
+                    <!-- Avatar Automático do User -->
+                    <img id="user-avatar-input" src="https://ui-avatars.com/api/?name=V&background=random" class="w-8 h-8 rounded-full object-cover shadow-sm" alt="O seu Avatar">
+                    
+                    <div class="flex-1 bg-[#272727] rounded-full px-4 py-2 flex items-center group focus-within:bg-[#333333] transition-colors border border-transparent focus-within:border-[#3ea6ff]">
+                        <input type="text" id="chat-input" placeholder="Conversar como inscrito..." class="bg-transparent text-white text-[14px] w-full outline-none placeholder-[#aaaaaa]" autocomplete="off" onkeypress="if(event.key === 'Enter') enviarChat()">
+                        <i data-lucide="smile" class="w-5 h-5 text-[#aaaaaa] ml-2 cursor-pointer hover:text-white transition-colors"></i>
+                    </div>
+                    
+                    <button onclick="enviarChat()" class="p-2 rounded-full hover:bg-white/10 text-[#3ea6ff] cursor-pointer transition-colors flex shrink-0">
+                        <svg viewBox="0 0 24 24" class="w-6 h-6 fill-current" focusable="false" style="pointer-events: none; display: block; width: 100%; height: 100%;"><path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"></path></svg>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -268,6 +315,14 @@
         let targetEventDate = null;
         let statusTransmissao = "Em Espera"; // Guarda se o jogo começou ou não
         let socket = null;
+
+        // Atualiza o Avatar pequeno do Input com a inicial
+        document.addEventListener('DOMContentLoaded', () => {
+            if (nomeAtual && nomeAtual !== "Anónimo") {
+                const avatarInput = document.getElementById('user-avatar-input');
+                if (avatarInput) avatarInput.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nomeAtual)}&background=3ea6ff&color=fff&rounded=true&size=64`;
+            }
+        });
 
         // === MÁSCARA E VALIDAÇÃO DE CPF ===
         function maskCPF(input) {
@@ -297,13 +352,13 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchEventDetails(); 
-            setInterval(fetchEventDetails, 10000); // Consulta o Python a cada 10s
+            setInterval(fetchEventDetails, 10000); 
             
             if (codigoAtual) {
                 const areaRecuperacao = document.getElementById('area-recuperacao');
                 if (areaRecuperacao) areaRecuperacao.classList.add('hidden');
                 
-                // Verifica o LocalStorage. Se o cliente estava no vídeo e atualizou a página, mantém-no no vídeo!
+                // Verifica o LocalStorage (MEMÓRIA DE PÁGINA)
                 const autoAbrirPlayer = (localStorage.getItem('view_state') === 'player');
                 verificarStatusAPI(autoAbrirPlayer); 
             }
@@ -346,7 +401,7 @@
         // MUDANÇA AUTOMÁTICA ENTRE "EM ESPERA" E "AO VIVO"
         function verificarEstadoTransmissao() {
             const viewPlayer = document.getElementById('view-player');
-            // Só verifica se a pessoa estiver na página do Player
+            // Só executa a troca se a pessoa já estiver dentro da "Live"
             if (!viewPlayer || viewPlayer.classList.contains('hidden')) return;
 
             const waitingRoom = document.getElementById('waiting-room');
@@ -363,7 +418,7 @@
                 if (waitingRoom) waitingRoom.classList.add('hidden'); // Esconde Sala de Espera
                 if (videoPlayer) {
                     videoPlayer.classList.remove('hidden'); // Mostra Vídeo
-                    // Inicia o vídeo de forma segura se ainda não estiver ligado
+                    // Inicia o vídeo se ainda não estiver ligado
                     if (!window.hlsPlayer && !videoPlayer.src) {
                         iniciarPlayerDoVideo();
                     } else if (videoPlayer.paused) {
@@ -636,6 +691,10 @@
                     localStorage.setItem('ingresso_vip', codigoAtual);
                     localStorage.setItem('nome_vip', nome);
                     
+                    // Atualiza logo o avatar
+                    const avatarInput = document.getElementById('user-avatar-input');
+                    if (avatarInput) avatarInput.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nomeAtual)}&background=3ea6ff&color=fff&rounded=true&size=64`;
+                    
                     setUIPendente();
                     mostrarPixModal(data.chave_pix, data.codigo, data.valor, data.pix_base64);
                 } else {
@@ -648,7 +707,7 @@
                 }
             } catch(e) { 
                 console.error("Detalhes do Erro Fetch:", e);
-                alert("Bloqueio de Navegador! Detalhes: " + e.message + "\nCertifique-se de que a janela do servidor Python está rodando e que você instalou a biblioteca 'flask-cors'."); 
+                alert("Bloqueio de Navegador! Detalhes: " + e.message); 
                 if (btn) {
                     btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
                     btn.disabled = false;
@@ -796,16 +855,17 @@
         }
 
         function logout() {
-            localStorage.removeItem('ingresso_vip'); localStorage.removeItem('nome_vip');
+            localStorage.removeItem('ingresso_vip'); 
+            localStorage.removeItem('nome_vip');
             localStorage.removeItem('view_state');
             codigoAtual = null; nomeAtual = "Anónimo";
             if(checkInterval) clearInterval(checkInterval);
             setUIDeslogado();
         }
 
-        // === PLAYER DE VÍDEO (COM MEMÓRIA DE TELA) ===
+        // === PLAYER DE VÍDEO (COM MEMÓRIA E LAYOUT YT) ===
         function abrirVideo() {
-            // Guarda a informação de que a pessoa está na aba da live (Memória)
+            // GUARDA A MEMÓRIA: Mesmo dando F5 na página, ele volta sempre direto para cá!
             localStorage.setItem('view_state', 'player');
 
             const viewHome = document.getElementById('view-home');
@@ -814,16 +874,16 @@
             const viewPlayer = document.getElementById('view-player');
             if (viewPlayer) {
                 viewPlayer.classList.remove('hidden');
+                // No mobile vira coluna, no PC fica lado-a-lado
                 viewPlayer.classList.add('flex');
             }
 
-            // Decide se mostra Vídeo ou Relógio dependendo do que estiver configurado no Python
             verificarEstadoTransmissao();
             conectarChat();
         }
 
         function voltarHome() {
-            // Remove a memória de estar na tela da live
+            // APAGA A MEMÓRIA
             localStorage.removeItem('view_state');
 
             const viewPlayer = document.getElementById('view-player');
@@ -856,10 +916,9 @@
             const video = document.getElementById('video-player');
             const overlay = document.getElementById('loading-overlay');
             
-            // Segurança: Não inicia se já estiver a tocar
             if(window.hlsPlayer || (video && video.src)) return;
 
-            // 🔒 HLS TOKEN DE SEGURANÇA
+            // 🔒 HLS TOKEN
             const paramToken = codigoAtual ? `&token=${codigoAtual}` : '';
             const src = `${dominioCloudflare}/stream/stream.m3u8?t=${new Date().getTime()}${paramToken}`; 
 
@@ -896,7 +955,7 @@
             }
         }
 
-        // === WEB SOCKETS (CHAT E SEGURANÇA DE LOGIN) ===
+        // === WEB SOCKETS (CHAT YT CLONE) ===
         function toggleChat() {
             const sidebar = document.getElementById('chat-sidebar');
             if (!sidebar) return;
@@ -914,12 +973,10 @@
             if(socket) return;
             socket = io(dominioCloudflare);
 
-            // 📱 SISTEMA ANTI-PARTILHA (Comunica o ingresso atual ao servidor)
             socket.on('connect', () => {
                 if(codigoAtual) socket.emit('join_stream', { codigo: codigoAtual });
             });
 
-            // 🚫 RECEBE ORDEM DE EXPULSÃO DO SERVIDOR
             socket.on('force_logout', (data) => {
                 alert(data.msg || "Sessão encerrada por segurança.");
                 voltarHome();
@@ -933,7 +990,7 @@
             }).then(r=>r.json()).then(msgs => {
                 const box = document.getElementById('chat-messages');
                 if (box) {
-                    box.innerHTML = '<p class="text-center text-xs text-neutral-500">Bem-vindo ao chat da partida!</p>';
+                    box.innerHTML = '';
                     msgs.forEach(m => renderizarMensagem(m.autor, m.mensagem, m.hora));
                 }
             }).catch(e => console.log('Sem histórico do chat.'));
@@ -944,9 +1001,7 @@
 
             socket.on('chat_limpo', () => {
                 const box = document.getElementById('chat-messages');
-                if (box) {
-                    box.innerHTML = '<p class="text-center text-xs text-neutral-500">Chat limpo pelo Administrador.</p>';
-                }
+                if (box) box.innerHTML = '';
             });
         }
 
@@ -960,10 +1015,37 @@
             }
         }
 
+        function stringToColor(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            let color = '#';
+            for (let i = 0; i < 3; i++) {
+                let value = (hash >> (i * 8)) & 0xFF;
+                // Mantém cores um pouco mais suaves para o dark mode
+                color += ('00' + Math.max(80, value).toString(16)).substr(-2);
+            }
+            return color;
+        }
+
         function renderizarMensagem(autor, msg, hora) {
             const div = document.createElement('div');
-            div.className = "text-sm text-white fade-in";
-            div.innerHTML = `<span class="text-xs text-neutral-500">[${hora}]</span> <span class="font-bold text-indigo-400">${autor}:</span> ${msg}`;
+            div.className = "flex items-start gap-3 w-full fade-in";
+            
+            // Avatar gerado a partir do nome
+            const bgCor = stringToColor(autor).substring(1); 
+            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(autor)}&background=${bgCor}&color=fff&rounded=true&size=64&bold=true`;
+            
+            // Design clone exato das mensagens do YouTube Mobile (Foto + Nome/Hora + Mensagem limpa)
+            div.innerHTML = `
+                <img src="${avatarUrl}" class="w-6 h-6 sm:w-7 sm:h-7 rounded-full mt-0.5 object-cover shadow-sm shrink-0" alt="Avatar">
+                <div class="flex-1 flex flex-col leading-[1.3]">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="text-[13px] text-[#aaaaaa] font-medium whitespace-nowrap">${autor}</span>
+                        <span class="text-[11px] text-[#717171] whitespace-nowrap">${hora}</span>
+                    </div>
+                    <span class="text-[#f1f1f1] text-[14px] mt-0.5 word-break break-words">${msg}</span>
+                </div>
+            `;
             
             const box = document.getElementById('chat-messages');
             if (box) {
