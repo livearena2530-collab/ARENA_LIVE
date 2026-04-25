@@ -54,30 +54,7 @@
                 <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)]"></span> TRANSMISSÃO EXCLUSIVA
             </div>
 
-            <h1 id="event-title-display" class="text-3xl md:text-5xl font-black mb-4 drop-shadow-xl text-center text-neutral-300 uppercase tracking-wide">A CARREGAR...</h1>
-
-            <!-- ⏳ NOVO: CONTAGEM DECRESCENTE (TIMER) ⏳ -->
-            <div id="timer-container" class="hidden flex-col items-center justify-center mb-8 fade-in">
-                <span id="timer-title" class="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-3 drop-shadow-md">A Transmissão Começa Em:</span>
-                <div class="flex gap-2 sm:gap-4 text-center">
-                    <div class="bg-black/50 backdrop-blur-md rounded-xl p-3 sm:p-4 min-w-[70px] sm:min-w-[90px] border border-white/10 shadow-lg">
-                        <span id="timer-d" class="text-3xl sm:text-4xl font-black text-white drop-shadow-md">00</span>
-                        <p class="text-[10px] sm:text-xs text-neutral-400 uppercase tracking-widest mt-1">Dias</p>
-                    </div>
-                    <div class="bg-black/50 backdrop-blur-md rounded-xl p-3 sm:p-4 min-w-[70px] sm:min-w-[90px] border border-white/10 shadow-lg">
-                        <span id="timer-h" class="text-3xl sm:text-4xl font-black text-white drop-shadow-md">00</span>
-                        <p class="text-[10px] sm:text-xs text-neutral-400 uppercase tracking-widest mt-1">Horas</p>
-                    </div>
-                    <div class="bg-black/50 backdrop-blur-md rounded-xl p-3 sm:p-4 min-w-[70px] sm:min-w-[90px] border border-white/10 shadow-lg">
-                        <span id="timer-m" class="text-3xl sm:text-4xl font-black text-white drop-shadow-md">00</span>
-                        <p class="text-[10px] sm:text-xs text-neutral-400 uppercase tracking-widest mt-1">Min</p>
-                    </div>
-                    <div class="bg-black/50 backdrop-blur-md rounded-xl p-3 sm:p-4 min-w-[70px] sm:min-w-[90px] border border-white/10 shadow-lg">
-                        <span id="timer-s" class="text-3xl sm:text-4xl font-black text-white drop-shadow-md">00</span>
-                        <p class="text-[10px] sm:text-xs text-neutral-400 uppercase tracking-widest mt-1">Seg</p>
-                    </div>
-                </div>
-            </div>
+            <h1 id="event-title-display" class="text-3xl md:text-5xl font-black mb-10 drop-shadow-xl text-center text-neutral-300 uppercase tracking-wide">A CARREGAR...</h1>
 
             <div class="flex items-center justify-center gap-4 md:gap-16 w-full mb-10">
                 <div class="flex flex-col items-center w-1/3">
@@ -199,22 +176,60 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- ECRÃ DO PLAYER (C/ CHAT LATERAL E MARCA DE ÁGUA) -->
+    <!-- ECRÃ DO PLAYER (C/ CHAT LATERAL E TELA DE ESPERA) -->
     <!-- ========================================== -->
     <div id="view-player" class="hidden fixed inset-0 z-50 bg-black flex-row fade-in">
         <div class="flex-1 relative h-full bg-black flex items-center justify-center overflow-hidden">
-            <div class="absolute top-0 w-full p-4 flex justify-between items-center z-20 bg-gradient-to-b from-black/80 to-transparent">
-                <button onclick="voltarHome()" class="text-white flex items-center gap-2 hover:text-indigo-400 bg-white/10 px-4 py-2 rounded-xl backdrop-blur font-bold text-sm cursor-pointer transition-colors">
-                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Sair do Vídeo
+            
+            <!-- Barra Superior com Botão de Sair -->
+            <div class="absolute top-0 w-full p-4 flex justify-between items-center z-40 bg-gradient-to-b from-black/80 to-transparent">
+                <button onclick="voltarHome()" class="text-white flex items-center gap-2 hover:text-indigo-400 bg-white/10 px-4 py-2 rounded-xl backdrop-blur font-bold text-sm cursor-pointer transition-colors shadow-lg">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Sair da Transmissão
                 </button>
                 <div class="flex gap-2">
-                    <button onclick="toggleChat()" class="md:hidden text-white bg-white/10 px-3 py-2 rounded-xl cursor-pointer transition-colors"><i data-lucide="message-square" class="w-4 h-4"></i></button>
+                    <button onclick="toggleChat()" class="md:hidden text-white bg-white/10 px-3 py-2 rounded-xl cursor-pointer transition-colors shadow-lg"><i data-lucide="message-square" class="w-4 h-4"></i></button>
                 </div>
             </div>
             
-            <video id="video-player" class="w-full h-full object-contain relative z-10" controls autoplay playsinline></video>
+            <!-- VÍDEO DO JOGO -->
+            <video id="video-player" class="w-full h-full object-contain relative z-10 hidden" controls autoplay playsinline></video>
             
-            <div id="loading-overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm z-40">
+            <!-- ⏳ SALA DE ESPERA E CONTAGEM REGRESSIVA ⏳ -->
+            <div id="waiting-room" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#050505] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop');">
+                <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+                <div class="relative z-30 flex flex-col items-center p-6 w-full">
+                    
+                    <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-indigo-500/50 mb-6 overflow-hidden flex items-center justify-center bg-black animate-pulse shadow-[0_0_30px_rgba(99,102,241,0.5)]">
+                        <i data-lucide="radio" class="w-10 h-10 sm:w-12 sm:h-12 text-indigo-400"></i>
+                    </div>
+                    
+                    <h2 class="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-8 tracking-widest text-center px-4 drop-shadow-xl uppercase">A TRANSMISSÃO <br class="sm:hidden"/>COMEÇARÁ EM BREVE</h2>
+                    
+                    <div id="timer-container" class="hidden flex-col items-center justify-center fade-in">
+                        <div class="flex gap-3 sm:gap-6 text-center">
+                            <div class="bg-black/60 backdrop-blur-md rounded-2xl p-4 sm:p-5 min-w-[80px] sm:min-w-[110px] border border-white/10 shadow-2xl">
+                                <span id="timer-d" class="text-4xl sm:text-6xl font-black text-white drop-shadow-md">00</span>
+                                <p class="text-[10px] sm:text-sm text-indigo-400 font-bold uppercase tracking-widest mt-2">Dias</p>
+                            </div>
+                            <div class="bg-black/60 backdrop-blur-md rounded-2xl p-4 sm:p-5 min-w-[80px] sm:min-w-[110px] border border-white/10 shadow-2xl">
+                                <span id="timer-h" class="text-4xl sm:text-6xl font-black text-white drop-shadow-md">00</span>
+                                <p class="text-[10px] sm:text-sm text-indigo-400 font-bold uppercase tracking-widest mt-2">Horas</p>
+                            </div>
+                            <div class="bg-black/60 backdrop-blur-md rounded-2xl p-4 sm:p-5 min-w-[80px] sm:min-w-[110px] border border-white/10 shadow-2xl">
+                                <span id="timer-m" class="text-4xl sm:text-6xl font-black text-white drop-shadow-md">00</span>
+                                <p class="text-[10px] sm:text-sm text-indigo-400 font-bold uppercase tracking-widest mt-2">Minutos</p>
+                            </div>
+                            <div class="bg-black/60 backdrop-blur-md rounded-2xl p-4 sm:p-5 min-w-[80px] sm:min-w-[110px] border border-white/10 shadow-2xl">
+                                <span id="timer-s" class="text-4xl sm:text-6xl font-black text-white drop-shadow-md">00</span>
+                                <p class="text-[10px] sm:text-sm text-indigo-400 font-bold uppercase tracking-widest mt-2">Segundos</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OVERLAY DE CARREGAMENTO -->
+            <div id="loading-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm z-50">
                 <div class="relative w-16 h-16 mb-6">
                     <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
                     <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -223,7 +238,7 @@
             </div>
         </div>
 
-        <div id="chat-sidebar" class="hidden md:flex w-full md:w-80 h-full bg-neutral-900 border-l border-white/10 flex-col absolute md:relative right-0 z-50 transition-transform">
+        <div id="chat-sidebar" class="hidden md:flex w-full md:w-80 h-full bg-neutral-900 border-l border-white/10 flex-col absolute md:relative right-0 z-[60] transition-transform">
             <div class="p-4 border-b border-white/5 bg-neutral-950 flex justify-between items-center">
                 <h3 class="font-bold text-white text-sm flex items-center gap-2"><i data-lucide="message-square" class="w-4 h-4 text-indigo-400"></i> Chat VIP Ao Vivo</h3>
                 <button onclick="toggleChat()" class="md:hidden text-neutral-400 hover:text-white cursor-pointer transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -251,6 +266,7 @@
         let checkInterval = null;
         let timerInterval = null;
         let targetEventDate = null;
+        let statusTransmissao = "Em Espera"; // Guarda se o jogo começou ou não
         let socket = null;
 
         // === MÁSCARA E VALIDAÇÃO DE CPF ===
@@ -281,16 +297,19 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchEventDetails(); 
-            setInterval(fetchEventDetails, 10000); 
+            setInterval(fetchEventDetails, 10000); // Consulta o Python a cada 10s
             
             if (codigoAtual) {
                 const areaRecuperacao = document.getElementById('area-recuperacao');
                 if (areaRecuperacao) areaRecuperacao.classList.add('hidden');
-                verificarStatusAPI(); 
+                
+                // Verifica o LocalStorage. Se o cliente estava no vídeo e atualizou a página, mantém-no no vídeo!
+                const autoAbrirPlayer = (localStorage.getItem('view_state') === 'player');
+                verificarStatusAPI(autoAbrirPlayer); 
             }
         });
 
-        // === LÓGICA DO TIMER (CONTAGEM DECRESCENTE) ===
+        // === LÓGICA DO TIMER (SALA DE ESPERA) ===
         function iniciarRelogio() {
             if(!targetEventDate) return;
             if(timerInterval) clearInterval(timerInterval);
@@ -300,16 +319,10 @@
                 const diff = targetEventDate - now;
 
                 const timerContainer = document.getElementById('timer-container');
-                const title = document.getElementById('timer-title');
 
                 if (diff <= 0) {
                     clearInterval(timerInterval);
-                    if(title) title.innerText = "A Transmissão Começou!";
-                    if(title) title.classList.replace('text-indigo-400', 'text-emerald-400');
-                    document.getElementById('timer-d').innerText = "00";
-                    document.getElementById('timer-h').innerText = "00";
-                    document.getElementById('timer-m').innerText = "00";
-                    document.getElementById('timer-s').innerText = "00";
+                    verificarEstadoTransmissao(); // Se o relógio acabar, tenta abrir o vídeo
                     return;
                 }
 
@@ -323,11 +336,48 @@
                 const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                 const s = Math.floor((diff % (1000 * 60)) / 1000);
 
-                document.getElementById('timer-d').innerText = d.toString().padStart(2, '0');
-                document.getElementById('timer-h').innerText = h.toString().padStart(2, '0');
-                document.getElementById('timer-m').innerText = m.toString().padStart(2, '0');
-                document.getElementById('timer-s').innerText = s.toString().padStart(2, '0');
+                const elD = document.getElementById('timer-d'); if (elD) elD.innerText = d.toString().padStart(2, '0');
+                const elH = document.getElementById('timer-h'); if (elH) elH.innerText = h.toString().padStart(2, '0');
+                const elM = document.getElementById('timer-m'); if (elM) elM.innerText = m.toString().padStart(2, '0');
+                const elS = document.getElementById('timer-s'); if (elS) elS.innerText = s.toString().padStart(2, '0');
             }, 1000);
+        }
+
+        // MUDANÇA AUTOMÁTICA ENTRE "EM ESPERA" E "AO VIVO"
+        function verificarEstadoTransmissao() {
+            const viewPlayer = document.getElementById('view-player');
+            // Só verifica se a pessoa estiver na página do Player
+            if (!viewPlayer || viewPlayer.classList.contains('hidden')) return;
+
+            const waitingRoom = document.getElementById('waiting-room');
+            const videoPlayer = document.getElementById('video-player');
+            
+            let tempoEsgotado = false;
+            if (targetEventDate) {
+                const now = new Date().getTime();
+                if (targetEventDate - now <= 0) tempoEsgotado = true;
+            }
+
+            // Se o Painel Python está "Ao Vivo" ou se o Relógio zerou
+            if (statusTransmissao === "Ao Vivo" || tempoEsgotado) {
+                if (waitingRoom) waitingRoom.classList.add('hidden'); // Esconde Sala de Espera
+                if (videoPlayer) {
+                    videoPlayer.classList.remove('hidden'); // Mostra Vídeo
+                    // Inicia o vídeo de forma segura se ainda não estiver ligado
+                    if (!window.hlsPlayer && !videoPlayer.src) {
+                        iniciarPlayerDoVideo();
+                    } else if (videoPlayer.paused) {
+                        videoPlayer.play().catch(e => console.log("Aguardando clique do utilizador"));
+                    }
+                }
+            } else {
+                // Modo Em Espera
+                if (waitingRoom) waitingRoom.classList.remove('hidden'); // Mostra Sala de Espera
+                if (videoPlayer) {
+                    videoPlayer.classList.add('hidden'); // Oculta Vídeo
+                    videoPlayer.pause();
+                }
+            }
         }
 
         // === CARREGA DADOS DO EVENTO ===
@@ -341,6 +391,9 @@
                 if (res.ok) {
                     const data = await res.json();
                     
+                    // Guarda o status recebido do Python
+                    statusTransmissao = data.status_transmissao || "Em Espera";
+
                     const titleDisplay = document.getElementById('event-title-display');
                     if (titleDisplay) titleDisplay.innerText = data.titulo_evento || '---';
                     
@@ -362,21 +415,21 @@
                     const ticketsRemaining = document.getElementById('tickets-remaining-text');
                     if (ticketsRemaining) ticketsRemaining.innerText = data.ingressos_restantes;
 
-                    // LÊ A DATA DO NOVO CALENDÁRIO PYTHON (YYYY-MM-DD HH:MM)
+                    // PROCESSA A DATA DO JOGO
                     if(data.data_hora && data.data_hora.trim() !== "") {
                         let p = data.data_hora.split(/[- :]/);
                         if(p.length >= 5) {
-                            // Nota: Os meses no JavaScript começam no 0 (Janeiro = 0, Fevereiro = 1)
                             targetEventDate = new Date(p[0], p[1]-1, p[2], p[3], p[4]).getTime();
                             iniciarRelogio();
                         }
                     } else {
+                        targetEventDate = null;
                         const tc = document.getElementById('timer-container');
-                        if(tc) {
-                            tc.classList.add('hidden');
-                            tc.classList.remove('flex');
-                        }
+                        if(tc) { tc.classList.add('hidden'); tc.classList.remove('flex'); }
                     }
+
+                    // Força a tela a decidir se mostra Vídeo ou Sala de Espera
+                    verificarEstadoTransmissao();
 
                     const btnPrincipal = document.getElementById('btn-principal');
                     const txtBtn = document.getElementById('texto-btn');
@@ -644,7 +697,6 @@
                     localStorage.setItem('ingresso_vip', codigoAtual);
                     
                     if(data.status === 'aprovado') {
-                        alert("Ingresso encontrado e pago! Acedendo à transmissão...");
                         setUIAprovado();
                         abrirVideo();
                     } else {
@@ -677,7 +729,6 @@
             const valorIngresso = document.getElementById('valor-ingresso');
             if (valorIngresso) valorIngresso.innerText = valor;
 
-            // Lógica Exclusiva do QR Code
             const qrContainer = document.getElementById('qr-container');
             const qrImg = document.getElementById('pix-qrcode-img');
             if (qrContainer && qrImg && base64 && base64.trim() !== "") {
@@ -720,7 +771,7 @@
             checkInterval = setInterval(() => { verificarStatusAPI(true); }, 3000);
         }
 
-        async function verificarStatusAPI(abrirVideoAuto = false) {
+        async function verificarStatusAPI(autoAbrirPlayer = false) {
             if(!codigoAtual) return;
             try {
                 const res = await fetch(`${dominioCloudflare}/api/ingresso/${codigoAtual}?t=${new Date().getTime()}`, {
@@ -734,7 +785,7 @@
                     if(data.status === 'aprovado') {
                         setUIAprovado();
                         if (checkInterval) clearInterval(checkInterval);
-                        if(abrirVideoAuto) { fecharModais(); abrirVideo(); }
+                        if(autoAbrirPlayer) { fecharModais(); abrirVideo(); }
                     } else if (data.status === 'pendente') {
                         setUIPendente();
                     }
@@ -746,13 +797,17 @@
 
         function logout() {
             localStorage.removeItem('ingresso_vip'); localStorage.removeItem('nome_vip');
+            localStorage.removeItem('view_state');
             codigoAtual = null; nomeAtual = "Anónimo";
             if(checkInterval) clearInterval(checkInterval);
             setUIDeslogado();
         }
 
-        // === PLAYER DE VÍDEO (COM TOKEN ANTI-PIRATARIA) ===
+        // === PLAYER DE VÍDEO (COM MEMÓRIA DE TELA) ===
         function abrirVideo() {
+            // Guarda a informação de que a pessoa está na aba da live (Memória)
+            localStorage.setItem('view_state', 'player');
+
             const viewHome = document.getElementById('view-home');
             if (viewHome) viewHome.classList.add('hidden');
             
@@ -761,11 +816,16 @@
                 viewPlayer.classList.remove('hidden');
                 viewPlayer.classList.add('flex');
             }
-            iniciarPlayerDoVideo();
+
+            // Decide se mostra Vídeo ou Relógio dependendo do que estiver configurado no Python
+            verificarEstadoTransmissao();
             conectarChat();
         }
 
         function voltarHome() {
+            // Remove a memória de estar na tela da live
+            localStorage.removeItem('view_state');
+
             const viewPlayer = document.getElementById('view-player');
             if (viewPlayer) {
                 viewPlayer.classList.add('hidden');
@@ -776,22 +836,37 @@
             if (viewHome) viewHome.classList.remove('hidden');
             
             const videoPlayer = document.getElementById('video-player');
-            if (videoPlayer) videoPlayer.pause();
+            if (videoPlayer) {
+                videoPlayer.pause();
+                videoPlayer.removeAttribute('src');
+                videoPlayer.load();
+            }
             
-            if(window.hlsPlayer) window.hlsPlayer.destroy();
-            if(socket) socket.disconnect();
-            socket = null;
+            if(window.hlsPlayer) {
+                window.hlsPlayer.destroy();
+                window.hlsPlayer = null;
+            }
+            if(socket) {
+                socket.disconnect();
+                socket = null;
+            }
         }
 
         function iniciarPlayerDoVideo() {
             const video = document.getElementById('video-player');
             const overlay = document.getElementById('loading-overlay');
             
-            // 🔒 HLS TOKEN DE SEGURANÇA (Se for copiado sem isto, não dá)
+            // Segurança: Não inicia se já estiver a tocar
+            if(window.hlsPlayer || (video && video.src)) return;
+
+            // 🔒 HLS TOKEN DE SEGURANÇA
             const paramToken = codigoAtual ? `&token=${codigoAtual}` : '';
             const src = `${dominioCloudflare}/stream/stream.m3u8?t=${new Date().getTime()}${paramToken}`; 
 
-            if (overlay) overlay.style.display = 'flex';
+            if (overlay) {
+                overlay.style.display = 'flex';
+                overlay.classList.remove('hidden');
+            }
             
             if (!video) return;
 
@@ -800,7 +875,7 @@
                 window.hlsPlayer.loadSource(src);
                 window.hlsPlayer.attachMedia(video);
                 window.hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => { 
-                    if (overlay) overlay.style.display = 'none'; 
+                    if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
                     video.play().catch(e => { video.muted = true; video.play(); }); 
                 });
                 window.hlsPlayer.on(Hls.Events.ERROR, (e, data) => { 
@@ -814,7 +889,7 @@
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = src;
                 video.addEventListener('loadedmetadata', () => { 
-                    if (overlay) overlay.style.display = 'none'; 
+                    if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
                     video.play(); 
                 });
                 video.addEventListener('error', () => { setTimeout(iniciarPlayerDoVideo, 2000); });
