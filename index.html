@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ArenaLive - Transmissão Premium</title>
     
+    <!-- Bibliotecas Necessárias -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -19,6 +20,7 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         video { background-color: #000; outline: none; }
+        /* Scrollbar do Chat */
         #chat-messages::-webkit-scrollbar { width: 4px; }
         #chat-messages::-webkit-scrollbar-thumb { background-color: #333; border-radius: 9999px; }
     </style>
@@ -30,6 +32,7 @@
     <!-- ========================================== -->
     <div id="view-home" class="relative w-full min-h-screen flex flex-col items-center justify-center fade-in overflow-y-auto py-10">
         
+        <!-- Fundo do Estádio -->
         <div class="absolute inset-0 z-0 fixed">
             <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover opacity-20 scale-105" alt="Estádio">
             <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]"></div>
@@ -42,7 +45,7 @@
                 </div>
                 <span class="text-xl font-black tracking-tighter text-white uppercase">ARENA<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">LIVE</span></span>
             </div>
-            <!-- O botão sair fica escondido até a pessoa estar APROVADA -->
+            <!-- O botão sair só aparece se o utilizador estiver aprovado e logado -->
             <button id="btn-logout" onclick="logout()" class="hidden text-xs font-bold text-neutral-400 hover:text-white bg-white/10 px-3 py-1.5 rounded-lg z-50 transition-colors cursor-pointer">Sair da Conta</button>
         </header>
 
@@ -90,15 +93,17 @@
                         </div>
                     </div>
 
+                    <!-- Mensagem de Status (Aprovado ou Pendente) -->
                     <div id="status-ingresso-salvo" class="hidden w-full bg-amber-500/20 border border-amber-500/40 text-amber-400 p-3 rounded-xl mb-4 text-sm font-bold animate-pulse">
                         A verificar o seu ingresso...
                     </div>
 
+                    <!-- Botão de Ação Principal -->
                     <button id="btn-principal" onclick="abrirCheckout()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black py-5 px-8 rounded-xl transition-all active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.5)] flex items-center justify-center gap-3 text-lg md:text-xl mb-6 cursor-pointer">
                         <i data-lucide="ticket" id="icon-btn" class="w-6 h-6"></i> <span id="texto-btn">COMPRAR INGRESSO VIP</span>
                     </button>
                     
-                    <!-- RECUPERAÇÃO DE ACESSO -->
+                    <!-- RECUPERAÇÃO DE ACESSO DIRETA NA TELA INICIAL -->
                     <div id="area-recuperacao" class="w-full border-t border-white/10 pt-5 mt-2">
                         <p class="text-xs text-neutral-400 mb-3 font-bold uppercase tracking-wider">Já gerou um ingresso? Entre abaixo:</p>
                         <div class="flex flex-col gap-2">
@@ -115,7 +120,7 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAL DE CHECKOUT (PAYWALL)                -->
+    <!-- MODAL DE CHECKOUT E PIX                    -->
     <!-- ========================================== -->
     <div id="checkout-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 hidden fade-in">
         <div class="bg-neutral-900 border border-white/10 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col slide-up relative">
@@ -123,7 +128,7 @@
                 <button onclick="fecharModais()" class="text-neutral-400 hover:text-white bg-white/5 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 z-50 cursor-pointer transition-colors">
                     <i data-lucide="x" class="w-4 h-4"></i> Fechar
                 </button>
-                <h3 id="modal-titulo" class="font-bold text-white text-sm">Gerar Acesso VIP</h3>
+                <h3 id="modal-titulo" class="font-bold text-white text-sm">Novo Ingresso VIP</h3>
             </div>
             
             <div class="p-6 sm:p-8">
@@ -142,7 +147,7 @@
                     </button>
                 </div>
 
-                <!-- PIX GERADO (ETAPA 2) -->
+                <!-- PIX GERADO / PENDENTE (ETAPA 2) -->
                 <div id="step-payment" class="hidden text-center fade-in">
                     <h4 id="valor-ingresso" class="text-3xl font-black mb-1 text-white">R$ --,--</h4>
                     <p class="text-xs text-neutral-400 mb-6">Pague via PIX para libertar o vídeo. A liberação é automática após o pagamento.</p>
@@ -207,6 +212,7 @@
         lucide.createIcons();
 
         // 🔴================================================================🔴
+        // COLOQUE O SEU TÚNEL AQUI
         const dominioCloudflare = 'https://video.arenalive.shop'; 
         // 🔴================================================================🔴
 
@@ -246,12 +252,11 @@
             setInterval(fetchEventDetails, 5000); 
             
             if (codigoAtual) {
-                // Ao abrir, oculta a área de recuperar porque ele já tem ticket no dispositivo
-                document.getElementById('area-recuperacao').classList.add('hidden');
-                verificarStatusAPI(); // Vai decidir se mostra "Aprovado" ou "Finalizar Pagamento"
+                verificarStatusAPI(); 
             }
         });
 
+        // === CARREGA DADOS DO EVENTO ===
         async function fetchEventDetails() {
             try {
                 const res = await fetch(`${dominioCloudflare}/api/evento?t=${new Date().getTime()}`);
@@ -275,6 +280,7 @@
                     const iconBtn = document.getElementById('icon-btn');
                     const iconRestantes = document.getElementById('icon-restantes');
                     
+                    // Apenas bloqueia se não tem ingresso e está esgotado
                     if(data.ingressos_restantes <= 0 && !codigoAtual) {
                         txtBtn.innerText = 'ESGOTADO';
                         iconBtn.setAttribute('data-lucide', 'lock');
@@ -305,8 +311,8 @@
         // GESTÃO DE ESTADOS DA INTERFACE (UI)
         // ==========================================
         function setUIAprovado() {
-            document.getElementById('btn-logout').classList.remove('hidden'); // Mostrar "Sair" APENAS aprovado
-            document.getElementById('area-recuperacao').classList.add('hidden');
+            document.getElementById('btn-logout').classList.remove('hidden'); // Mostrar "Sair"
+            document.getElementById('area-recuperacao').classList.add('hidden'); // Ocultar input recuperar
             
             const statusDiv = document.getElementById('status-ingresso-salvo');
             statusDiv.classList.remove('hidden', 'bg-amber-500/20', 'border-amber-500/40', 'text-amber-400', 'animate-pulse');
@@ -319,8 +325,8 @@
         }
 
         function setUIPendente() {
-            document.getElementById('btn-logout').classList.add('hidden'); // ESCONDE "Sair da conta"
-            document.getElementById('area-recuperacao').classList.add('hidden'); // Esconde área de recuperar
+            document.getElementById('btn-logout').classList.add('hidden'); // Esconder "Sair"
+            document.getElementById('area-recuperacao').classList.add('hidden'); // Ocultar input recuperar
             
             const statusDiv = document.getElementById('status-ingresso-salvo');
             statusDiv.classList.remove('hidden', 'bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-400');
@@ -334,7 +340,7 @@
 
         function setUIDeslogado() {
             document.getElementById('btn-logout').classList.add('hidden');
-            document.getElementById('area-recuperacao').classList.remove('hidden'); // Mostra área de recuperar
+            document.getElementById('area-recuperacao').classList.remove('hidden'); // Mostrar input recuperar
             document.getElementById('status-ingresso-salvo').classList.add('hidden');
             
             document.getElementById('texto-btn').innerText = 'COMPRAR INGRESSO VIP';
@@ -361,7 +367,6 @@
                         fecharModais(); 
                         abrirVideo();
                     } else if(data.status === 'pendente') {
-                        // Vai direto para a tela de pagamento (pula o formulário de nome/cpf)
                         mostrarPixModal(data.chave_pix, data.codigo, data.valor);
                     }
                 } catch(e) {}
@@ -370,10 +375,9 @@
                 return; 
             }
             
-            // Se não tem ingresso (novo utilizador)
             document.getElementById('checkout-modal').classList.remove('hidden');
-            document.getElementById('step-form').classList.remove('hidden'); // Mostra pedir CPF
-            document.getElementById('step-payment').classList.add('hidden'); // Esconde o PIX
+            document.getElementById('step-form').classList.remove('hidden');
+            document.getElementById('step-payment').classList.add('hidden');
             document.getElementById('modal-titulo').innerText = "Novo Ingresso VIP";
         }
 
@@ -399,40 +403,27 @@
                     body: JSON.stringify({ nome: nome, cpf: cpfLimpo })
                 });
                 
-                if (!res.ok) {
-                    let errorMessage = "Ocorreu um erro no Servidor Python.";
-                    try {
-                        const errorData = await res.json();
-                        if (errorData.message) errorMessage = errorData.message;
-                    } catch(e) {}
-                    
-                    alert(errorMessage);
-                    btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
-                    btn.disabled = false;
-                    lucide.createIcons();
-                    return;
-                }
-                
+                // O código lê o body em JSON de qualquer forma (mesmo com erro 400 do Python)
                 const data = await res.json();
-                if(data.status === 'success') {
+
+                if (res.ok && data.status === 'success') {
                     codigoAtual = data.codigo; nomeAtual = nome;
                     localStorage.setItem('ingresso_vip', codigoAtual);
                     localStorage.setItem('nome_vip', nome);
                     
-                    setUIPendente(); // Atualiza tela de fundo
-                    mostrarPixModal(data.chave_pix, data.codigo, data.valor); // Mostra o Modal
+                    setUIPendente();
+                    mostrarPixModal(data.chave_pix, data.codigo, data.valor);
                 } else {
-                    alert(data.message);
-                    btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
-                    btn.disabled = false;
-                    lucide.createIcons();
+                    // Aqui a magia acontece: mostra a mensagem do Python de "CPF Duplicado"
+                    alert(data.message || "Ocorreu um erro no Servidor.");
                 }
             } catch(e) { 
                 alert("Falha de Comunicação com a Nuvem. Tente novamente mais tarde."); 
-                btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
-                btn.disabled = false;
-                lucide.createIcons();
             }
+            
+            btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
+            btn.disabled = false;
+            lucide.createIcons();
         }
 
         // === RECUPERAR INGRESSO PELA TELA INICIAL ===
@@ -474,7 +465,7 @@
                         mostrarPixModal(data.chave_pix, data.codigo, data.valor);
                     }
                 } else {
-                    alert("Não encontrámos nenhum ingresso para este CPF ou Código.");
+                    alert(data.message || "Não encontrámos nenhum ingresso para este CPF ou Código.");
                 }
             } catch(e) { alert("Servidor offline. Tente novamente."); }
             
@@ -489,8 +480,8 @@
             document.getElementById('codigo-vip').innerText = codigo;
             document.getElementById('valor-ingresso').innerText = valor;
             
-            document.getElementById('step-form').classList.add('hidden'); // ESCONDE PEDIDO NOME/CPF
-            document.getElementById('step-payment').classList.remove('hidden'); // MOSTRA PIX
+            document.getElementById('step-form').classList.add('hidden');
+            document.getElementById('step-payment').classList.remove('hidden');
             document.getElementById('modal-titulo').innerText = "Finalizar Pagamento";
             document.getElementById('checkout-modal').classList.remove('hidden');
             
@@ -522,7 +513,7 @@
                         setUIPendente();
                     }
                 } else {
-                    logout(); // Ingresso foi apagado no painel
+                    logout(); // Ingresso foi apagado
                 }
             } catch(e) {}
         }
