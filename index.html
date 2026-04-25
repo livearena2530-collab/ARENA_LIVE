@@ -8,7 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <!-- Adicionamos a biblioteca do Chat em tempo real -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 
     <style>
@@ -20,7 +19,6 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         video { background-color: #000; outline: none; }
-        /* Esconde a barra de scroll do chat */
         #chat-messages::-webkit-scrollbar { width: 4px; }
         #chat-messages::-webkit-scrollbar-thumb { background-color: #333; border-radius: 9999px; }
     </style>
@@ -44,7 +42,7 @@
                 </div>
                 <span class="text-xl font-black tracking-tighter text-white uppercase">ARENA<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">LIVE</span></span>
             </div>
-            <button id="btn-logout" onclick="logout()" class="hidden text-xs font-bold text-neutral-400 hover:text-white bg-white/10 px-3 py-1.5 rounded-lg z-50 transition-colors">Sair da Conta</button>
+            <button id="btn-logout" onclick="logout()" class="hidden text-xs font-bold text-neutral-400 hover:text-white bg-white/10 px-3 py-1.5 rounded-lg z-50 transition-colors cursor-pointer">Sair da Conta</button>
         </header>
 
         <div class="relative z-10 w-full max-w-5xl px-4 flex flex-col items-center mt-8">
@@ -73,7 +71,9 @@
             </div>
 
             <div class="glass rounded-[2rem] p-6 md:p-8 max-w-md w-full shadow-2xl relative group">
-                <div class="relative flex flex-col items-center text-center">
+                <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+                
+                <div class="relative flex flex-col items-center text-center w-full">
                     
                     <div class="flex items-center justify-between w-full mb-6 px-2 border-b border-white/10 pb-4">
                         <div class="flex flex-col text-left">
@@ -93,21 +93,28 @@
                         A verificar o seu ingresso...
                     </div>
 
-                    <button id="btn-principal" onclick="abrirCheckout()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black py-5 px-8 rounded-xl transition-all active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.5)] flex items-center justify-center gap-3 text-lg md:text-xl mb-4 cursor-pointer">
+                    <button id="btn-principal" onclick="abrirCheckout()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black py-5 px-8 rounded-xl transition-all active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.5)] flex items-center justify-center gap-3 text-lg md:text-xl mb-6 cursor-pointer">
                         <i data-lucide="ticket" id="icon-btn" class="w-6 h-6"></i> <span id="texto-btn">COMPRAR INGRESSO VIP</span>
                     </button>
                     
-                    <!-- Botão Recuperar -->
-                    <button onclick="abrirRecuperacao()" class="text-neutral-400 hover:text-white text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer">
-                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Já tenho Ingresso / Entrar com CPF
-                    </button>
+                    <!-- RECUPERAÇÃO DE ACESSO DIRETA NA TELA INICIAL -->
+                    <div id="area-recuperacao" class="w-full border-t border-white/10 pt-5 mt-2">
+                        <p class="text-xs text-neutral-400 mb-3 font-bold uppercase tracking-wider">Já tem ingresso? Entre abaixo:</p>
+                        <div class="flex flex-col gap-2">
+                            <input type="text" id="home-cpf-input" placeholder="Digite o seu CPF ou Código VIP" oninput="maskCPF(this)" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-center text-sm outline-none focus:border-indigo-500 transition-colors">
+                            <button id="btn-entrar" onclick="recuperarAcessoHome()" class="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 rounded-xl transition-colors flex justify-center items-center gap-2 text-sm cursor-pointer active:scale-95">
+                                ACESSAR TRANSMISSÃO <i data-lucide="log-in" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAIS DE COMPRA E RECUPERAÇÃO             -->
+    <!-- MODAL DE CHECKOUT (PAYWALL)                -->
     <!-- ========================================== -->
     <div id="checkout-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 hidden fade-in">
         <div class="bg-neutral-900 border border-white/10 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col slide-up relative">
@@ -115,34 +122,29 @@
                 <button onclick="fecharModais()" class="text-neutral-400 hover:text-white bg-white/5 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 z-50 cursor-pointer transition-colors">
                     <i data-lucide="x" class="w-4 h-4"></i> Fechar
                 </button>
-                <h3 id="modal-titulo" class="font-bold text-white text-sm">Acesso VIP</h3>
+                <h3 id="modal-titulo" class="font-bold text-white text-sm">Gerar Acesso VIP</h3>
             </div>
             
             <div class="p-6 sm:p-8">
                 <!-- COMPRAR -->
                 <div id="step-form">
-                    <p class="text-neutral-400 text-sm mb-4">Informe os seus dados para gerar o PIX Automático.</p>
-                    <input type="text" id="nome-input" placeholder="O seu Nome" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white mb-3 text-center outline-none focus:border-indigo-500">
-                    <input type="text" id="cpf-input" placeholder="O seu CPF" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white mb-6 text-center outline-none focus:border-indigo-500">
+                    <p class="text-neutral-400 text-sm mb-5 text-center">Informe os seus dados corretos. O CPF será a sua chave de acesso.</p>
+                    
+                    <label class="block text-[10px] text-neutral-500 font-bold mb-1 uppercase tracking-wider pl-1">Nome Completo</label>
+                    <input type="text" id="nome-input" placeholder="Digite o seu nome" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white mb-4 outline-none focus:border-indigo-500 text-center">
+                    
+                    <label class="block text-[10px] text-neutral-500 font-bold mb-1 uppercase tracking-wider pl-1">O Seu CPF</label>
+                    <input type="text" id="cpf-input" placeholder="000.000.000-00" oninput="maskCPF(this)" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white mb-6 outline-none focus:border-indigo-500 text-center">
                     
                     <button id="btn-gerar" onclick="gerarPix()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold text-white transition-all active:scale-95 flex justify-center items-center gap-2 cursor-pointer">
                         GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>
                     </button>
                 </div>
 
-                <!-- RECUPERAR -->
-                <div id="step-recuperar" class="hidden">
-                    <p class="text-neutral-400 text-sm mb-4">Insira o seu CPF ou Código VIP para voltar ao jogo.</p>
-                    <input type="text" id="recuperar-input" placeholder="CPF ou Código VIP" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white mb-6 text-center outline-none focus:border-indigo-500">
-                    <button id="btn-recuperar" onclick="recuperarAcesso()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-4 rounded-xl font-bold text-white transition-all active:scale-95 flex justify-center items-center gap-2 cursor-pointer">
-                        ENTRAR <i data-lucide="log-in" class="w-5 h-5"></i>
-                    </button>
-                </div>
-
-                <!-- PIX GERADO -->
+                <!-- PIX GERADO / PENDENTE -->
                 <div id="step-payment" class="hidden text-center fade-in">
                     <h4 id="valor-ingresso" class="text-3xl font-black mb-1 text-white">R$ --,--</h4>
-                    <p class="text-xs text-neutral-400 mb-6">Pague para libertar o vídeo. Liberação automática Asaas.</p>
+                    <p class="text-xs text-neutral-400 mb-6">Pague via PIX para libertar o vídeo. A liberação é automática.</p>
                     
                     <div class="flex items-center bg-black border border-white/10 rounded-xl overflow-hidden p-1 mb-6">
                         <input type="text" id="pix-copy-input" class="bg-transparent text-white text-xs px-3 py-3 w-full outline-none" readonly>
@@ -164,15 +166,12 @@
     <!-- ECRÃ DO PLAYER (C/ CHAT LATERAL)           -->
     <!-- ========================================== -->
     <div id="view-player" class="hidden fixed inset-0 z-50 bg-black flex-row fade-in">
-        
-        <!-- Zona do Vídeo -->
         <div class="flex-1 relative h-full bg-black flex items-center justify-center">
             <div class="absolute top-0 w-full p-4 flex justify-between items-center z-20 bg-gradient-to-b from-black/80 to-transparent">
                 <button onclick="voltarHome()" class="text-white flex items-center gap-2 hover:text-indigo-400 bg-white/10 px-4 py-2 rounded-xl backdrop-blur font-bold text-sm cursor-pointer transition-colors">
-                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Sair do Vídeo
                 </button>
                 <div class="flex gap-2">
-                    <!-- Botão abrir chat (mobile) -->
                     <button onclick="toggleChat()" class="md:hidden text-white bg-white/10 px-3 py-2 rounded-xl cursor-pointer transition-colors"><i data-lucide="message-square" class="w-4 h-4"></i></button>
                 </div>
             </div>
@@ -188,21 +187,16 @@
             </div>
         </div>
 
-        <!-- Sidebar do Chat -->
         <div id="chat-sidebar" class="hidden md:flex w-full md:w-80 h-full bg-neutral-900 border-l border-white/10 flex-col absolute md:relative right-0 z-40 transition-transform">
             <div class="p-4 border-b border-white/5 bg-neutral-950 flex justify-between items-center">
                 <h3 class="font-bold text-white text-sm flex items-center gap-2"><i data-lucide="message-square" class="w-4 h-4 text-indigo-400"></i> Chat VIP Ao Vivo</h3>
                 <button onclick="toggleChat()" class="md:hidden text-neutral-400 hover:text-white cursor-pointer transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            
-            <!-- Mensagens -->
             <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
                 <p class="text-center text-xs text-neutral-500">Bem-vindo ao chat da partida!</p>
             </div>
-
-            <!-- Input -->
             <div class="p-3 bg-neutral-950 border-t border-white/5 flex gap-2">
-                <input type="text" id="chat-input" placeholder="Mensagem..." class="flex-1 bg-black border border-white/10 rounded-lg px-3 text-sm text-white outline-none focus:border-indigo-500" onkeypress="if(event.key === 'Enter') enviarChat()">
+                <input type="text" id="chat-input" placeholder="Sua mensagem..." class="flex-1 bg-black border border-white/10 rounded-lg px-3 text-sm text-white outline-none focus:border-indigo-500" onkeypress="if(event.key === 'Enter') enviarChat()">
                 <button onclick="enviarChat()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-lg text-white cursor-pointer transition-colors"><i data-lucide="send" class="w-4 h-4"></i></button>
             </div>
         </div>
@@ -220,6 +214,33 @@
         let checkInterval = null;
         let socket = null;
 
+        // === MÁSCARA E VALIDAÇÃO DE CPF ===
+        function maskCPF(input) {
+            let v = input.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            v = v.replace(/(\d{3})(\d)/, '$1.$2');
+            v = v.replace(/(\d{3})(\d)/, '$1.$2');
+            v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            input.value = v;
+        }
+
+        // Algoritmo Real de Validação Matemática de CPF
+        function isCPFValido(cpfString) {
+            let cpf = cpfString.replace(/[^\d]+/g, '');
+            if (cpf.length !== 11 || !!cpf.match(/(\d)\1{10}/)) return false;
+            let soma = 0, resto;
+            for (let i = 1; i <= 9; i++) soma += parseInt(cpf.substring(i-1, i)) * (11 - i);
+            resto = (soma * 10) % 11;
+            if ((resto === 10) || (resto === 11)) resto = 0;
+            if (resto !== parseInt(cpf.substring(9, 10))) return false;
+            soma = 0;
+            for (let i = 1; i <= 10; i++) soma += parseInt(cpf.substring(i-1, i)) * (12 - i);
+            resto = (soma * 10) % 11;
+            if ((resto === 10) || (resto === 11)) resto = 0;
+            if (resto !== parseInt(cpf.substring(10, 11))) return false;
+            return true;
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             fetchEventDetails(); 
             setInterval(fetchEventDetails, 5000); 
@@ -229,6 +250,7 @@
                 document.getElementById('texto-btn').innerText = 'ASSISTIR JOGO AGORA';
                 document.getElementById('icon-btn').setAttribute('data-lucide', 'play-circle');
                 document.getElementById('status-ingresso-salvo').classList.remove('hidden');
+                document.getElementById('area-recuperacao').classList.add('hidden');
                 lucide.createIcons();
                 verificarStatusAPI();
             }
@@ -288,28 +310,24 @@
             if(codigoAtual) { verificarStatusAPI(true); return; }
             document.getElementById('checkout-modal').classList.remove('hidden');
             document.getElementById('step-form').classList.remove('hidden');
-            document.getElementById('step-recuperar').classList.add('hidden');
             document.getElementById('step-payment').classList.add('hidden');
-            document.getElementById('modal-titulo').innerText = "Novo Ingresso";
-        }
-
-        function abrirRecuperacao() {
-            document.getElementById('checkout-modal').classList.remove('hidden');
-            document.getElementById('step-form').classList.add('hidden');
-            document.getElementById('step-payment').classList.add('hidden');
-            document.getElementById('step-recuperar').classList.remove('hidden');
-            document.getElementById('modal-titulo').innerText = "Recuperar Acesso";
+            document.getElementById('modal-titulo').innerText = "Novo Ingresso VIP";
         }
 
         function fecharModais() { document.getElementById('checkout-modal').classList.add('hidden'); }
 
-        // === API DE COMPRA E RECUPERAÇÃO ===
+        // === COMPRAR NOVO INGRESSO ===
         async function gerarPix() {
             const nome = document.getElementById('nome-input').value.trim();
             const cpf = document.getElementById('cpf-input').value.trim();
-            if(nome.length < 3) return alert("Digite um nome válido.");
+            
+            if(nome.length < 3) return alert("Por favor, digite um nome válido.");
+            if(!isCPFValido(cpf)) return alert("CPF Inválido. Verifique os números digitados.");
+
             const btn = document.getElementById('btn-gerar');
-            btn.innerText = "A PROCESSAR..."; btn.disabled = true;
+            btn.innerHTML = 'A PROCESSAR... <i data-lucide="loader" class="w-5 h-5 animate-spin"></i>';
+            lucide.createIcons();
+            btn.disabled = true;
 
             try {
                 const res = await fetch(`${dominioCloudflare}/api/gerar_ingresso`, {
@@ -324,16 +342,32 @@
                     localStorage.setItem('nome_vip', nome);
                     mostrarPix(data.chave_pix, data.codigo, data.valor);
                 } else alert(data.message);
-            } catch(e) { alert("Servidor offline."); }
-            btn.innerText = "GERAR PIX"; btn.disabled = false;
+            } catch(e) { alert("Servidor offline. Tente novamente mais tarde."); }
+            
+            btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
+            btn.disabled = false;
             lucide.createIcons();
         }
 
-        async function recuperarAcesso() {
-            const chave = document.getElementById('recuperar-input').value.trim();
-            if(!chave) return;
-            const btn = document.getElementById('btn-recuperar');
-            btn.innerText = "A BUSCAR..."; btn.disabled = true;
+        // === RECUPERAR INGRESSO PELA TELA INICIAL ===
+        async function recuperarAcessoHome() {
+            const chave = document.getElementById('home-cpf-input').value.trim();
+            if(!chave) return alert("Digite o seu CPF ou Código VIP para entrar.");
+            
+            // Se for CPF, podemos validar antes de enviar para poupar o servidor
+            if(chave.includes('.') || chave.includes('-') || chave.length === 11 || chave.length === 14) {
+                if(!isCPFValido(chave)) {
+                    // Se não for válido como CPF, pode ser que a pessoa tenha digitado o código VIP (ex: VIP-XXXX) sem formatação
+                    if(!chave.toUpperCase().includes('VIP')) {
+                        return alert("CPF Inválido. Verifique o número digitado.");
+                    }
+                }
+            }
+
+            const btn = document.getElementById('btn-entrar');
+            btn.innerHTML = 'A BUSCAR... <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>';
+            lucide.createIcons();
+            btn.disabled = true;
 
             try {
                 const res = await fetch(`${dominioCloudflare}/api/recuperar`, {
@@ -347,27 +381,41 @@
                     localStorage.setItem('ingresso_vip', codigoAtual);
                     
                     if(data.status === 'aprovado') {
-                        alert("Bem-vindo de volta!"); fecharModais(); abrirVideo();
+                        alert("Ingresso encontrado! Acedendo à transmissão...");
+                        document.getElementById('btn-logout').classList.remove('hidden');
+                        document.getElementById('texto-btn').innerText = 'ASSISTIR JOGO AGORA';
+                        document.getElementById('icon-btn').setAttribute('data-lucide', 'play-circle');
+                        document.getElementById('area-recuperacao').classList.add('hidden');
+                        lucide.createIcons();
+                        abrirVideo();
                     } else {
+                        // Está pendente de pagamento, abre a janela do PIX
+                        document.getElementById('checkout-modal').classList.remove('hidden');
                         mostrarPix(data.chave_pix, data.codigo, data.valor);
                     }
-                } else alert("Ingresso não encontrado.");
-            } catch(e) {}
-            btn.innerText = "ENTRAR"; btn.disabled = false;
+                } else {
+                    alert("Não encontrámos nenhum ingresso para este CPF ou Código.");
+                }
+            } catch(e) { alert("Servidor offline. Tente novamente."); }
+            
+            btn.innerHTML = 'ACESSAR TRANSMISSÃO <i data-lucide="log-in" class="w-4 h-4"></i>';
+            btn.disabled = false;
             lucide.createIcons();
         }
 
+        // === LÓGICA DO PIX ===
         function mostrarPix(chave, codigo, valor) {
             document.getElementById('pix-copy-input').value = chave;
             document.getElementById('codigo-vip').innerText = codigo;
             document.getElementById('valor-ingresso').innerText = valor;
+            
             document.getElementById('step-form').classList.add('hidden');
-            document.getElementById('step-recuperar').classList.add('hidden');
             document.getElementById('step-payment').classList.remove('hidden');
             
             document.getElementById('btn-logout').classList.remove('hidden');
             document.getElementById('texto-btn').innerText = 'ASSISTIR JOGO AGORA';
             document.getElementById('icon-btn').setAttribute('data-lucide', 'play-circle');
+            document.getElementById('area-recuperacao').classList.add('hidden');
             lucide.createIcons();
             
             iniciarMonitoramento();
@@ -375,7 +423,7 @@
 
         function copiarPix() {
             const copyText = document.getElementById("pix-copy-input");
-            copyText.select(); document.execCommand("copy"); alert("Copiado!");
+            copyText.select(); document.execCommand("copy"); alert("Chave Copiada!");
         }
 
         function iniciarMonitoramento() {
@@ -399,7 +447,7 @@
                     } else if (data.status === 'pendente') {
                         document.getElementById('status-ingresso-salvo').innerText = "Pagamento Pendente. A aguardar aprovação...";
                     }
-                } else logout();
+                } else logout(); // Ingresso foi apagado
             } catch(e) {}
         }
 
@@ -409,7 +457,7 @@
             location.reload();
         }
 
-        // === PLAYER E CHAT ===
+        // === PLAYER DE VÍDEO ===
         function abrirVideo() {
             document.getElementById('view-home').classList.add('hidden');
             document.getElementById('view-player').classList.remove('hidden');
@@ -420,6 +468,7 @@
 
         function voltarHome() {
             document.getElementById('view-player').classList.add('hidden');
+            document.getElementById('view-player').classList.remove('flex');
             document.getElementById('view-home').classList.remove('hidden');
             document.getElementById('video-player').pause();
             if(window.hlsPlayer) window.hlsPlayer.destroy();
@@ -446,7 +495,7 @@
             }
         }
 
-        // === WEB SOCKETS (CHAT) ===
+        // === WEB SOCKETS (CHAT AO VIVO) ===
         function toggleChat() {
             const sidebar = document.getElementById('chat-sidebar');
             if(sidebar.classList.contains('hidden')) { sidebar.classList.remove('hidden'); sidebar.classList.add('flex'); }
@@ -457,12 +506,11 @@
             if(socket) return;
             socket = io(dominioCloudflare);
             
-            // Carrega historico
             fetch(`${dominioCloudflare}/api/chat/history`).then(r=>r.json()).then(msgs => {
                 const box = document.getElementById('chat-messages');
                 box.innerHTML = '<p class="text-center text-xs text-neutral-500">Bem-vindo ao chat da partida!</p>';
                 msgs.forEach(m => renderizarMensagem(m.autor, m.mensagem, m.hora));
-            }).catch(e => console.log('Erro ao carregar chat.'));
+            }).catch(e => console.log('Sem histórico do chat.'));
 
             socket.on('nova_mensagem', (data) => {
                 renderizarMensagem(data.autor, data.mensagem, data.hora);
