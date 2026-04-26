@@ -204,6 +204,18 @@
                     <h4 id="valor-ingresso" class="text-3xl font-black mb-1 text-white">R$ --,--</h4>
                     <p class="text-xs text-neutral-400 mb-4">Pague via PIX para libertar o vídeo. A liberação é automática após o pagamento.</p>
                     
+                    <!-- NOVO: EXIBIÇÃO DO CÓDIGO VIP -->
+                    <div class="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-3 mb-4">
+                        <span class="block text-[10px] text-indigo-400 font-bold uppercase tracking-widest mb-1.5">O seu Código VIP</span>
+                        <div class="flex items-center bg-black border border-white/10 rounded-lg overflow-hidden p-1 mx-auto max-w-[220px]">
+                            <input type="text" id="codigo-vip-input" class="bg-transparent text-white font-mono font-bold text-center text-sm w-full outline-none" readonly>
+                            <button onclick="copiarCodigoVip()" class="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded text-xs active:scale-95 transition-colors cursor-pointer" title="Copiar Código">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p class="text-[9px] text-neutral-500 mt-2 leading-tight">Guarde isto. Pode usar este código (ou o seu CPF) para aceder novamente de outro dispositivo.</p>
+                    </div>
+
                     <div class="flex justify-center mb-4">
                         <div id="qr-container" class="p-2 bg-white rounded-xl hidden">
                             <img id="pix-qrcode-img" src="" alt="QR Code PIX" class="w-40 h-40 object-contain">
@@ -892,6 +904,9 @@
             const codigoVip = document.getElementById('codigo-vip');
             if (codigoVip) codigoVip.innerText = codigo;
             
+            const codigoVipInput = document.getElementById('codigo-vip-input');
+            if (codigoVipInput) codigoVipInput.value = codigo;
+            
             const valorIngresso = document.getElementById('valor-ingresso');
             if (valorIngresso) valorIngresso.innerText = valor;
 
@@ -926,6 +941,15 @@
                 copyText.select(); 
                 document.execCommand("copy"); 
                 alert("Chave Copiada!");
+            }
+        }
+
+        function copiarCodigoVip() {
+            const copyText = document.getElementById("codigo-vip-input");
+            if (copyText) {
+                copyText.select(); 
+                document.execCommand("copy"); 
+                alert("Código VIP Copiado!");
             }
         }
 
