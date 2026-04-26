@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     
-    <!-- NOVO: Biblioteca de Emojis super leve -->
+    <!-- Biblioteca de Emojis super leve -->
     <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 
     <style>
@@ -55,7 +55,6 @@
         #video-wrapper:-webkit-full-screen { width: 100% !important; height: 100% !important; aspect-ratio: auto !important; }
         #video-wrapper:-moz-full-screen { width: 100% !important; height: 100% !important; aspect-ratio: auto !important; }
 
-        /* Oculta o botão de Chat no modo Tela Cheia Nativo (Mobile) mesmo com a tela deitada */
         #video-wrapper:fullscreen #btn-top-chat { display: none !important; }
         #video-wrapper:-webkit-full-screen #btn-top-chat { display: none !important; }
         #video-wrapper:-moz-full-screen #btn-top-chat { display: none !important; }
@@ -231,13 +230,12 @@
         <!-- VÍDEO WRAPPER COM CONTROLOS YOUTUBE -->
         <div id="video-wrapper" class="relative w-full aspect-video md:h-full md:flex-1 bg-black flex items-center justify-center shrink-0 overflow-hidden shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20 group" onmousemove="mostrarControles()" onmouseleave="iniciarTimerOcultar()" onclick="interacaoVideo(event)">
             
-            <!-- BARRA DO TOPO (Voltar / Abrir Chat) -->
+            <!-- BARRA DO TOPO -->
             <div id="top-bar" class="absolute top-0 w-full p-3 md:p-4 flex justify-between items-center z-40 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300 pointer-events-auto">
                 <button onclick="event.stopPropagation(); voltarHome()" class="text-white flex items-center gap-1 hover:text-gray-300 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md text-xs md:text-sm font-medium cursor-pointer transition-colors">
                     <i data-lucide="chevron-down" class="w-4 h-4"></i> Voltar
                 </button>
                 <div class="flex gap-2 items-center">
-                    <!-- BOTÃO CHAT (Escondido por padrão, o JS controla quando mostrar no PC) -->
                     <button id="btn-top-chat" onclick="event.stopPropagation(); toggleChat()" title="Mostrar/Ocultar Chat" class="hidden text-white bg-black/40 px-3 py-1.5 rounded-full cursor-pointer transition-colors hover:bg-white/20 shadow-md backdrop-blur-md items-center gap-2 text-xs md:text-sm font-medium border border-white/10">
                         <i data-lucide="message-square" class="w-4 h-4 md:w-5 md:h-5"></i> <span class="hidden sm:inline">Chat</span>
                     </button>
@@ -261,14 +259,12 @@
                         <button id="btn-play-pause" onclick="event.stopPropagation(); togglePlay()" class="text-white hover:text-gray-300 cursor-pointer transition-transform active:scale-90 p-1">
                             <i data-lucide="pause" class="w-5 h-5 md:w-7 md:h-7 fill-current"></i>
                         </button>
-                        <!-- BOTÃO DE VOLUME: Sempre visível -->
                         <button id="btn-mute" onclick="event.stopPropagation(); toggleMute()" class="text-white hover:text-gray-300 cursor-pointer transition-transform active:scale-90 p-1">
                             <i data-lucide="volume-2" class="w-5 h-5 md:w-6 md:h-6 fill-current"></i>
                         </button>
                         
                         <div class="flex items-center gap-2 md:gap-3 ml-1 md:ml-2 drop-shadow-md">
                             <span id="time-display" class="text-white text-[11px] md:text-[13px] font-medium yt-font tracking-wide opacity-90">0:00</span>
-                            
                             <button id="btn-ao-vivo" onclick="event.stopPropagation(); sincronizarAoVivo()" class="hidden items-center gap-1.5 cursor-pointer transition-colors text-[10px] md:text-[12px] font-bold uppercase tracking-wider text-white hover:opacity-80">
                                 <span id="ponto-ao-vivo" class="w-2 h-2 md:w-2 md:h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)] transition-colors"></span> Ao Vivo
                             </button>
@@ -324,9 +320,8 @@
             </div>
         </div>
 
-        <!-- SEÇÃO INFERIOR: CHAT (LADO-A-LADO POR DEFAULT) LARGURA DO CHATE -->
-        <div id="chat-sidebar" class="flex flex-col w-full md:w-[500px] md:shrink-0 md:flex-none md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 border-l border-white/5 transition-all duration-300 relative">
-            
+        <!-- SEÇÃO INFERIOR: CHAT -->
+        <div id="chat-sidebar" class="flex flex-col w-full md:w-[350px] md:shrink-0 md:flex-none md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 border-l border-white/5 transition-all duration-300 relative">
             <div class="px-4 py-3 flex justify-between items-start border-b border-white/10 shadow-sm z-20 shrink-0 chat-header">
                 <div class="flex flex-col drop-shadow-md">
                     <h3 class="text-white font-medium text-[15px] leading-tight">Chat ao vivo</h3>
@@ -339,7 +334,6 @@
                 </div>
                 <div class="flex items-center gap-4 text-white mt-1">
                     <button class="hover:bg-white/20 p-1.5 rounded-full transition-colors cursor-pointer drop-shadow-md"><i data-lucide="sliders-horizontal" class="w-[18px] h-[18px]"></i></button>
-                    <!-- FECHAR CHAT (Escondido em Mobile) -->
                     <button onclick="toggleChat()" class="hidden md:block hover:bg-white/20 p-1.5 rounded-full transition-colors cursor-pointer drop-shadow-md"><i data-lucide="x" class="w-[20px] h-[20px]"></i></button>
                 </div>
             </div>
@@ -354,8 +348,7 @@
 
             <!-- Barra de digitação -->
             <div id="chat-input-container" class="relative p-2 sm:p-3 bg-[#0f0f0f] border-t border-white/10 z-20 shrink-0">
-                
-                <!-- PAINEL DE EMOJIS: left-2 right-2 para não ultrapassar a largura do sidebar e ter scroll limpo -->
+                <!-- PAINEL DE EMOJIS -->
                 <div id="emoji-picker-wrapper" class="hidden absolute bottom-full left-2 right-2 mb-2 z-[100]">
                     <emoji-picker class="dark"></emoji-picker>
                 </div>
@@ -365,7 +358,6 @@
                     
                     <div class="flex-1 bg-black/50 border border-white/10 rounded-full px-4 py-2 flex items-center group focus-within:bg-black/70 transition-colors focus-within:border-white/30 shadow-inner">
                         <input type="text" id="chat-input" placeholder="Conversar como inscrito..." class="bg-transparent text-white text-[14px] w-full outline-none placeholder-gray-400" autocomplete="off" onkeypress="if(event.key === 'Enter') enviarChat()">
-                        <!-- Ícone de Emojis que ativa o painel -->
                         <i data-lucide="smile" id="btn-emoji" onclick="toggleEmojiPicker(event)" class="w-5 h-5 text-gray-400 ml-2 cursor-pointer hover:text-white transition-colors shrink-0"></i>
                     </div>
                     
@@ -377,6 +369,9 @@
         </div>
     </div>
 
+    <!-- ========================================== -->
+    <!-- SCRIPT PRINCIPAL JAVASCRIPT                -->
+    <!-- ========================================== -->
     <script>
         lucide.createIcons();
 
@@ -390,17 +385,105 @@
         let checkInterval = null;
         let timerInterval = null;
         let targetEventDate = null;
-        let statusTransmissao = "Em Espera"; 
+        let statusTransmissao = "Em Espera";
+        let linkNuvem = ""; // ☁️ Variável nova para guardar o link da Cloudflare
         let socket = null;
 
-        // Atualiza a imagem de avatar logo no carregamento
-        document.addEventListener('DOMContentLoaded', () => {
-            if (nomeAtual && nomeAtual !== "Anónimo") {
-                const avatarInput = document.getElementById('user-avatar-input');
-                if (avatarInput) avatarInput.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nomeAtual)}&background=3ea6ff&color=fff&rounded=true&size=64`;
-            }
-        });
+        // --------------------------------------------------------------------
+        // BUSCA DADOS DO EVENTO E ATUALIZA A TELA (SINTAXE CORRIGIDA!)
+        // --------------------------------------------------------------------
+        async function fetchEventDetails() {
+            try {
+                const res = await fetch(`${dominioCloudflare}/api/evento?t=${new Date().getTime()}`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    statusTransmissao = data.status_transmissao || "Em Espera";
+                    linkNuvem = data.link_nuvem || ""; 
 
+                    const titleDisplay = document.getElementById('event-title-display');
+                    if (titleDisplay) titleDisplay.innerText = data.titulo_evento || '---';
+                    
+                    const teamAName = document.getElementById('team-a-name-display');
+                    if (teamAName) teamAName.innerText = data.time_a_nome || '---';
+                    
+                    const teamBName = document.getElementById('team-b-name-display');
+                    if (teamBName) teamBName.innerText = data.time_b_nome || '---';
+                    
+                    const imgA = document.getElementById('team-a-img-display');
+                    if (imgA && data.time_a_img) imgA.src = data.time_a_img;
+                    
+                    const imgB = document.getElementById('team-b-img-display');
+                    if (imgB && data.time_b_img) imgB.src = data.time_b_img;
+                    
+                    const homePrice = document.getElementById('home-price-display');
+                    if (homePrice) homePrice.innerText = data.valor || 'R$ --,--';
+                    
+                    const ticketsRemaining = document.getElementById('tickets-remaining-text');
+                    if (ticketsRemaining) ticketsRemaining.innerText = data.ingressos_restantes;
+
+                    if(data.data_hora && data.data_hora.trim() !== "") {
+                        let p = data.data_hora.split(/[- :]/);
+                        if(p.length >= 5) {
+                            targetEventDate = new Date(p[0], p[1]-1, p[2], p[3], p[4]).getTime();
+                            iniciarRelogio();
+                        }
+                    } else {
+                        targetEventDate = null;
+                        const tc = document.getElementById('timer-container');
+                        if(tc) { tc.classList.add('hidden'); tc.classList.remove('flex'); }
+                    }
+
+                    verificarEstadoTransmissao();
+
+                    const btnPrincipal = document.getElementById('btn-principal');
+                    const txtBtn = document.getElementById('texto-btn');
+                    const iconBtn = document.getElementById('icon-btn');
+                    const iconRestantes = document.getElementById('icon-restantes');
+                    
+                    if (btnPrincipal && txtBtn && iconBtn && iconRestantes) {
+                        if(data.ingressos_restantes <= 0 && !codigoAtual) {
+                            txtBtn.innerText = 'ESGOTADO';
+                            iconBtn.setAttribute('data-lucide', 'lock');
+                            btnPrincipal.disabled = true;
+                            btnPrincipal.classList.replace('from-indigo-600', 'from-neutral-700');
+                            btnPrincipal.classList.replace('to-purple-600', 'to-neutral-800');
+                            btnPrincipal.classList.add('cursor-not-allowed', 'opacity-80');
+                            ticketsRemaining.classList.replace('text-indigo-400', 'text-red-500');
+                            iconRestantes.classList.remove('animate-bounce');
+                            iconRestantes.setAttribute('data-lucide', 'x-circle');
+                        } else if (!codigoAtual) {
+                            btnPrincipal.disabled = false;
+                            txtBtn.innerText = 'COMPRAR INGRESSO VIP';
+                            iconBtn.setAttribute('data-lucide', 'ticket');
+                            btnPrincipal.classList.replace('from-neutral-700', 'from-indigo-600');
+                            btnPrincipal.classList.replace('to-neutral-800', 'to-purple-600');
+                            btnPrincipal.classList.remove('cursor-not-allowed', 'opacity-80');
+                            ticketsRemaining.classList.replace('text-red-500', 'text-indigo-400');
+                            iconRestantes.classList.add('animate-bounce');
+                            iconRestantes.setAttribute('data-lucide', 'flame');
+                        }
+                        lucide.createIcons();
+                    }
+
+                    // Atualiza o Avatar
+                    const avatarInput = document.getElementById('user-avatar-input');
+                    if (avatarInput && nomeAtual !== "Anónimo") {
+                        avatarInput.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nomeAtual)}&background=3ea6ff&color=fff&rounded=true&size=64`;
+                    }
+                }
+            } catch(error) {
+                console.error("Erro ao buscar detalhes do evento:", error);
+            }
+        }
+
+        // --------------------------------------------------------------------
+        // FUNÇÕES UTILITÁRIAS
+        // --------------------------------------------------------------------
         function maskCPF(input) {
             let v = input.value.replace(/\D/g, '');
             if (v.length > 11) v = v.slice(0, 11);
@@ -472,6 +555,9 @@
             }, 1000);
         }
 
+        // --------------------------------------------------------------------
+        // CONTROLO DE ESTADO DE TELA (CORRIGIDO)
+        // --------------------------------------------------------------------
         function verificarEstadoTransmissao() {
             const viewPlayer = document.getElementById('view-player');
             if (!viewPlayer || viewPlayer.classList.contains('hidden')) return;
@@ -479,13 +565,7 @@
             const waitingRoom = document.getElementById('waiting-room');
             const videoPlayer = document.getElementById('video-player');
             
-            let tempoEsgotado = false;
-            if (targetEventDate) {
-                const now = new Date().getTime();
-                if (targetEventDate - now <= 0) tempoEsgotado = true;
-            }
-
-            if (statusTransmissao === "Ao Vivo" || tempoEsgotado) {
+            if (statusTransmissao === "Ao Vivo") {
                 if (waitingRoom) waitingRoom.classList.add('hidden'); 
                 if (videoPlayer) {
                     videoPlayer.classList.remove('hidden'); 
@@ -504,86 +584,9 @@
             }
         }
 
-        async function fetchEventDetails() {
-            try {
-                const res = await fetch(`${dominioCloudflare}/api/evento?t=${new Date().getTime()}`, {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' }
-                });
-                
-                if (res.ok) {
-                    const data = await res.json();
-                    
-                    statusTransmissao = data.status_transmissao || "Em Espera";
-
-                    const titleDisplay = document.getElementById('event-title-display');
-                    if (titleDisplay) titleDisplay.innerText = data.titulo_evento || '---';
-                    
-                    const teamAName = document.getElementById('team-a-name-display');
-                    if (teamAName) teamAName.innerText = data.time_a_nome || '---';
-                    
-                    const teamBName = document.getElementById('team-b-name-display');
-                    if (teamBName) teamBName.innerText = data.time_b_nome || '---';
-                    
-                    const imgA = document.getElementById('team-a-img-display');
-                    if (imgA && data.time_a_img) imgA.src = data.time_a_img;
-                    
-                    const imgB = document.getElementById('team-b-img-display');
-                    if (imgB && data.time_b_img) imgB.src = data.time_b_img;
-                    
-                    const homePrice = document.getElementById('home-price-display');
-                    if (homePrice) homePrice.innerText = data.valor || 'R$ --,--';
-                    
-                    const ticketsRemaining = document.getElementById('tickets-remaining-text');
-                    if (ticketsRemaining) ticketsRemaining.innerText = data.ingressos_restantes;
-
-                    if(data.data_hora && data.data_hora.trim() !== "") {
-                        let p = data.data_hora.split(/[- :]/);
-                        if(p.length >= 5) {
-                            targetEventDate = new Date(p[0], p[1]-1, p[2], p[3], p[4]).getTime();
-                            iniciarRelogio();
-                        }
-                    } else {
-                        targetEventDate = null;
-                        const tc = document.getElementById('timer-container');
-                        if(tc) { tc.classList.add('hidden'); tc.classList.remove('flex'); }
-                    }
-
-                    verificarEstadoTransmissao();
-
-                    const btnPrincipal = document.getElementById('btn-principal');
-                    const txtBtn = document.getElementById('texto-btn');
-                    const iconBtn = document.getElementById('icon-btn');
-                    const iconRestantes = document.getElementById('icon-restantes');
-                    
-                    if (btnPrincipal && txtBtn && iconBtn && iconRestantes) {
-                        if(data.ingressos_restantes <= 0 && !codigoAtual) {
-                            txtBtn.innerText = 'ESGOTADO';
-                            iconBtn.setAttribute('data-lucide', 'lock');
-                            btnPrincipal.disabled = true;
-                            btnPrincipal.classList.replace('from-indigo-600', 'from-neutral-700');
-                            btnPrincipal.classList.replace('to-purple-600', 'to-neutral-800');
-                            btnPrincipal.classList.add('cursor-not-allowed', 'opacity-80');
-                            ticketsRemaining.classList.replace('text-indigo-400', 'text-red-500');
-                            iconRestantes.classList.remove('animate-bounce');
-                            iconRestantes.setAttribute('data-lucide', 'x-circle');
-                        } else if (!codigoAtual) {
-                            btnPrincipal.disabled = false;
-                            txtBtn.innerText = 'COMPRAR INGRESSO VIP';
-                            iconBtn.setAttribute('data-lucide', 'ticket');
-                            btnPrincipal.classList.replace('from-neutral-700', 'from-indigo-600');
-                            btnPrincipal.classList.replace('to-neutral-800', 'to-purple-600');
-                            btnPrincipal.classList.remove('cursor-not-allowed', 'opacity-80');
-                            ticketsRemaining.classList.replace('text-red-500', 'text-indigo-400');
-                            iconRestantes.classList.add('animate-bounce');
-                            iconRestantes.setAttribute('data-lucide', 'flame');
-                        }
-                        lucide.createIcons();
-                    }
-                }
-            } catch(e) {}
-        }
-
+        // --------------------------------------------------------------------
+        // GESTÃO DE ESTADOS (UI)
+        // --------------------------------------------------------------------
         function setUIAprovado() {
             const btnLogout = document.getElementById('btn-logout');
             if (btnLogout) btnLogout.classList.remove('hidden'); 
@@ -649,6 +652,9 @@
             lucide.createIcons();
         }
 
+        // --------------------------------------------------------------------
+        // CHECKOUT E PAGAMENTO PIX
+        // --------------------------------------------------------------------
         async function abrirCheckout() {
             if(codigoAtual) { 
                 const btn = document.getElementById('btn-principal');
@@ -957,7 +963,6 @@
                 sidebar.classList.add('flex');
             }
             if (btnChat) {
-                // Chat abre automaticamente, botão de chat fica escondido na barra de vídeo
                 btnChat.classList.add('hidden');
                 btnChat.classList.remove('md:flex');
             }
@@ -1062,9 +1067,6 @@
             lucide.createIcons();
         }
 
-        // ==========================================
-        // LÓGICA DE TELA CHEIA (Nativo para Mobile)
-        // ==========================================
         function toggleFullscreen() {
             const viewPlayer = document.getElementById('view-player'); 
             const videoWrapper = document.getElementById('video-wrapper');
@@ -1178,33 +1180,37 @@
             monitorarAoVivo();
         }
 
+        // --------------------------------------------------------------------
+        // INICIAÇÃO DO VÍDEO (A MÁGICA DA NUVEM ACONTECE AQUI)
+        // --------------------------------------------------------------------
         function iniciarPlayerDoVideo() {
             const video = document.getElementById('video-player');
             const overlay = document.getElementById('loading-overlay');
+            if(overlay) { overlay.style.display = 'flex'; overlay.classList.remove('hidden'); }
             
-            if(window.hlsPlayer || (video && video.src)) return;
-
-            const paramToken = codigoAtual ? `&token=${codigoAtual}` : '';
-            const src = `${dominioCloudflare}/stream/stream.m3u8?t=${new Date().getTime()}${paramToken}`; 
-
-            if (overlay) {
-                overlay.style.display = 'flex';
-                overlay.classList.remove('hidden');
+            // ☁️ LÓGICA INTELIGENTE: Escolhe a origem do vídeo
+            let videoSrc = "";
+            if (linkNuvem && linkNuvem.trim() !== "") {
+                const baseNuvem = linkNuvem.endsWith('/') ? linkNuvem.slice(0, -1) : linkNuvem;
+                videoSrc = baseNuvem + "/stream.m3u8";
+                console.log("☁️ A reproduzir a partir da Cloudflare R2");
+            } else {
+                videoSrc = dominioCloudflare + '/stream/stream.m3u8?token=' + codigoAtual;
+                console.log("💻 A reproduzir a partir do Servidor Local");
             }
-            
-            if (!video) return;
 
             if (Hls.isSupported()) {
-                window.hlsPlayer = new Hls({ 
-                    manifestLoadingMaxRetry: Infinity, 
-                    fragLoadingMaxRetry: Infinity,
-                    liveSyncDurationCount: 2, 
-                    liveMaxLatencyDurationCount: 3, 
+                if(window.hlsPlayer) {
+                    window.hlsPlayer.destroy();
+                }
+                
+                // SINTAXE CORRIGIDA: Fechamento correto das opções do Hls!
+                window.hlsPlayer = new Hls({
                     maxLiveSyncPlaybackRate: 2.0, 
                     lowLatencyMode: true 
                 });
                 
-                window.hlsPlayer.loadSource(src);
+                window.hlsPlayer.loadSource(videoSrc);
                 window.hlsPlayer.attachMedia(video);
                 
                 window.hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => { 
@@ -1232,7 +1238,7 @@
                     }
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = src;
+                video.src = videoSrc;
                 video.addEventListener('loadedmetadata', () => { 
                     if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
                     const btnAoVivo = document.getElementById('btn-ao-vivo');
@@ -1311,7 +1317,9 @@
             }
         });
 
-        // === WEB SOCKETS (CHAT) ===
+        // --------------------------------------------------------------------
+        // WEB SOCKETS (CHAT)
+        // --------------------------------------------------------------------
         function toggleChat() {
             const sidebar = document.getElementById('chat-sidebar');
             const btnChat = document.getElementById('btn-top-chat');
@@ -1329,7 +1337,7 @@
                 sidebar.classList.remove('flex'); 
                 if (btnChat) {
                     btnChat.classList.remove('hidden');
-                    btnChat.classList.add('md:flex'); // Só reaparece em ecrãs de computador
+                    btnChat.classList.add('md:flex'); 
                 }
             }
         }
@@ -1343,11 +1351,8 @@
             });
 
             socket.on('force_logout', (data) => {
-                // 1. Desliga o vídeo, encerra a ligação e volta à home imediatamente
                 voltarHome();
                 logout();
-                
-                // 2. Aguarda um piscar de olhos para a tela fechar e depois exibe a mensagem
                 setTimeout(() => {
                     alert(data.msg || "Sessão encerrada por segurança.");
                     location.reload();
@@ -1421,9 +1426,9 @@
             }
         }
 
-        // ==========================================
-        // LÓGICA DO PAINEL DE EMOJIS (Lado do Cliente)
-        // ==========================================
+        // --------------------------------------------------------------------
+        // LÓGICA DO PAINEL DE EMOJIS
+        // --------------------------------------------------------------------
         function toggleEmojiPicker(e) {
             if(e) e.stopPropagation();
             const wrapper = document.getElementById('emoji-picker-wrapper');
@@ -1437,18 +1442,15 @@
             const chatInputBox = document.getElementById('chat-input');
 
             if (picker && chatInputBox) {
-                // Adiciona o emoji ao campo de texto quando clicado
                 picker.addEventListener('emoji-click', event => {
                     chatInputBox.value += event.detail.unicode;
-                    chatInputBox.focus(); // Mantém o foco no campo para continuar a digitar
+                    chatInputBox.focus(); 
                 });
             }
 
-            // Fecha o painel de emojis se o utilizador clicar fora dele
             document.addEventListener('click', (e) => {
                 const wrapper = document.getElementById('emoji-picker-wrapper');
                 if (wrapper && !wrapper.classList.contains('hidden')) {
-                    // Verifica se o clique foi fora do picker e fora do botão
                     if (!wrapper.contains(e.target) && !e.target.closest('#btn-emoji')) {
                         wrapper.classList.add('hidden');
                     }
