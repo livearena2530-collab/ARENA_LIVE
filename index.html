@@ -916,30 +916,17 @@
                 window.hlsPlayer = new Hls({ 
                     manifestLoadingMaxRetry: Infinity, 
                     fragLoadingMaxRetry: Infinity,
-                    liveSyncDurationCount: 3, // Força a manter o buffer colado ao vivo
-                    liveMaxLatencyDuration: 10 // Limita o atraso máximo permitido
+                    // CONFIGURAÇÕES NATIVAS PARA "COLAR AO VIVO" SEM BLOQUEAR:
+                    liveSyncDurationCount: 3, // Mantém o buffer seguro nos últimos 3 segmentos
+                    maxLiveSyncPlaybackRate: 1.5, // Se o player ficar atrasado, acelera o vídeo em 1.5x até apanhar o momento "ao vivo", depois volta ao normal (1.0x).
                 });
+                
                 window.hlsPlayer.loadSource(src);
                 window.hlsPlayer.attachMedia(video);
                 
                 window.hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => { 
                     if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
-                    
-                    // Assim que carregar o manifesto, pula para o final do vídeo
-                    setTimeout(() => {
-                        if (video.duration) {
-                            video.currentTime = video.duration;
-                        }
-                    }, 100);
-
                     video.play().catch(e => { video.muted = true; video.play(); }); 
-                });
-
-                // Se a rede da pessoa cair ou pausar para carregar, ao retomar ele pula para o vivo
-                video.addEventListener('waiting', () => {
-                    if (video.duration) {
-                        video.currentTime = video.duration;
-                    }
                 });
 
                 window.hlsPlayer.on(Hls.Events.ERROR, (e, data) => { 
@@ -954,12 +941,6 @@
                 video.src = src;
                 video.addEventListener('loadedmetadata', () => { 
                     if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
-                    
-                    // Pula para o vivo também em iPhones / Safari nativo
-                    if (video.duration) {
-                        video.currentTime = video.duration;
-                    }
-                    
                     video.play(); 
                 });
                 video.addEventListener('error', () => { setTimeout(iniciarPlayerDoVideo, 2000); });
