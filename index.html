@@ -234,7 +234,8 @@
                         <button id="btn-play-pause" onclick="togglePlay()" class="text-white hover:text-gray-300 cursor-pointer transition-transform active:scale-90 p-1">
                             <i data-lucide="pause" class="w-5 h-5 md:w-7 md:h-7 fill-current"></i>
                         </button>
-                        <button id="btn-mute" onclick="toggleMute()" class="text-white hover:text-gray-300 cursor-pointer hidden sm:block transition-transform active:scale-90 p-1">
+                        <!-- BOTÃO DE VOLUME: Removido o 'hidden sm:block' para aparecer no Mobile -->
+                        <button id="btn-mute" onclick="toggleMute()" class="text-white hover:text-gray-300 cursor-pointer transition-transform active:scale-90 p-1">
                             <i data-lucide="volume-2" class="w-5 h-5 md:w-6 md:h-6 fill-current"></i>
                         </button>
                         
@@ -978,10 +979,17 @@
 
         function toggleMute() {
             const video = document.getElementById('video-player');
-            const btn = document.getElementById('btn-mute');
             if(!video) return;
 
             video.muted = !video.muted;
+            atualizarBotaoMute();
+        }
+
+        function atualizarBotaoMute() {
+            const video = document.getElementById('video-player');
+            const btn = document.getElementById('btn-mute');
+            if(!video || !btn) return;
+
             if(video.muted) {
                 btn.innerHTML = '<i data-lucide="volume-x" class="w-5 h-5 md:w-6 md:h-6 fill-current"></i>';
             } else {
@@ -1151,7 +1159,14 @@
                     const btnAoVivo = document.getElementById('btn-ao-vivo');
                     if(btnAoVivo) { btnAoVivo.classList.remove('hidden'); btnAoVivo.classList.add('flex'); }
                     
-                    video.play().catch(e => { video.muted = true; video.play(); }); 
+                    video.muted = false; // Tenta iniciar com som
+                    video.play().then(() => {
+                        atualizarBotaoMute(); // Sucesso: ícone de volume ativado
+                    }).catch(e => { 
+                        video.muted = true; // Navegador bloqueou: força o mute e reproduz
+                        video.play(); 
+                        atualizarBotaoMute(); // Altera o ícone para Mudo (X)
+                    }); 
                 });
 
                 window.hlsPlayer.on(Hls.Events.ERROR, (e, data) => { 
@@ -1168,7 +1183,15 @@
                     if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
                     const btnAoVivo = document.getElementById('btn-ao-vivo');
                     if(btnAoVivo) { btnAoVivo.classList.remove('hidden'); btnAoVivo.classList.add('flex'); }
-                    video.play(); 
+                    
+                    video.muted = false;
+                    video.play().then(() => {
+                        atualizarBotaoMute();
+                    }).catch(e => {
+                        video.muted = true;
+                        video.play();
+                        atualizarBotaoMute();
+                    }); 
                 });
                 video.addEventListener('error', () => { setTimeout(iniciarPlayerDoVideo, 2000); });
             }
