@@ -27,7 +27,6 @@
         #chat-messages::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.3); border-radius: 10px; }
         #chat-messages::-webkit-scrollbar-track { background: transparent; }
 
-        /* Esconde o cursor quando o utilizador está inativo no vídeo */
         .cursor-hidden { cursor: none !important; }
 
         /* ======================================================== */
@@ -215,7 +214,7 @@
                     <i data-lucide="chevron-down" class="w-4 h-4"></i> Voltar
                 </button>
                 <div class="flex gap-2 items-center">
-                    <!-- BOTÃO CHAT (Agora escondido em dispositivos móveis com 'hidden md:flex') -->
+                    <!-- BOTÃO CHAT (Escondido em Mobile) -->
                     <button id="btn-top-chat" onclick="event.stopPropagation(); toggleChat()" title="Mostrar/Ocultar Chat" class="hidden md:flex text-white bg-black/40 px-3 py-1.5 rounded-full cursor-pointer transition-colors hover:bg-white/20 shadow-md backdrop-blur-md items-center gap-2 text-xs md:text-sm font-medium border border-white/10">
                         <i data-lucide="message-square" class="w-4 h-4 md:w-5 md:h-5"></i> <span class="hidden sm:inline">Chat</span>
                     </button>
@@ -239,7 +238,7 @@
                         <button id="btn-play-pause" onclick="event.stopPropagation(); togglePlay()" class="text-white hover:text-gray-300 cursor-pointer transition-transform active:scale-90 p-1">
                             <i data-lucide="pause" class="w-5 h-5 md:w-7 md:h-7 fill-current"></i>
                         </button>
-                        <!-- BOTÃO DE VOLUME: Removido o 'hidden sm:block' para aparecer no Mobile -->
+                        <!-- BOTÃO DE VOLUME: Sempre visível -->
                         <button id="btn-mute" onclick="event.stopPropagation(); toggleMute()" class="text-white hover:text-gray-300 cursor-pointer transition-transform active:scale-90 p-1">
                             <i data-lucide="volume-2" class="w-5 h-5 md:w-6 md:h-6 fill-current"></i>
                         </button>
@@ -318,7 +317,7 @@
                 </div>
                 <div class="flex items-center gap-4 text-white mt-1">
                     <button class="hover:bg-white/20 p-1.5 rounded-full transition-colors cursor-pointer drop-shadow-md"><i data-lucide="sliders-horizontal" class="w-[18px] h-[18px]"></i></button>
-                    <!-- FECHAR CHAT (Agora escondido em dispositivos móveis com 'hidden md:block') -->
+                    <!-- FECHAR CHAT (Escondido em Mobile) -->
                     <button onclick="toggleChat()" class="hidden md:block hover:bg-white/20 p-1.5 rounded-full transition-colors cursor-pointer drop-shadow-md"><i data-lucide="x" class="w-[20px] h-[20px]"></i></button>
                 </div>
             </div>
@@ -365,6 +364,7 @@
         let statusTransmissao = "Em Espera"; 
         let socket = null;
 
+        // Atualiza a imagem de avatar logo no carregamento
         document.addEventListener('DOMContentLoaded', () => {
             if (nomeAtual && nomeAtual !== "Anónimo") {
                 const avatarInput = document.getElementById('user-avatar-input');
@@ -643,6 +643,14 @@
                     const data = await res.json();
                     
                     if(data.status === 'aprovado') {
+                        // 🔴 NOME SALVO NA MEMÓRIA AQUI 🔴
+                        if(data.nome) {
+                            nomeAtual = data.nome;
+                            localStorage.setItem('nome_vip', nomeAtual);
+                            const avatarInput = document.getElementById('user-avatar-input');
+                            if (avatarInput && nomeAtual !== "Anónimo") avatarInput.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nomeAtual)}&background=3ea6ff&color=fff&rounded=true&size=64`;
+                        }
+
                         fecharModais(); 
                         abrirVideo();
                     } else if(data.status === 'pendente') {
@@ -776,7 +784,16 @@
                 
                 if(data.status === 'aprovado' || data.status === 'pendente') {
                     codigoAtual = data.codigo;
+                    // 🔴 NOME SALVO NA MEMÓRIA AQUI (Recupera do Banco de Dados) 🔴
+                    nomeAtual = data.nome || "Anónimo";
+                    
                     localStorage.setItem('ingresso_vip', codigoAtual);
+                    localStorage.setItem('nome_vip', nomeAtual);
+
+                    const avatarInput = document.getElementById('user-avatar-input');
+                    if (avatarInput && nomeAtual !== "Anónimo") {
+                        avatarInput.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nomeAtual)}&background=3ea6ff&color=fff&rounded=true&size=64`;
+                    }
                     
                     if(data.status === 'aprovado') {
                         setUIAprovado();
@@ -858,6 +875,17 @@
                 
                 if(res.ok) {
                     const data = await res.json();
+
+                    // 🔴 NOME SALVO NA MEMÓRIA AQUI TAMBÉM (Para auto-login) 🔴
+                    if (data.nome) {
+                        nomeAtual = data.nome;
+                        localStorage.setItem('nome_vip', nomeAtual);
+                        const avatarInput = document.getElementById('user-avatar-input');
+                        if (avatarInput && nomeAtual !== "Anónimo") {
+                            avatarInput.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nomeAtual)}&background=3ea6ff&color=fff&rounded=true&size=64`;
+                        }
+                    }
+
                     if(data.status === 'aprovado') {
                         setUIAprovado();
                         if (checkInterval) clearInterval(checkInterval);
@@ -1011,17 +1039,14 @@
             const videoWrapper = document.getElementById('video-wrapper');
             const video = document.getElementById('video-player');
             
-            // Detecta se é um telemóvel/tablet
             const isMobile = window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             
             const fsElement = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
 
             if (!fsElement) {
                 if (isMobile) {
-                    // No telemóvel: Coloca apenas o vídeo em tela cheia (esconde o chat)
                     if (videoWrapper.requestFullscreen) { 
                         videoWrapper.requestFullscreen().then(() => {
-                            // Tenta forçar o telemóvel a deitar (modo paisagem)
                             if (screen.orientation && screen.orientation.lock) {
                                 screen.orientation.lock('landscape').catch(e => console.log("Rotação não suportada", e));
                             }
@@ -1033,32 +1058,27 @@
                             screen.orientation.lock('landscape').catch(e => console.log(e));
                         }
                     }
-                    // Fallback para iOS nativo
                     else if (video.webkitEnterFullscreen) { 
                         video.webkitEnterFullscreen(); 
                     } 
                 } else {
-                    // No Computador: Coloca tudo em tela cheia (Vídeo + Chat transparente)
                     if (viewPlayer.requestFullscreen) { viewPlayer.requestFullscreen(); }
                     else if (viewPlayer.msRequestFullscreen) { viewPlayer.msRequestFullscreen(); }
                     else if (viewPlayer.mozRequestFullScreen) { viewPlayer.mozRequestFullScreen(); }
                     else if (viewPlayer.webkitRequestFullscreen) { viewPlayer.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT); }
                 }
             } else {
-                // Sair do Ecrã Inteiro
                 if (document.exitFullscreen) { document.exitFullscreen(); }
                 else if (document.msExitFullscreen) { document.msExitFullscreen(); }
                 else if (document.mozCancelFullScreen) { document.mozCancelFullScreen(); }
                 else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
                 
-                // Liberta a rotação do telemóvel ao sair
                 if (screen.orientation && screen.orientation.unlock) {
                     screen.orientation.unlock();
                 }
             }
         }
 
-        // Detetor Automático de Tela Cheia (para trocar o layout do Chat via CSS)
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
         document.addEventListener('mozfullscreenchange', handleFullscreenChange);
@@ -1072,13 +1092,11 @@
             const fsElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
             
             if (fsElement) {
-                // Só aplica a transparência do chat se a tela cheia for do container inteiro (PC)
                 if (fsElement === viewPlayer || fsElement === document.webkitFullscreenElement) {
                     viewPlayer.classList.add('is-fullscreen');
                 }
                 btnFullscreen.innerHTML = '<i data-lucide="minimize" class="w-5 h-5 md:w-6 md:h-6"></i>';
             } else {
-                // Saiu da Tela Cheia
                 viewPlayer.classList.remove('is-fullscreen');
                 btnFullscreen.innerHTML = '<i data-lucide="maximize" class="w-5 h-5 md:w-6 md:h-6"></i>';
                 
@@ -1164,13 +1182,13 @@
                     const btnAoVivo = document.getElementById('btn-ao-vivo');
                     if(btnAoVivo) { btnAoVivo.classList.remove('hidden'); btnAoVivo.classList.add('flex'); }
                     
-                    video.muted = false; // Tenta iniciar com som
+                    video.muted = false;
                     video.play().then(() => {
-                        atualizarBotaoMute(); // Sucesso: ícone de volume ativado
+                        atualizarBotaoMute(); 
                     }).catch(e => { 
-                        video.muted = true; // Navegador bloqueou: força o mute e reproduz
+                        video.muted = true; 
                         video.play(); 
-                        atualizarBotaoMute(); // Altera o ícone para Mudo (X)
+                        atualizarBotaoMute(); 
                     }); 
                 });
 
