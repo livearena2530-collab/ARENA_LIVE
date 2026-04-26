@@ -31,49 +31,27 @@
         .cursor-hidden { cursor: none !important; }
 
         /* ======================================================== */
-        /* MAGIA DO MODO TELA CHEIA (Chat Transparente e Sobreposto) */
+        /* MAGIA DO MODO TELA CHEIA NO COMPUTADOR                   */
         /* ======================================================== */
-        .is-fullscreen #video-wrapper {
-            width: 100% !important;
-            height: 100% !important;
-            flex: none !important;
-        }
-        
+        .is-fullscreen #video-wrapper { width: 100% !important; height: 100% !important; flex: none !important; }
         .is-fullscreen #chat-sidebar {
-            position: absolute !important;
-            right: 0 !important;
-            top: 0 !important;
-            bottom: 0 !important;
-            background-color: rgba(0, 0, 0, 0.3) !important;
-            backdrop-filter: blur(8px) !important;
-            z-index: 60 !important;
-            box-shadow: -10px 0 30px rgba(0,0,0,0.5) !important;
-            height: 100% !important;
-            border-left: 1px solid rgba(255,255,255,0.05) !important;
+            position: absolute !important; right: 0 !important; top: 0 !important; bottom: 0 !important;
+            background-color: rgba(0, 0, 0, 0.3) !important; backdrop-filter: blur(8px) !important;
+            z-index: 60 !important; box-shadow: -10px 0 30px rgba(0,0,0,0.5) !important;
+            height: 100% !important; border-left: 1px solid rgba(255,255,255,0.05) !important;
         }
+        .is-fullscreen .chat-header { background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent) !important; border-bottom: none !important; }
+        .is-fullscreen #chat-messages { background-color: transparent !important; }
+        .is-fullscreen #chat-input-container { background-color: rgba(0,0,0,0.4) !important; backdrop-filter: blur(10px) !important; border-top: 1px solid rgba(255,255,255,0.05) !important; }
+        .is-fullscreen .chat-message-text { text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
+        .is-fullscreen .chat-message-author { text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
 
-        .is-fullscreen .chat-header {
-            background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent) !important;
-            border-bottom: none !important;
-        }
-        
-        .is-fullscreen #chat-messages {
-            background-color: transparent !important;
-        }
-        
-        .is-fullscreen #chat-input-container {
-            background-color: rgba(0,0,0,0.4) !important;
-            backdrop-filter: blur(10px) !important;
-            border-top: 1px solid rgba(255,255,255,0.05) !important;
-        }
-
-        /* Sombras nos textos para melhorar a leitura por cima do vídeo em Tela Cheia */
-        .is-fullscreen .chat-message-text {
-            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-        }
-        .is-fullscreen .chat-message-author {
-            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-        }
+        /* ======================================================== */
+        /* FORÇA O VÍDEO A PREENCHER TUDO NO MOBILE EM TELA CHEIA   */
+        /* ======================================================== */
+        #video-wrapper:fullscreen { width: 100% !important; height: 100% !important; aspect-ratio: auto !important; }
+        #video-wrapper:-webkit-full-screen { width: 100% !important; height: 100% !important; aspect-ratio: auto !important; }
+        #video-wrapper:-moz-full-screen { width: 100% !important; height: 100% !important; aspect-ratio: auto !important; }
     </style>
 </head>
 <body class="fixed inset-0 w-full h-full overflow-hidden bg-[#050505] text-[#f5f5f5]">
@@ -1017,21 +995,57 @@
         }
 
         // ==========================================
-        // LÓGICA DE TELA CHEIA (Dispara o evento nativo)
+        // LÓGICA DE TELA CHEIA (Nativo para Mobile)
         // ==========================================
         function toggleFullscreen() {
             const viewPlayer = document.getElementById('view-player'); 
+            const videoWrapper = document.getElementById('video-wrapper');
+            const video = document.getElementById('video-player');
             
-            if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
-                if (viewPlayer.requestFullscreen) { viewPlayer.requestFullscreen(); }
-                else if (viewPlayer.msRequestFullscreen) { viewPlayer.msRequestFullscreen(); }
-                else if (viewPlayer.mozRequestFullScreen) { viewPlayer.mozRequestFullScreen(); }
-                else if (viewPlayer.webkitRequestFullscreen) { viewPlayer.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT); }
+            // Detecta se é um telemóvel/tablet
+            const isMobile = window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            
+            const fsElement = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+
+            if (!fsElement) {
+                if (isMobile) {
+                    // No telemóvel: Coloca apenas o vídeo em tela cheia (esconde o chat)
+                    if (videoWrapper.requestFullscreen) { 
+                        videoWrapper.requestFullscreen().then(() => {
+                            // Tenta forçar o telemóvel a deitar (modo paisagem)
+                            if (screen.orientation && screen.orientation.lock) {
+                                screen.orientation.lock('landscape').catch(e => console.log("Rotação não suportada", e));
+                            }
+                        }); 
+                    }
+                    else if (videoWrapper.webkitRequestFullscreen) { 
+                        videoWrapper.webkitRequestFullscreen(); 
+                        if (screen.orientation && screen.orientation.lock) {
+                            screen.orientation.lock('landscape').catch(e => console.log(e));
+                        }
+                    }
+                    // Fallback para iOS nativo
+                    else if (video.webkitEnterFullscreen) { 
+                        video.webkitEnterFullscreen(); 
+                    } 
+                } else {
+                    // No Computador: Coloca tudo em tela cheia (Vídeo + Chat transparente)
+                    if (viewPlayer.requestFullscreen) { viewPlayer.requestFullscreen(); }
+                    else if (viewPlayer.msRequestFullscreen) { viewPlayer.msRequestFullscreen(); }
+                    else if (viewPlayer.mozRequestFullScreen) { viewPlayer.mozRequestFullScreen(); }
+                    else if (viewPlayer.webkitRequestFullscreen) { viewPlayer.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT); }
+                }
             } else {
+                // Sair do Ecrã Inteiro
                 if (document.exitFullscreen) { document.exitFullscreen(); }
                 else if (document.msExitFullscreen) { document.msExitFullscreen(); }
                 else if (document.mozCancelFullScreen) { document.mozCancelFullScreen(); }
                 else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
+                
+                // Liberta a rotação do telemóvel ao sair
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
             }
         }
 
@@ -1046,16 +1060,22 @@
             const btnFullscreen = document.getElementById('btn-fullscreen');
             if (!viewPlayer || !btnFullscreen) return;
 
-            const isFull = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+            const fsElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
             
-            if (isFull) {
-                // Ao entrar em Tela Cheia, adicionamos a classe que ativa a Transparência e Sobreposição!
-                viewPlayer.classList.add('is-fullscreen');
+            if (fsElement) {
+                // Só aplica a transparência do chat se a tela cheia for do container inteiro (PC)
+                if (fsElement === viewPlayer || fsElement === document.webkitFullscreenElement) {
+                    viewPlayer.classList.add('is-fullscreen');
+                }
                 btnFullscreen.innerHTML = '<i data-lucide="minimize" class="w-5 h-5 md:w-6 md:h-6"></i>';
             } else {
-                // Ao sair de Tela Cheia, ele volta a ser Lado-a-Lado e opaco.
+                // Saiu da Tela Cheia
                 viewPlayer.classList.remove('is-fullscreen');
                 btnFullscreen.innerHTML = '<i data-lucide="maximize" class="w-5 h-5 md:w-6 md:h-6"></i>';
+                
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
             }
             lucide.createIcons();
         }
