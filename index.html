@@ -202,7 +202,12 @@
                 <button onclick="voltarHome()" class="text-white flex items-center gap-1 hover:text-gray-300 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md text-xs font-medium cursor-pointer transition-colors pointer-events-auto">
                     <i data-lucide="chevron-down" class="w-4 h-4"></i> Voltar
                 </button>
-                <div class="flex gap-2 pointer-events-auto">
+                <div class="flex gap-2 pointer-events-auto items-center">
+                    <!-- NOVO BOTÃO AO VIVO -->
+                    <button id="btn-ao-vivo" onclick="sincronizarAoVivo()" class="hidden items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-full cursor-pointer transition-colors text-[11px] font-bold uppercase tracking-wider text-neutral-400 hover:bg-white/10">
+                        <span id="ponto-ao-vivo" class="w-2 h-2 rounded-full bg-neutral-500 transition-colors"></span> Ao Vivo
+                    </button>
+                    <!-- BOTÃO CHAT -->
                     <button onclick="toggleChat()" class="md:hidden text-white bg-black/40 px-2 py-1.5 rounded-full cursor-pointer transition-colors"><i data-lucide="message-square" class="w-4 h-4"></i></button>
                 </div>
             </div>
@@ -893,6 +898,13 @@
                 socket.disconnect();
                 socket = null;
             }
+            
+            // Esconde o botão Ao Vivo ao voltar para a home
+            const btnAoVivo = document.getElementById('btn-ao-vivo');
+            if (btnAoVivo) {
+                btnAoVivo.classList.add('hidden');
+                btnAoVivo.classList.remove('flex');
+            }
         }
 
         function iniciarPlayerDoVideo() {
@@ -916,9 +928,11 @@
                 window.hlsPlayer = new Hls({ 
                     manifestLoadingMaxRetry: Infinity, 
                     fragLoadingMaxRetry: Infinity,
-                    // CONFIGURAÇÕES NATIVAS PARA "COLAR AO VIVO" SEM BLOQUEAR:
-                    liveSyncDurationCount: 3, // Mantém o buffer seguro nos últimos 3 segmentos
-                    maxLiveSyncPlaybackRate: 1.5, // Se o player ficar atrasado, acelera o vídeo em 1.5x até apanhar o momento "ao vivo", depois volta ao normal (1.0x).
+                    // CONFIGURAÇÕES EXTREMAS PARA MÍNIMO DE BUFFER (BAIXA LATÊNCIA)
+                    liveSyncDurationCount: 2, // Mínimo absoluto (força a colar no último segmento do OBS)
+                    liveMaxLatencyDurationCount: 3, // Se passar de 3 segmentos atrasado, toma ação
+                    maxLiveSyncPlaybackRate: 2.0, // Acelera até 2x rapidamente para compensar atrasos ocultos
+                    lowLatencyMode: true // Liga otimização para baixa latência
                 });
                 
                 window.hlsPlayer.loadSource(src);
@@ -926,6 +940,10 @@
                 
                 window.hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => { 
                     if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
+                    
+                    const btnAoVivo = document.getElementById('btn-ao-vivo');
+                    if(btnAoVivo) { btnAoVivo.classList.remove('hidden'); btnAoVivo.classList.add('flex'); }
+                    
                     video.play().catch(e => { video.muted = true; video.play(); }); 
                 });
 
@@ -941,10 +959,62 @@
                 video.src = src;
                 video.addEventListener('loadedmetadata', () => { 
                     if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
+                    
+                    const btnAoVivo = document.getElementById('btn-ao-vivo');
+                    if(btnAoVivo) { btnAoVivo.classList.remove('hidden'); btnAoVivo.classList.add('flex'); }
+                    
                     video.play(); 
                 });
                 video.addEventListener('error', () => { setTimeout(iniciarPlayerDoVideo, 2000); });
             }
+
+            // Ativa a verificação de "Está Ao Vivo?" a cada atualização de tempo do vídeo
+            video.addEventListener('timeupdate', monitorarAoVivo);
+        }
+
+        // === BOTÃO "AO VIVO" - LÓGICA TIPO YOUTUBE ===
+        function monitorarAoVivo() {
+            const video = document.getElementById('video-player');
+            const btn = document.getElementById('btn-ao-vivo');
+            const ponto = document.getElementById('ponto-ao-vivo');
+            
+            if(!video || !btn || !ponto) return;
+
+            let isAoVivo = false;
+            
+            if(window.hlsPlayer && window.hlsPlayer.liveSyncPosition) {
+                // Se estiver a menos de 3 segundos do ponto mais em tempo real, considera-se "Ao Vivo"
+                isAoVivo = (window.hlsPlayer.liveSyncPosition - video.currentTime) < 3;
+            } else if (video.duration) {
+                // Fallback para iPhones / Safari nativo
+                isAoVivo = (video.duration - video.currentTime) < 3;
+            }
+
+            // Atualiza as cores do botão conforme o estado
+            if(isAoVivo) {
+                btn.classList.add('text-white');
+                btn.classList.remove('text-neutral-400');
+                ponto.classList.add('bg-red-500', 'animate-pulse', 'shadow-[0_0_8px_rgba(239,68,68,1)]');
+                ponto.classList.remove('bg-neutral-500');
+            } else {
+                btn.classList.remove('text-white');
+                btn.classList.add('text-neutral-400');
+                ponto.classList.remove('bg-red-500', 'animate-pulse', 'shadow-[0_0_8px_rgba(239,68,68,1)]');
+                ponto.classList.add('bg-neutral-500');
+            }
+        }
+
+        function sincronizarAoVivo() {
+            const video = document.getElementById('video-player');
+            if(!video) return;
+
+            // Pula exatamente para a "ponta" do carregamento em tempo real
+            if(window.hlsPlayer && window.hlsPlayer.liveSyncPosition) {
+                video.currentTime = window.hlsPlayer.liveSyncPosition;
+            } else if (video.duration) {
+                video.currentTime = video.duration;
+            }
+            video.play();
         }
 
         // === WEB SOCKETS (CHAT YT CLONE) ===
