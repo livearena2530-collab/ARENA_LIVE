@@ -412,10 +412,14 @@
                     const titleDisplay = document.getElementById('event-title-display');
                     if (titleDisplay) titleDisplay.innerText = data.titulo_evento || '---';
                     
-                    // 🎤 ALTERNAR ENTRE LAYOUT ESPORTES E SHOW
+                    // 🎤 ALTERNAR ENTRE LAYOUT ESPORTES E SHOW NA TELA INICIAL E SALA DE ESPERA
                     const tipoEvento = data.tipo_evento || 'esportes';
                     const layoutEsportes = document.getElementById('layout-esportes');
                     const layoutShow = document.getElementById('layout-show');
+                    
+                    // Elementos de fundo dinâmicos
+                    const viewHomeImg = document.querySelector('#view-home > div.fixed > img');
+                    const waitingRoom = document.getElementById('waiting-room');
 
                     if(tipoEvento === 'show') {
                         // Modo Show / Palestra
@@ -425,6 +429,12 @@
                         const bannerDisplay = document.getElementById('banner-show-display');
                         if (bannerDisplay) {
                             bannerDisplay.src = data.banner_evento || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070&auto=format&fit=crop';
+                        }
+                        
+                        // Atualiza o fundo da Home e da Sala de Espera para o Banner do Evento
+                        if (data.banner_evento) {
+                            if(viewHomeImg) viewHomeImg.src = data.banner_evento;
+                            if(waitingRoom) waitingRoom.style.backgroundImage = `url('${data.banner_evento}')`;
                         }
                     } else {
                         // Modo Esportes
@@ -442,6 +452,11 @@
                         
                         const imgB = document.getElementById('team-b-img-display');
                         if (imgB && data.time_b_img) imgB.src = data.time_b_img;
+                        
+                        // Restaura o fundo padrão do estádio
+                        const defaultBg = "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop";
+                        if(viewHomeImg) viewHomeImg.src = defaultBg;
+                        if(waitingRoom) waitingRoom.style.backgroundImage = `url('${defaultBg}')`;
                     }
                     
                     const homePrice = document.getElementById('home-price-display');
