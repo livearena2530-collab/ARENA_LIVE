@@ -32,9 +32,7 @@
 
         .cursor-hidden { cursor: none !important; }
 
-        /* ======================================================== */
-        /* MAGIA DO MODO TELA CHEIA NO COMPUTADOR                   */
-        /* ======================================================== */
+        /* MAGIA DO MODO TELA CHEIA NO COMPUTADOR */
         .is-fullscreen #video-wrapper { width: 100% !important; height: 100% !important; flex: none !important; }
         .is-fullscreen #chat-sidebar {
             position: absolute !important; right: 0 !important; top: 0 !important; bottom: 0 !important;
@@ -48,9 +46,7 @@
         .is-fullscreen .chat-message-text { text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
         .is-fullscreen .chat-message-author { text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
 
-        /* ======================================================== */
-        /* FORÇA O VÍDEO A PREENCHER TUDO NO MOBILE EM TELA CHEIA   */
-        /* ======================================================== */
+        /* FORÇA O VÍDEO A PREENCHER TUDO NO MOBILE EM TELA CHEIA */
         #video-wrapper:fullscreen { width: 100% !important; height: 100% !important; aspect-ratio: auto !important; }
         #video-wrapper:-webkit-full-screen { width: 100% !important; height: 100% !important; aspect-ratio: auto !important; }
         #video-wrapper:-moz-full-screen { width: 100% !important; height: 100% !important; aspect-ratio: auto !important; }
@@ -59,9 +55,7 @@
         #video-wrapper:-webkit-full-screen #btn-top-chat { display: none !important; }
         #video-wrapper:-moz-full-screen #btn-top-chat { display: none !important; }
 
-        /* ======================================================== */
-        /* ESTILO PERSONALIZADO DO PAINEL DE EMOJIS                 */
-        /* ======================================================== */
+        /* ESTILO PERSONALIZADO DO PAINEL DE EMOJIS */
         emoji-picker {
             --background: #1f1f1f;
             --border-color: rgba(255,255,255,0.1);
@@ -87,7 +81,7 @@
     <!-- ========================================== -->
     <div id="view-home" class="absolute inset-0 w-full h-full flex flex-col items-center fade-in overflow-x-hidden overflow-y-auto">
         <div class="fixed inset-0 z-0 pointer-events-none">
-            <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover opacity-20 scale-105" alt="Estádio">
+            <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover opacity-20 scale-105" alt="Estádio ou Palco">
             <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]"></div>
         </div>
 
@@ -110,7 +104,8 @@
 
             <h1 id="event-title-display" class="text-3xl md:text-5xl font-black mb-10 drop-shadow-xl text-center text-neutral-300 uppercase tracking-wide">A CARREGAR...</h1>
 
-            <div class="flex items-center justify-center gap-4 md:gap-16 w-full mb-10">
+            <!-- 🏆 LAYOUT 1: ESPORTES (TIME x TIME) -->
+            <div id="layout-esportes" class="flex items-center justify-center gap-4 md:gap-16 w-full mb-10">
                 <div class="flex flex-col items-center w-1/3">
                     <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-[4px] md:border-[6px] border-indigo-500/80 shadow-[0_0_30px_rgba(99,102,241,0.4)] overflow-hidden bg-neutral-900 flex items-center justify-center relative">
                         <img id="team-a-img-display" src="" class="w-full h-full object-cover relative z-10" alt="Equipa Local">
@@ -128,7 +123,16 @@
                 </div>
             </div>
 
-            <div class="glass rounded-[2rem] p-6 md:p-8 max-w-md w-full shadow-2xl relative group">
+            <!-- 🎤 LAYOUT 2: SHOW / EVENTO ÚNICO (BANNER) -->
+            <div id="layout-show" class="hidden flex-col items-center justify-center w-full mb-10 fade-in">
+                <div class="w-full max-w-3xl aspect-video rounded-3xl border-2 border-indigo-500/30 shadow-[0_0_40px_rgba(99,102,241,0.2)] overflow-hidden bg-neutral-900 relative group">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-20 pointer-events-none"></div>
+                    <img id="banner-show-display" src="" class="w-full h-full object-cover relative z-10 transition-transform duration-700 group-hover:scale-105" alt="Banner do Evento">
+                </div>
+            </div>
+
+            <!-- CAIXA DE COMPRA / INGRESSO -->
+            <div class="glass rounded-[2rem] p-6 md:p-8 max-w-md w-full shadow-2xl relative group mt-4">
                 <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
                 
                 <div class="relative flex flex-col items-center text-center w-full">
@@ -386,11 +390,11 @@
         let timerInterval = null;
         let targetEventDate = null;
         let statusTransmissao = "Em Espera";
-        let linkNuvem = ""; // ☁️ Variável nova para guardar o link da Cloudflare
+        let linkNuvem = ""; 
         let socket = null;
 
         // --------------------------------------------------------------------
-        // BUSCA DADOS DO EVENTO E ATUALIZA A TELA (SINTAXE CORRIGIDA!)
+        // BUSCA DADOS DO EVENTO E ATUALIZA A TELA (COM LAYOUTS DINÂMICOS)
         // --------------------------------------------------------------------
         async function fetchEventDetails() {
             try {
@@ -408,17 +412,37 @@
                     const titleDisplay = document.getElementById('event-title-display');
                     if (titleDisplay) titleDisplay.innerText = data.titulo_evento || '---';
                     
-                    const teamAName = document.getElementById('team-a-name-display');
-                    if (teamAName) teamAName.innerText = data.time_a_nome || '---';
-                    
-                    const teamBName = document.getElementById('team-b-name-display');
-                    if (teamBName) teamBName.innerText = data.time_b_nome || '---';
-                    
-                    const imgA = document.getElementById('team-a-img-display');
-                    if (imgA && data.time_a_img) imgA.src = data.time_a_img;
-                    
-                    const imgB = document.getElementById('team-b-img-display');
-                    if (imgB && data.time_b_img) imgB.src = data.time_b_img;
+                    // 🎤 ALTERNAR ENTRE LAYOUT ESPORTES E SHOW
+                    const tipoEvento = data.tipo_evento || 'esportes';
+                    const layoutEsportes = document.getElementById('layout-esportes');
+                    const layoutShow = document.getElementById('layout-show');
+
+                    if(tipoEvento === 'show') {
+                        // Modo Show / Palestra
+                        if(layoutEsportes) { layoutEsportes.classList.add('hidden'); layoutEsportes.classList.remove('flex'); }
+                        if(layoutShow) { layoutShow.classList.remove('hidden'); layoutShow.classList.add('flex'); }
+                        
+                        const bannerDisplay = document.getElementById('banner-show-display');
+                        if (bannerDisplay) {
+                            bannerDisplay.src = data.banner_evento || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070&auto=format&fit=crop';
+                        }
+                    } else {
+                        // Modo Esportes
+                        if(layoutShow) { layoutShow.classList.add('hidden'); layoutShow.classList.remove('flex'); }
+                        if(layoutEsportes) { layoutEsportes.classList.remove('hidden'); layoutEsportes.classList.add('flex'); }
+
+                        const teamAName = document.getElementById('team-a-name-display');
+                        if (teamAName) teamAName.innerText = data.time_a_nome || '---';
+                        
+                        const teamBName = document.getElementById('team-b-name-display');
+                        if (teamBName) teamBName.innerText = data.time_b_nome || '---';
+                        
+                        const imgA = document.getElementById('team-a-img-display');
+                        if (imgA && data.time_a_img) imgA.src = data.time_a_img;
+                        
+                        const imgB = document.getElementById('team-b-img-display');
+                        if (imgB && data.time_b_img) imgB.src = data.time_b_img;
+                    }
                     
                     const homePrice = document.getElementById('home-price-display');
                     if (homePrice) homePrice.innerText = data.valor || 'R$ --,--';
@@ -555,9 +579,6 @@
             }, 1000);
         }
 
-        // --------------------------------------------------------------------
-        // CONTROLO DE ESTADO DE TELA (CORRIGIDO)
-        // --------------------------------------------------------------------
         function verificarEstadoTransmissao() {
             const viewPlayer = document.getElementById('view-player');
             if (!viewPlayer || viewPlayer.classList.contains('hidden')) return;
@@ -602,7 +623,7 @@
             }
 
             const textoBtn = document.getElementById('texto-btn');
-            if (textoBtn) textoBtn.innerText = 'ASSISTIR JOGO AGORA';
+            if (textoBtn) textoBtn.innerText = 'ASSISTIR EVENTO AGORA';
             
             const iconBtn = document.getElementById('icon-btn');
             if (iconBtn) iconBtn.setAttribute('data-lucide', 'play-circle');
@@ -1204,7 +1225,6 @@
                     window.hlsPlayer.destroy();
                 }
                 
-                // SINTAXE CORRIGIDA: Fechamento correto das opções do Hls!
                 window.hlsPlayer = new Hls({
                     maxLiveSyncPlaybackRate: 2.0, 
                     lowLatencyMode: true 
