@@ -981,13 +981,25 @@
             if(!video || !btn || !ponto) return;
 
             let isAoVivo = false;
+            let latencia = 0;
             
             if(window.hlsPlayer && window.hlsPlayer.liveSyncPosition) {
+                latencia = window.hlsPlayer.liveSyncPosition - video.currentTime;
                 // Se estiver a menos de 3 segundos do ponto mais em tempo real, considera-se "Ao Vivo"
-                isAoVivo = (window.hlsPlayer.liveSyncPosition - video.currentTime) < 3;
+                isAoVivo = latencia < 3;
+
+                // 🔴 AUTO-RECUPERAÇÃO: Se o atraso passar de 8 segundos (ex: internet oscilou), força o pulo
+                if (latencia > 8 && !video.paused) {
+                    sincronizarAoVivo();
+                }
             } else if (video.duration) {
                 // Fallback para iPhones / Safari nativo
-                isAoVivo = (video.duration - video.currentTime) < 3;
+                latencia = video.duration - video.currentTime;
+                isAoVivo = latencia < 3;
+
+                if (latencia > 8 && !video.paused) {
+                    sincronizarAoVivo();
+                }
             }
 
             // Atualiza as cores do botão conforme o estado
@@ -1014,8 +1026,19 @@
             } else if (video.duration) {
                 video.currentTime = video.duration;
             }
-            video.play();
+            video.play().catch(e => console.log(e));
         }
+
+        // 🔴 NOVO: FORÇA O VÍDEO A ATUALIZAR QUANDO VOLTA DA ABA EM SEGUNDO PLANO
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                const video = document.getElementById('video-player');
+                // Quando o utilizador regressa à aba, força a sincronização imediata (se o vídeo já estivesse em reprodução)
+                if (video && !video.paused && !video.classList.contains('hidden')) {
+                    sincronizarAoVivo();
+                }
+            }
+        });
 
         // === WEB SOCKETS (CHAT YT CLONE) ===
         function toggleChat() {
