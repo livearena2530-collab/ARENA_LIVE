@@ -2,7 +2,6 @@
 <html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
-    <!-- NOVO VIEWPORT: interative-widget=resizes-content força o teclado a encolher o chat e não empurrar a tela -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, interactive-widget=resizes-content">
     <title>ArenaLive - Transmissão Premium</title>
     
@@ -15,7 +14,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Inter:wght@300;400;600;700;800;900&display=swap');
         
-        /* Fontes: Inter para Home, Roboto para Chat (Igual ao YT) */
         body { font-family: 'Inter', sans-serif; background-color: #050505; color: #f5f5f5; }
         .yt-font { font-family: 'Roboto', sans-serif; }
         
@@ -25,22 +23,20 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Scrollbar estilo YouTube */
         #chat-messages::-webkit-scrollbar { width: 6px; }
         #chat-messages::-webkit-scrollbar-thumb { background-color: #717171; border-radius: 10px; }
         #chat-messages::-webkit-scrollbar-track { background: transparent; }
+
+        /* Esconde o cursor quando o utilizador está inativo no vídeo */
+        .cursor-hidden { cursor: none !important; }
     </style>
 </head>
-<!-- ESTRUTURA BLINDADA: fixed inset-0 impede que a página pule quando o teclado abre -->
 <body class="fixed inset-0 w-full h-full overflow-hidden bg-[#050505] text-[#f5f5f5]">
 
     <!-- ========================================== -->
     <!-- ECRÃ INICIAL -->
     <!-- ========================================== -->
-    <!-- overflow-y-auto aqui garante que se pode fazer scroll no telemóvel -->
     <div id="view-home" class="absolute inset-0 w-full h-full flex flex-col items-center fade-in overflow-x-hidden overflow-y-auto">
-        
-        <!-- Fundo do Estádio -->
         <div class="fixed inset-0 z-0 pointer-events-none">
             <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover opacity-20 scale-105" alt="Estádio">
             <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]"></div>
@@ -56,10 +52,8 @@
             <button id="btn-logout" onclick="logout()" class="hidden text-xs font-bold text-neutral-400 hover:text-white bg-white/10 px-3 py-1.5 rounded-lg z-50 transition-colors cursor-pointer">Sair da Conta</button>
         </header>
 
-        <!-- ESPAÇADOR DE TOPO: Protege o cabeçalho. Garante distância de segurança para não invadir o botão de Sair. -->
         <div class="w-full flex-grow min-h-[100px] md:min-h-[120px] shrink-0"></div>
 
-        <!-- CONTEÚDO PRINCIPAL (sem o justify-center forçado que estava a causar a sobreposição) -->
         <div class="relative z-10 w-full max-w-5xl px-4 flex flex-col items-center shrink-0">
             <div class="mb-4 px-4 py-1.5 rounded-full border border-red-500/40 bg-gradient-to-r from-red-600/20 to-red-500/10 text-red-400 text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
                 <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)]"></span> TRANSMISSÃO EXCLUSIVA
@@ -89,7 +83,6 @@
                 <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
                 
                 <div class="relative flex flex-col items-center text-center w-full">
-                    
                     <div class="flex items-center justify-between w-full mb-6 px-2 border-b border-white/10 pb-4">
                         <div class="flex flex-col text-left">
                             <span class="text-xs text-neutral-400 font-bold uppercase tracking-wider mb-1">Ingresso VIP</span>
@@ -104,17 +97,14 @@
                         </div>
                     </div>
 
-                    <!-- Mensagem de Status -->
                     <div id="status-ingresso-salvo" class="hidden w-full bg-amber-500/20 border border-amber-500/40 text-amber-400 p-3 rounded-xl mb-4 text-sm font-bold animate-pulse">
                         A verificar o seu ingresso...
                     </div>
 
-                    <!-- Botão de Ação Principal -->
                     <button id="btn-principal" onclick="abrirCheckout()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black py-5 px-8 rounded-xl transition-all active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.5)] flex items-center justify-center gap-3 text-lg md:text-xl mb-6 cursor-pointer">
                         <i data-lucide="ticket" id="icon-btn" class="w-6 h-6"></i> <span id="texto-btn">COMPRAR INGRESSO VIP</span>
                     </button>
                     
-                    <!-- RECUPERAÇÃO DE ACESSO -->
                     <div id="area-recuperacao" class="w-full border-t border-white/10 pt-5 mt-2 shrink-0">
                         <p class="text-xs text-neutral-400 mb-3 font-bold uppercase tracking-wider">Já gerou um ingresso? Entre abaixo:</p>
                         <div class="flex flex-col gap-2">
@@ -124,12 +114,9 @@
                             </button>
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>
-
-        <!-- ESPAÇADOR DE FUNDO -->
         <div class="w-full flex-grow min-h-[60px] shrink-0"></div>
     </div>
 
@@ -146,7 +133,6 @@
             </div>
             
             <div class="p-6 sm:p-8">
-                <!-- COMPRAR (ETAPA 1) -->
                 <div id="step-form">
                     <p class="text-neutral-400 text-sm mb-5 text-center">Informe os seus dados corretos. O CPF será a sua chave de acesso.</p>
                     
@@ -161,7 +147,6 @@
                     </button>
                 </div>
 
-                <!-- PIX GERADO / PENDENTE (ETAPA 2) -->
                 <div id="step-payment" class="hidden text-center fade-in">
                     <h4 id="valor-ingresso" class="text-3xl font-black mb-1 text-white">R$ --,--</h4>
                     <p class="text-xs text-neutral-400 mb-4">Pague via PIX para libertar o vídeo. A liberação é automática após o pagamento.</p>
@@ -189,41 +174,76 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- ECRÃ DO PLAYER (DESIGN YOUTUBE MOBILE)     -->
+    <!-- ECRÃ DO PLAYER E CHAT (AGORA PREPARADO PARA TELA CHEIA) -->
     <!-- ========================================== -->
-    <!-- absolute inset-0 força a tela a respeitar os limites, mesmo quando o teclado sobe -->
+    <!-- Se este contentor entrar em fullscreen, ele leva o video E o chat juntos! -->
     <div id="view-player" class="hidden absolute inset-0 z-50 bg-black flex-col md:flex-row fade-in w-full h-full overflow-hidden">
         
-        <!-- SEÇÃO SUPERIOR: VÍDEO / SALA DE ESPERA -->
-        <!-- shrink-0 GARANTE QUE ESTA CAIXA NUNCA ENCOLHE E NUNCA SOME QUANDO O TECLADO ABRE -->
-        <div class="relative w-full aspect-video md:h-full md:flex-1 bg-black flex items-center justify-center shrink-0 overflow-hidden shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20">
+        <!-- VÍDEO WRAPPER COM CONTROLOS YOUTUBE -->
+        <div id="video-wrapper" class="relative w-full aspect-video md:h-full md:flex-1 bg-black flex items-center justify-center shrink-0 overflow-hidden shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20 group" onmousemove="mostrarControles()" onmouseleave="iniciarTimerOcultar()" onclick="interacaoVideo(event)">
             
-            <div class="absolute top-0 w-full p-2 md:p-3 flex justify-between items-center z-40 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
-                <button onclick="voltarHome()" class="text-white flex items-center gap-1 hover:text-gray-300 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md text-xs font-medium cursor-pointer transition-colors pointer-events-auto">
+            <!-- BARRA DO TOPO (Voltar / Abrir Chat) -->
+            <div id="top-bar" class="absolute top-0 w-full p-3 md:p-4 flex justify-between items-center z-40 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300 pointer-events-auto">
+                <button onclick="voltarHome()" class="text-white flex items-center gap-1 hover:text-gray-300 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md text-xs md:text-sm font-medium cursor-pointer transition-colors">
                     <i data-lucide="chevron-down" class="w-4 h-4"></i> Voltar
                 </button>
-                <div class="flex gap-2 pointer-events-auto items-center">
-                    <!-- NOVO BOTÃO AO VIVO -->
-                    <button id="btn-ao-vivo" onclick="sincronizarAoVivo()" class="hidden items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-full cursor-pointer transition-colors text-[11px] font-bold uppercase tracking-wider text-neutral-400 hover:bg-white/10">
-                        <span id="ponto-ao-vivo" class="w-2 h-2 rounded-full bg-neutral-500 transition-colors"></span> Ao Vivo
+                <div class="flex gap-2 items-center">
+                    <!-- BOTÃO CHAT (Agora funciona em Desktop também) -->
+                    <button onclick="toggleChat()" title="Mostrar/Ocultar Chat" class="text-white bg-black/40 px-3 py-1.5 rounded-full cursor-pointer transition-colors hover:bg-white/20 shadow-md backdrop-blur-md flex items-center gap-2 text-xs md:text-sm font-medium">
+                        <i data-lucide="message-square" class="w-4 h-4 md:w-5 md:h-5"></i> <span class="hidden sm:inline">Chat</span>
                     </button>
-                    <!-- BOTÃO CHAT -->
-                    <button onclick="toggleChat()" title="Mostrar/Ocultar Chat" class="text-white bg-black/40 px-2 py-1.5 rounded-full cursor-pointer transition-colors hover:bg-white/10"><i data-lucide="message-square" class="w-4 h-4"></i></button>
                 </div>
             </div>
             
-            <video id="video-player" class="w-full h-full object-contain relative z-10 hidden" controls autoplay playsinline></video>
+            <!-- ELEMENTO DE VÍDEO (SEM OS "controls" NATIVOS) -->
+            <video id="video-player" class="w-full h-full object-contain relative z-10 cursor-pointer" autoplay playsinline></video>
             
+            <!-- BARRA DE CONTROLOS ESTILO YOUTUBE -->
+            <div id="custom-controls" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-16 pb-2 md:pb-4 px-3 md:px-5 transition-opacity duration-300 z-50 flex flex-col gap-1 md:gap-2 pointer-events-auto">
+                
+                <!-- Barra de Progresso / Tempo Real -->
+                <div class="w-full h-1 md:h-[5px] bg-white/20 cursor-pointer relative group/timeline rounded-full" id="timeline" onclick="seekVideo(event)">
+                    <div id="timeline-progress" class="h-full bg-red-600 w-[0%] rounded-full relative transition-all duration-[50ms]">
+                         <div class="absolute right-[-6px] top-1/2 -translate-y-1/2 w-3 h-3 md:w-3.5 md:h-3.5 bg-red-600 rounded-full scale-0 group-hover/timeline:scale-100 transition-transform"></div>
+                    </div>
+                </div>
+                
+                <!-- Botões e Tempos -->
+                <div class="flex items-center justify-between mt-1 md:mt-2">
+                    <div class="flex items-center gap-3 md:gap-5">
+                        <button id="btn-play-pause" onclick="togglePlay()" class="text-white hover:text-gray-300 cursor-pointer transition-transform active:scale-90 p-1">
+                            <i data-lucide="pause" class="w-5 h-5 md:w-7 md:h-7 fill-current"></i>
+                        </button>
+                        <button id="btn-mute" onclick="toggleMute()" class="text-white hover:text-gray-300 cursor-pointer hidden sm:block transition-transform active:scale-90 p-1">
+                            <i data-lucide="volume-2" class="w-5 h-5 md:w-6 md:h-6 fill-current"></i>
+                        </button>
+                        
+                        <!-- ÁREA DO TEMPO E BOTÃO AO VIVO -->
+                        <div class="flex items-center gap-2 md:gap-3 ml-1 md:ml-2">
+                            <span id="time-display" class="text-white text-[11px] md:text-[13px] font-medium yt-font tracking-wide opacity-90">0:00</span>
+                            
+                            <button id="btn-ao-vivo" onclick="sincronizarAoVivo()" class="hidden items-center gap-1.5 cursor-pointer transition-colors text-[10px] md:text-[12px] font-bold uppercase tracking-wider text-white hover:opacity-80">
+                                <span id="ponto-ao-vivo" class="w-2 h-2 md:w-2 md:h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)] transition-colors"></span> Ao Vivo
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 md:gap-4">
+                        <button id="btn-fullscreen" onclick="toggleFullscreen()" class="text-white hover:text-gray-300 cursor-pointer transition-transform active:scale-90 p-1">
+                            <i data-lucide="maximize" class="w-5 h-5 md:w-6 md:h-6"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SALA DE ESPERA -->
             <div id="waiting-room" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#050505] bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop');">
                 <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
                 <div class="relative z-30 flex flex-col items-center p-2 sm:p-6 w-full mt-4">
-                    
                     <div class="w-12 h-12 md:w-20 md:h-20 rounded-full border-2 md:border-4 border-indigo-500/50 mb-2 md:mb-6 overflow-hidden flex items-center justify-center bg-black animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.5)]">
                         <i data-lucide="radio" class="w-6 h-6 md:w-10 md:h-10 text-indigo-400"></i>
                     </div>
-                    
                     <h2 class="text-xs sm:text-xl md:text-3xl font-black text-white mb-2 md:mb-4 tracking-widest text-center px-4 drop-shadow-xl uppercase">A TRANSMISSÃO <br class="hidden sm:block"/>COMEÇARÁ EM BREVE</h2>
-                    
                     <div id="timer-container" class="hidden flex-col items-center justify-center fade-in scale-90 md:scale-100">
                         <div class="flex gap-2 md:gap-4 text-center">
                             <div class="bg-black/60 backdrop-blur-md rounded-lg md:rounded-2xl p-2 md:p-4 min-w-[45px] md:min-w-[90px] border border-white/10 shadow-lg">
@@ -247,6 +267,7 @@
                 </div>
             </div>
 
+            <!-- CARREGANDO -->
             <div id="loading-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm z-50">
                 <div class="relative w-10 h-10 mb-4">
                     <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
@@ -256,8 +277,7 @@
             </div>
         </div>
 
-        <!-- SEÇÃO INFERIOR: CHAT TIPO YOUTUBE -->
-        <!-- flex-1 min-h-0 significa que APENAS o chat vai encolher quando o teclado abrir, o vídeo fica igual! -->
+        <!-- SEÇÃO INFERIOR: CHAT -->
         <div id="chat-sidebar" class="flex flex-col flex-1 w-full md:w-[360px] md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 transition-transform">
             
             <div class="px-4 py-3 flex justify-between items-start border-b border-white/10 shadow-sm z-20 shrink-0">
@@ -276,15 +296,12 @@
                 </div>
             </div>
 
-            <!-- Área das mensagens que rola (scroll) -->
             <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4 relative min-h-0">
                 <div class="flex items-center justify-center h-full opacity-50 absolute inset-0 pointer-events-none">
                     <img src="https://arena.live/logo" onerror="this.style.display='none'" class="w-24 grayscale opacity-20" alt="">
                 </div>
             </div>
 
-            <!-- Caixa de Texto / Input -->
-            <!-- shrink-0 garante que o teclado não engole a barra de escrever -->
             <div class="p-2 sm:p-3 bg-[#0f0f0f] border-t border-white/10 z-20 shrink-0">
                 <div class="flex items-center gap-2 sm:gap-3">
                     <img id="user-avatar-input" src="https://ui-avatars.com/api/?name=V&background=random" class="w-8 h-8 rounded-full object-cover shadow-sm shrink-0" alt="Avatar">
@@ -325,7 +342,6 @@
             }
         });
 
-        // === MÁSCARA E VALIDAÇÃO DE CPF ===
         function maskCPF(input) {
             let v = input.value.replace(/\D/g, '');
             if (v.length > 11) v = v.slice(0, 11);
@@ -364,7 +380,6 @@
             }
         });
 
-        // === LÓGICA DO TIMER (SALA DE ESPERA) ===
         function iniciarRelogio() {
             if(!targetEventDate) return;
             if(timerInterval) clearInterval(timerInterval);
@@ -430,7 +445,6 @@
             }
         }
 
-        // === CARREGA DADOS DO EVENTO ===
         async function fetchEventDetails() {
             try {
                 const res = await fetch(`${dominioCloudflare}/api/evento?t=${new Date().getTime()}`, {
@@ -511,9 +525,6 @@
             } catch(e) {}
         }
 
-        // ==========================================
-        // GESTÃO DE ESTADOS DA INTERFACE (UI)
-        // ==========================================
         function setUIAprovado() {
             const btnLogout = document.getElementById('btn-logout');
             if (btnLogout) btnLogout.classList.remove('hidden'); 
@@ -579,7 +590,6 @@
             lucide.createIcons();
         }
 
-        // === BOTÃO CENTRAL DE AÇÃO ===
         async function abrirCheckout() {
             if(codigoAtual) { 
                 const btn = document.getElementById('btn-principal');
@@ -635,7 +645,6 @@
             if (checkoutModal) checkoutModal.classList.add('hidden'); 
         }
 
-        // === COMPRAR NOVO INGRESSO ===
         async function gerarPix() {
             const nomeInput = document.getElementById('nome-input');
             const cpfInput = document.getElementById('cpf-input');
@@ -697,7 +706,6 @@
                     }
                 }
             } catch(e) { 
-                console.error("Detalhes do Erro Fetch:", e);
                 alert("Bloqueio de Navegador! Detalhes: " + e.message); 
                 if (btn) {
                     btn.innerHTML = 'GERAR PIX <i data-lucide="arrow-right" class="w-5 h-5"></i>';
@@ -707,7 +715,6 @@
             }
         }
 
-        // === RECUPERAR INGRESSO PELA TELA INICIAL ===
         async function recuperarAcessoHome() {
             const homeCpfInput = document.getElementById('home-cpf-input');
             const chave = homeCpfInput ? homeCpfInput.value.trim() : "";
@@ -716,9 +723,7 @@
             
             if(chave.includes('.') || chave.includes('-') || chave.length === 11 || chave.length === 14) {
                 if(!isCPFValido(chave)) {
-                    if(!chave.toUpperCase().includes('VIP')) {
-                        return alert("CPF Inválido. Verifique o número digitado.");
-                    }
+                    if(!chave.toUpperCase().includes('VIP')) return alert("CPF Inválido. Verifique o número digitado.");
                 }
             }
 
@@ -734,10 +739,7 @@
                 
                 const res = await fetch(`${dominioCloudflare}/api/recuperar`, {
                     method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
                     body: JSON.stringify({ chave: chaveLimpa })
                 });
                 const data = await res.json();
@@ -757,7 +759,6 @@
                     alert(data.message || "Não encontrámos nenhum ingresso para este CPF ou Código.");
                 }
             } catch(e) { 
-                console.error("Erro ao recuperar:", e);
                 alert("Servidor offline ou bloqueio de CORS. Tente novamente."); 
             }
             
@@ -768,7 +769,6 @@
             }
         }
 
-        // === LÓGICA DO MODAL PIX ===
         function mostrarPixModal(chave, codigo, valor, base64) {
             const pixCopyInput = document.getElementById('pix-copy-input');
             if (pixCopyInput) pixCopyInput.value = chave;
@@ -782,11 +782,8 @@
             const qrContainer = document.getElementById('qr-container');
             const qrImg = document.getElementById('pix-qrcode-img');
             if (qrContainer && qrImg && base64 && base64.trim() !== "") {
-                if (base64.startsWith('data:image')) {
-                    qrImg.src = base64;
-                } else {
-                    qrImg.src = "data:image/png;base64," + base64;
-                }
+                if (base64.startsWith('data:image')) qrImg.src = base64;
+                else qrImg.src = "data:image/png;base64," + base64;
                 qrContainer.classList.remove('hidden');
             } else if (qrContainer) {
                 qrContainer.classList.add('hidden');
@@ -831,7 +828,6 @@
                 
                 if(res.ok) {
                     const data = await res.json();
-                    
                     if(data.status === 'aprovado') {
                         setUIAprovado();
                         if (checkInterval) clearInterval(checkInterval);
@@ -854,10 +850,13 @@
             setUIDeslogado();
         }
 
-        // === PLAYER DE VÍDEO (COM MEMÓRIA E LAYOUT YT E NOVO SISTEMA "AO VIVO") ===
+        // ==========================================
+        // GESTÃO DO PLAYER CUSTOMIZADO
+        // ==========================================
+        let controlsTimeout;
+
         function abrirVideo() {
             localStorage.setItem('view_state', 'player');
-
             const viewHome = document.getElementById('view-home');
             if (viewHome) viewHome.classList.add('hidden');
             
@@ -866,20 +865,17 @@
                 viewPlayer.classList.remove('hidden');
                 viewPlayer.classList.add('flex');
             }
-
             verificarEstadoTransmissao();
             conectarChat();
         }
 
         function voltarHome() {
             localStorage.removeItem('view_state');
-
             const viewPlayer = document.getElementById('view-player');
             if (viewPlayer) {
                 viewPlayer.classList.add('hidden');
                 viewPlayer.classList.remove('flex');
             }
-            
             const viewHome = document.getElementById('view-home');
             if (viewHome) viewHome.classList.remove('hidden');
             
@@ -898,13 +894,131 @@
                 socket.disconnect();
                 socket = null;
             }
+        }
+
+        function mostrarControles() {
+            const controls = document.getElementById('custom-controls');
+            const topBar = document.getElementById('top-bar');
             
-            // Esconde o botão Ao Vivo ao voltar para a home
-            const btnAoVivo = document.getElementById('btn-ao-vivo');
-            if (btnAoVivo) {
-                btnAoVivo.classList.add('hidden');
-                btnAoVivo.classList.remove('flex');
+            if (controls) controls.style.opacity = '1';
+            if (topBar) topBar.style.opacity = '1';
+            document.body.classList.remove('cursor-hidden');
+            
+            iniciarTimerOcultar();
+        }
+
+        function iniciarTimerOcultar() {
+            clearTimeout(controlsTimeout);
+            controlsTimeout = setTimeout(() => {
+                const video = document.getElementById('video-player');
+                if(video && !video.paused && !video.classList.contains('hidden')) {
+                    const controls = document.getElementById('custom-controls');
+                    const topBar = document.getElementById('top-bar');
+                    if (controls) controls.style.opacity = '0';
+                    if (topBar) topBar.style.opacity = '0';
+                    document.body.classList.add('cursor-hidden');
+                }
+            }, 3000);
+        }
+
+        function interacaoVideo(e) {
+            // Ignora o clique se for nos controlos (evita que pause quando tenta mexer no volume)
+            if (e.target.closest('#custom-controls') || e.target.closest('#top-bar')) return;
+            togglePlay();
+            mostrarControles();
+        }
+
+        function togglePlay() {
+            const video = document.getElementById('video-player');
+            const btn = document.getElementById('btn-play-pause');
+            if(!video) return;
+            
+            if(video.paused) {
+                video.play();
+                btn.innerHTML = '<i data-lucide="pause" class="w-5 h-5 md:w-7 md:h-7 fill-current"></i>';
+            } else {
+                video.pause();
+                btn.innerHTML = '<i data-lucide="play" class="w-5 h-5 md:w-7 md:h-7 fill-current"></i>';
+                mostrarControles(); // Deixa os controlos visiveis enquanto pausado
+                clearTimeout(controlsTimeout); 
             }
+            lucide.createIcons();
+        }
+
+        function toggleMute() {
+            const video = document.getElementById('video-player');
+            const btn = document.getElementById('btn-mute');
+            if(!video) return;
+
+            video.muted = !video.muted;
+            if(video.muted) {
+                btn.innerHTML = '<i data-lucide="volume-x" class="w-5 h-5 md:w-6 md:h-6 fill-current"></i>';
+            } else {
+                btn.innerHTML = '<i data-lucide="volume-2" class="w-5 h-5 md:w-6 md:h-6 fill-current"></i>';
+            }
+            lucide.createIcons();
+        }
+
+        // ESSE É O SEGREDO DO CHAT EM FULLSCREEN: Maximiza a "caixa" inteira (view-player), não só o vídeo!
+        function toggleFullscreen() {
+            const viewPlayer = document.getElementById('view-player'); 
+            const btn = document.getElementById('btn-fullscreen');
+            
+            if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                if (viewPlayer.requestFullscreen) { viewPlayer.requestFullscreen(); }
+                else if (viewPlayer.msRequestFullscreen) { viewPlayer.msRequestFullscreen(); }
+                else if (viewPlayer.mozRequestFullScreen) { viewPlayer.mozRequestFullScreen(); }
+                else if (viewPlayer.webkitRequestFullscreen) { viewPlayer.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT); }
+                btn.innerHTML = '<i data-lucide="minimize" class="w-5 h-5 md:w-6 md:h-6"></i>';
+            } else {
+                if (document.exitFullscreen) { document.exitFullscreen(); }
+                else if (document.msExitFullscreen) { document.msExitFullscreen(); }
+                else if (document.mozCancelFullScreen) { document.mozCancelFullScreen(); }
+                else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
+                btn.innerHTML = '<i data-lucide="maximize" class="w-5 h-5 md:w-6 md:h-6"></i>';
+            }
+            lucide.createIcons();
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds === Infinity) return "0:00";
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function seekVideo(e) {
+            const video = document.getElementById('video-player');
+            const timeline = document.getElementById('timeline');
+            if(video && video.duration) {
+                const rect = timeline.getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                video.currentTime = pos * video.duration;
+            }
+        }
+
+        function atualizaProgresso() {
+            const video = document.getElementById('video-player');
+            const timeDisplay = document.getElementById('time-display');
+            const progress = document.getElementById('timeline-progress');
+            
+            if(video && !isNaN(video.currentTime)) {
+                timeDisplay.innerText = formatTime(video.currentTime);
+                
+                // Barra de progresso baseada na sincronia live do HLS
+                let maxDuration = 1;
+                if (window.hlsPlayer && window.hlsPlayer.liveSyncPosition) {
+                    maxDuration = window.hlsPlayer.liveSyncPosition;
+                } else if (video.duration && video.duration !== Infinity) {
+                    maxDuration = video.duration;
+                }
+                
+                let percent = (video.currentTime / maxDuration) * 100;
+                progress.style.width = `${Math.min(percent, 100)}%`;
+            }
+            monitorarAoVivo();
         }
 
         function iniciarPlayerDoVideo() {
@@ -913,7 +1027,6 @@
             
             if(window.hlsPlayer || (video && video.src)) return;
 
-            // 🔒 HLS TOKEN
             const paramToken = codigoAtual ? `&token=${codigoAtual}` : '';
             const src = `${dominioCloudflare}/stream/stream.m3u8?t=${new Date().getTime()}${paramToken}`; 
 
@@ -928,11 +1041,10 @@
                 window.hlsPlayer = new Hls({ 
                     manifestLoadingMaxRetry: Infinity, 
                     fragLoadingMaxRetry: Infinity,
-                    // CONFIGURAÇÕES EXTREMAS PARA MÍNIMO DE BUFFER (BAIXA LATÊNCIA)
-                    liveSyncDurationCount: 2, // Mínimo absoluto (força a colar no último segmento do OBS)
-                    liveMaxLatencyDurationCount: 3, // Se passar de 3 segmentos atrasado, toma ação
-                    maxLiveSyncPlaybackRate: 2.0, // Acelera até 2x rapidamente para compensar atrasos ocultos
-                    lowLatencyMode: true // Liga otimização para baixa latência
+                    liveSyncDurationCount: 2, 
+                    liveMaxLatencyDurationCount: 3, 
+                    maxLiveSyncPlaybackRate: 2.0, 
+                    lowLatencyMode: true 
                 });
                 
                 window.hlsPlayer.loadSource(src);
@@ -959,20 +1071,17 @@
                 video.src = src;
                 video.addEventListener('loadedmetadata', () => { 
                     if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
-                    
                     const btnAoVivo = document.getElementById('btn-ao-vivo');
                     if(btnAoVivo) { btnAoVivo.classList.remove('hidden'); btnAoVivo.classList.add('flex'); }
-                    
                     video.play(); 
                 });
                 video.addEventListener('error', () => { setTimeout(iniciarPlayerDoVideo, 2000); });
             }
 
-            // Ativa a verificação de "Está Ao Vivo?" a cada atualização de tempo do vídeo
-            video.addEventListener('timeupdate', monitorarAoVivo);
+            video.addEventListener('timeupdate', atualizaProgresso);
         }
 
-        // === BOTÃO "AO VIVO" - LÓGICA TIPO YOUTUBE ===
+        // === BOTÃO "AO VIVO" (AGORA NA BARRA DO YOUTUBE) ===
         function monitorarAoVivo() {
             const video = document.getElementById('video-player');
             const btn = document.getElementById('btn-ao-vivo');
@@ -985,24 +1094,17 @@
             
             if(window.hlsPlayer && window.hlsPlayer.liveSyncPosition) {
                 latencia = window.hlsPlayer.liveSyncPosition - video.currentTime;
-                // Se estiver a menos de 3 segundos do ponto mais em tempo real, considera-se "Ao Vivo"
                 isAoVivo = latencia < 3;
 
-                // 🔴 AUTO-RECUPERAÇÃO: Se o atraso passar de 8 segundos (ex: internet oscilou), força o pulo
-                if (latencia > 8 && !video.paused) {
-                    sincronizarAoVivo();
-                }
+                // Auto-Sincronização
+                if (latencia > 8 && !video.paused) { sincronizarAoVivo(); }
             } else if (video.duration) {
-                // Fallback para iPhones / Safari nativo
                 latencia = video.duration - video.currentTime;
                 isAoVivo = latencia < 3;
 
-                if (latencia > 8 && !video.paused) {
-                    sincronizarAoVivo();
-                }
+                if (latencia > 8 && !video.paused) { sincronizarAoVivo(); }
             }
 
-            // Atualiza as cores do botão conforme o estado
             if(isAoVivo) {
                 btn.classList.add('text-white');
                 btn.classList.remove('text-neutral-400');
@@ -1020,7 +1122,6 @@
             const video = document.getElementById('video-player');
             if(!video) return;
 
-            // Pula exatamente para a "ponta" do carregamento em tempo real
             if(window.hlsPlayer && window.hlsPlayer.liveSyncPosition) {
                 video.currentTime = window.hlsPlayer.liveSyncPosition;
             } else if (video.duration) {
@@ -1029,11 +1130,9 @@
             video.play().catch(e => console.log(e));
         }
 
-        // 🔴 NOVO: FORÇA O VÍDEO A ATUALIZAR QUANDO VOLTA DA ABA EM SEGUNDO PLANO
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "visible") {
                 const video = document.getElementById('video-player');
-                // Quando o utilizador regressa à aba, força a sincronização imediata (se o vídeo já estivesse em reprodução)
                 if (video && !video.paused && !video.classList.contains('hidden')) {
                     sincronizarAoVivo();
                 }
