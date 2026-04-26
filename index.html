@@ -1298,12 +1298,12 @@
             
             div.innerHTML = `
                 <img src="${avatarUrl}" class="w-6 h-6 sm:w-7 sm:h-7 rounded-full mt-0.5 object-cover shadow-md shrink-0 border border-white/10" alt="Avatar">
-                <div class="flex-1 flex flex-col leading-[1.3] chat-message-content">
+                <div class="flex-1 flex flex-col leading-[1.3] chat-message-content min-w-0">
                     <div class="flex items-center gap-1.5 flex-wrap">
                         <span class="text-[13px] text-gray-200 font-bold whitespace-nowrap chat-message-author">${autor}</span>
                         <span class="text-[11px] text-gray-400 font-medium whitespace-nowrap">${hora}</span>
                     </div>
-                    <span class="text-[#f1f1f1] text-[14px] mt-0.5 word-break break-words font-medium chat-message-text">${msg}</span>
+                    <span class="text-[#f1f1f1] text-[14px] mt-0.5 break-words font-medium chat-message-text whitespace-pre-wrap">${msg}</span>
                 </div>
             `;
             
