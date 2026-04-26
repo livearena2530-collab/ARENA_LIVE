@@ -1386,12 +1386,20 @@
             });
 
             socket.on('force_logout', (data) => {
-                voltarHome();
-                logout();
-                setTimeout(() => {
-                    alert(data.msg || "Sessão encerrada por segurança.");
-                    location.reload();
-                }, 100);
+                // 1. Interrompe imediatamente o vídeo e liberta a rede
+                if(window.hlsPlayer) { window.hlsPlayer.destroy(); window.hlsPlayer = null; }
+                const videoPlayer = document.getElementById('video-player');
+                if(videoPlayer) { videoPlayer.pause(); videoPlayer.removeAttribute('src'); videoPlayer.load(); }
+                if(socket) { socket.disconnect(); socket = null; }
+                
+                // 2. Avisa o utilizador antigo que alguém entrou
+                alert(data.msg || "Sessão encerrada. Este ingresso foi acedido noutro dispositivo.");
+                
+                // 3. Limpa a conta localmente e leva direto para a página inicial
+                localStorage.removeItem('ingresso_vip'); 
+                localStorage.removeItem('nome_vip');
+                localStorage.removeItem('view_state');
+                window.location.replace(window.location.pathname);
             });
             
             fetch(`${dominioCloudflare}/api/chat/history`, {
