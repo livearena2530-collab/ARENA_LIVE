@@ -29,6 +29,51 @@
 
         /* Esconde o cursor quando o utilizador está inativo no vídeo */
         .cursor-hidden { cursor: none !important; }
+
+        /* ======================================================== */
+        /* MAGIA DO MODO TELA CHEIA (Chat Transparente e Sobreposto) */
+        /* ======================================================== */
+        .is-fullscreen #video-wrapper {
+            width: 100% !important;
+            height: 100% !important;
+            flex: none !important;
+        }
+        
+        .is-fullscreen #chat-sidebar {
+            position: absolute !important;
+            right: 0 !important;
+            top: 0 !important;
+            bottom: 0 !important;
+            background-color: rgba(0, 0, 0, 0.3) !important;
+            backdrop-filter: blur(8px) !important;
+            z-index: 60 !important;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5) !important;
+            height: 100% !important;
+            border-left: 1px solid rgba(255,255,255,0.05) !important;
+        }
+
+        .is-fullscreen .chat-header {
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent) !important;
+            border-bottom: none !important;
+        }
+        
+        .is-fullscreen #chat-messages {
+            background-color: transparent !important;
+        }
+        
+        .is-fullscreen #chat-input-container {
+            background-color: rgba(0,0,0,0.4) !important;
+            backdrop-filter: blur(10px) !important;
+            border-top: 1px solid rgba(255,255,255,0.05) !important;
+        }
+
+        /* Sombras nos textos para melhorar a leitura por cima do vídeo em Tela Cheia */
+        .is-fullscreen .chat-message-text {
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+        }
+        .is-fullscreen .chat-message-author {
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
     </style>
 </head>
 <body class="fixed inset-0 w-full h-full overflow-hidden bg-[#050505] text-[#f5f5f5]">
@@ -174,12 +219,12 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- ECRÃ DO PLAYER (TELA CHEIA COM CHAT SOBREPOSTO) -->
+    <!-- ECRÃ DO PLAYER E CHAT (LADO-A-LADO DEFAULT)-->
     <!-- ========================================== -->
-    <div id="view-player" class="hidden absolute inset-0 z-50 bg-black w-full h-full overflow-hidden fade-in relative">
+    <div id="view-player" class="hidden absolute inset-0 z-50 bg-black flex-col md:flex-row w-full h-full overflow-hidden fade-in">
         
-        <!-- VÍDEO WRAPPER COM CONTROLOS YOUTUBE (Tamanho Total) -->
-        <div id="video-wrapper" class="absolute inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden z-20 group" onmousemove="mostrarControles()" onmouseleave="iniciarTimerOcultar()" onclick="interacaoVideo(event)">
+        <!-- VÍDEO WRAPPER COM CONTROLOS YOUTUBE -->
+        <div id="video-wrapper" class="relative w-full aspect-video md:h-full md:flex-1 bg-black flex items-center justify-center shrink-0 overflow-hidden shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20 group" onmousemove="mostrarControles()" onmouseleave="iniciarTimerOcultar()" onclick="interacaoVideo(event)">
             
             <!-- BARRA DO TOPO (Voltar / Abrir Chat) -->
             <div id="top-bar" class="absolute top-0 w-full p-3 md:p-4 flex justify-between items-center z-40 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300 pointer-events-auto">
@@ -272,10 +317,10 @@
             </div>
         </div>
 
-        <!-- SEÇÃO INFERIOR: CHAT (SOBREPOSTO E TRANSPARENTE) -->
-        <div id="chat-sidebar" class="absolute right-0 top-0 bottom-0 w-full md:w-[350px] bg-black/30 backdrop-blur-sm z-[60] flex flex-col yt-font transform translate-x-full transition-transform duration-300 ease-in-out border-l border-white/5 pointer-events-auto shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
+        <!-- SEÇÃO INFERIOR: CHAT (LADO-A-LADO POR DEFAULT) -->
+        <div id="chat-sidebar" class="flex flex-col flex-1 w-full md:w-[350px] md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 border-l border-white/5 transition-all duration-300">
             
-            <div class="px-4 py-3 flex justify-between items-start border-b border-white/10 shadow-sm z-20 shrink-0 bg-gradient-to-b from-black/60 to-transparent">
+            <div class="px-4 py-3 flex justify-between items-start border-b border-white/10 shadow-sm z-20 shrink-0 chat-header">
                 <div class="flex flex-col drop-shadow-md">
                     <h3 class="text-white font-medium text-[15px] leading-tight">Chat ao vivo</h3>
                     <div class="flex items-center gap-1.5 mt-0.5">
@@ -292,16 +337,16 @@
                 </div>
             </div>
 
-            <!-- Fundo transparente para não tapar o vídeo -->
-            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4 relative min-h-0 bg-transparent">
+            <!-- Área de scroll -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4 relative min-h-0">
                 <!-- Marca de Água -->
                 <div class="flex items-center justify-center h-full opacity-50 absolute inset-0 pointer-events-none">
                     <img src="https://arena.live/logo" onerror="this.style.display='none'" class="w-24 grayscale opacity-20" alt="">
                 </div>
             </div>
 
-            <!-- Barra de digitação levemente escura -->
-            <div class="p-2 sm:p-3 bg-black/40 backdrop-blur-md border-t border-white/10 z-20 shrink-0">
+            <!-- Barra de digitação -->
+            <div id="chat-input-container" class="p-2 sm:p-3 bg-[#0f0f0f] border-t border-white/10 z-20 shrink-0">
                 <div class="flex items-center gap-2 sm:gap-3">
                     <img id="user-avatar-input" src="https://ui-avatars.com/api/?name=V&background=random" class="w-8 h-8 rounded-full object-cover shadow-sm shrink-0" alt="Avatar">
                     
@@ -864,15 +909,15 @@
                 viewPlayer.classList.remove('hidden');
             }
 
-            // Exibir ou ocultar o chat automaticamente com base no tamanho da tela
+            // Garante que o Chat abre automaticamente de lado no PC quando entra
             const sidebar = document.getElementById('chat-sidebar');
             if (sidebar) {
                 if (window.innerWidth >= 768) {
-                    sidebar.classList.remove('translate-x-full');
-                    sidebar.classList.add('translate-x-0');
+                    sidebar.classList.remove('hidden');
+                    sidebar.classList.add('flex');
                 } else {
-                    sidebar.classList.add('translate-x-full');
-                    sidebar.classList.remove('translate-x-0');
+                    sidebar.classList.add('hidden');
+                    sidebar.classList.remove('flex');
                 }
             }
 
@@ -968,22 +1013,46 @@
             lucide.createIcons();
         }
 
+        // ==========================================
+        // LÓGICA DE TELA CHEIA (Dispara o evento nativo)
+        // ==========================================
         function toggleFullscreen() {
             const viewPlayer = document.getElementById('view-player'); 
-            const btn = document.getElementById('btn-fullscreen');
             
             if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
                 if (viewPlayer.requestFullscreen) { viewPlayer.requestFullscreen(); }
                 else if (viewPlayer.msRequestFullscreen) { viewPlayer.msRequestFullscreen(); }
                 else if (viewPlayer.mozRequestFullScreen) { viewPlayer.mozRequestFullScreen(); }
                 else if (viewPlayer.webkitRequestFullscreen) { viewPlayer.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT); }
-                btn.innerHTML = '<i data-lucide="minimize" class="w-5 h-5 md:w-6 md:h-6"></i>';
             } else {
                 if (document.exitFullscreen) { document.exitFullscreen(); }
                 else if (document.msExitFullscreen) { document.msExitFullscreen(); }
                 else if (document.mozCancelFullScreen) { document.mozCancelFullScreen(); }
                 else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
-                btn.innerHTML = '<i data-lucide="maximize" class="w-5 h-5 md:w-6 md:h-6"></i>';
+            }
+        }
+
+        // Detetor Automático de Tela Cheia (para trocar o layout do Chat via CSS)
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+        function handleFullscreenChange() {
+            const viewPlayer = document.getElementById('view-player');
+            const btnFullscreen = document.getElementById('btn-fullscreen');
+            if (!viewPlayer || !btnFullscreen) return;
+
+            const isFull = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+            
+            if (isFull) {
+                // Ao entrar em Tela Cheia, adicionamos a classe que ativa a Transparência e Sobreposição!
+                viewPlayer.classList.add('is-fullscreen');
+                btnFullscreen.innerHTML = '<i data-lucide="minimize" class="w-5 h-5 md:w-6 md:h-6"></i>';
+            } else {
+                // Ao sair de Tela Cheia, ele volta a ser Lado-a-Lado e opaco.
+                viewPlayer.classList.remove('is-fullscreen');
+                btnFullscreen.innerHTML = '<i data-lucide="maximize" class="w-5 h-5 md:w-6 md:h-6"></i>';
             }
             lucide.createIcons();
         }
@@ -1151,12 +1220,13 @@
             const sidebar = document.getElementById('chat-sidebar');
             if (!sidebar) return;
             
-            if(sidebar.classList.contains('translate-x-full')) { 
-                sidebar.classList.remove('translate-x-full'); 
-                sidebar.classList.add('translate-x-0'); 
+            // Volta à Lógica Simples: Esconde ou Mostra o bloco.
+            if(sidebar.classList.contains('hidden')) { 
+                sidebar.classList.remove('hidden'); 
+                sidebar.classList.add('flex'); 
             } else { 
-                sidebar.classList.add('translate-x-full'); 
-                sidebar.classList.remove('translate-x-0'); 
+                sidebar.classList.add('hidden'); 
+                sidebar.classList.remove('flex'); 
             }
         }
 
@@ -1224,15 +1294,14 @@
             const bgCor = stringToColor(autor).substring(1); 
             const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(autor)}&background=${bgCor}&color=fff&rounded=true&size=64&bold=true`;
             
-            // Adicionado drop-shadow nas mensagens para não sumirem contra fundos claros do vídeo
             div.innerHTML = `
                 <img src="${avatarUrl}" class="w-6 h-6 sm:w-7 sm:h-7 rounded-full mt-0.5 object-cover shadow-md shrink-0 border border-white/10" alt="Avatar">
-                <div class="flex-1 flex flex-col leading-[1.3] drop-shadow-lg">
-                    <div class="flex items-center gap-1.5 flex-wrap drop-shadow-md">
-                        <span class="text-[13px] text-gray-200 font-bold whitespace-nowrap drop-shadow">${autor}</span>
-                        <span class="text-[11px] text-gray-300 font-medium whitespace-nowrap drop-shadow">${hora}</span>
+                <div class="flex-1 flex flex-col leading-[1.3] chat-message-content">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="text-[13px] text-gray-200 font-bold whitespace-nowrap chat-message-author">${autor}</span>
+                        <span class="text-[11px] text-gray-400 font-medium whitespace-nowrap">${hora}</span>
                     </div>
-                    <span class="text-[#f1f1f1] text-[14px] mt-0.5 word-break break-words drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] font-medium">${msg}</span>
+                    <span class="text-[#f1f1f1] text-[14px] mt-0.5 word-break break-words font-medium chat-message-text">${msg}</span>
                 </div>
             `;
             
