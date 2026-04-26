@@ -10,6 +10,9 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- NOVO: Biblioteca de Emojis super leve -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Inter:wght@300;400;600;700;800;900&display=swap');
@@ -56,6 +59,26 @@
         #video-wrapper:fullscreen #btn-top-chat { display: none !important; }
         #video-wrapper:-webkit-full-screen #btn-top-chat { display: none !important; }
         #video-wrapper:-moz-full-screen #btn-top-chat { display: none !important; }
+
+        /* ======================================================== */
+        /* ESTILO PERSONALIZADO DO PAINEL DE EMOJIS                 */
+        /* ======================================================== */
+        emoji-picker {
+            --background: #1f1f1f;
+            --border-color: rgba(255,255,255,0.1);
+            --input-border-color: rgba(255,255,255,0.2);
+            --input-font-color: #fff;
+            --indicator-color: #3ea6ff;
+            --category-icon-color: #aaaaaa;
+            --category-icon-active-color: #3ea6ff;
+            --search-icon-color: #aaaaaa;
+            --button-hover-background: #333333;
+            width: 100%;
+            height: 320px;
+            border-radius: 12px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+            font-family: 'Inter', sans-serif;
+        }
     </style>
 </head>
 <body class="fixed inset-0 w-full h-full overflow-hidden bg-[#050505] text-[#f5f5f5]">
@@ -302,8 +325,7 @@
         </div>
 
         <!-- SEÇÃO INFERIOR: CHAT -->
-        <!-- NOTA IMPORTANTE: Tem md:shrink-0 e w-[350px] para empurrar o vídeo lado a lado em modo normal -->
-        <div id="chat-sidebar" class="flex flex-col w-full md:w-[350px] md:shrink-0 md:flex-none md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 border-l border-white/5 transition-all duration-300">
+        <div id="chat-sidebar" class="flex flex-col w-full md:w-[350px] md:shrink-0 md:flex-none md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 border-l border-white/5 transition-all duration-300 relative">
             
             <div class="px-4 py-3 flex justify-between items-start border-b border-white/10 shadow-sm z-20 shrink-0 chat-header">
                 <div class="flex flex-col drop-shadow-md">
@@ -331,13 +353,20 @@
             </div>
 
             <!-- Barra de digitação -->
-            <div id="chat-input-container" class="p-2 sm:p-3 bg-[#0f0f0f] border-t border-white/10 z-20 shrink-0">
+            <div id="chat-input-container" class="relative p-2 sm:p-3 bg-[#0f0f0f] border-t border-white/10 z-20 shrink-0">
+                
+                <!-- PAINEL DE EMOJIS (Oculto por padrão, flutua acima da caixa de texto) -->
+                <div id="emoji-picker-wrapper" class="hidden absolute bottom-full right-2 md:right-4 mb-2 z-[100] w-[95%] sm:w-auto">
+                    <emoji-picker class="dark"></emoji-picker>
+                </div>
+
                 <div class="flex items-center gap-2 sm:gap-3">
                     <img id="user-avatar-input" src="https://ui-avatars.com/api/?name=V&background=random" class="w-8 h-8 rounded-full object-cover shadow-sm shrink-0" alt="Avatar">
                     
                     <div class="flex-1 bg-black/50 border border-white/10 rounded-full px-4 py-2 flex items-center group focus-within:bg-black/70 transition-colors focus-within:border-white/30 shadow-inner">
                         <input type="text" id="chat-input" placeholder="Conversar como inscrito..." class="bg-transparent text-white text-[14px] w-full outline-none placeholder-gray-400" autocomplete="off" onkeypress="if(event.key === 'Enter') enviarChat()">
-                        <i data-lucide="smile" class="w-5 h-5 text-gray-400 ml-2 cursor-pointer hover:text-white transition-colors shrink-0"></i>
+                        <!-- Ícone de Emojis que ativa o painel -->
+                        <i data-lucide="smile" id="btn-emoji" class="w-5 h-5 text-gray-400 ml-2 cursor-pointer hover:text-white transition-colors shrink-0"></i>
                     </div>
                     
                     <button onclick="enviarChat()" class="w-10 h-10 rounded-full hover:bg-white/20 text-[#3ea6ff] cursor-pointer transition-colors flex items-center justify-center shrink-0 shadow-md">
@@ -643,7 +672,6 @@
                     const data = await res.json();
                     
                     if(data.status === 'aprovado') {
-                        // 🔴 NOME SALVO NA MEMÓRIA AQUI 🔴
                         if(data.nome) {
                             nomeAtual = data.nome;
                             localStorage.setItem('nome_vip', nomeAtual);
@@ -784,7 +812,6 @@
                 
                 if(data.status === 'aprovado' || data.status === 'pendente') {
                     codigoAtual = data.codigo;
-                    // 🔴 NOME SALVO NA MEMÓRIA AQUI (Recupera do Banco de Dados) 🔴
                     nomeAtual = data.nome || "Anónimo";
                     
                     localStorage.setItem('ingresso_vip', codigoAtual);
@@ -876,7 +903,6 @@
                 if(res.ok) {
                     const data = await res.json();
 
-                    // 🔴 NOME SALVO NA MEMÓRIA AQUI TAMBÉM (Para auto-login) 🔴
                     if (data.nome) {
                         nomeAtual = data.nome;
                         localStorage.setItem('nome_vip', nomeAtual);
@@ -924,7 +950,6 @@
                 viewPlayer.classList.add('flex');
             }
 
-            // Garante que o Chat abre automaticamente e fica sempre visível no Mobile e no PC
             const sidebar = document.getElementById('chat-sidebar');
             if (sidebar) {
                 sidebar.classList.remove('hidden');
@@ -1380,6 +1405,37 @@
                 box.scrollTop = box.scrollHeight;
             }
         }
+
+        // ==========================================
+        // LÓGICA DO PAINEL DE EMOJIS (Lado do Cliente)
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnEmoji = document.getElementById('btn-emoji');
+            const emojiWrapper = document.getElementById('emoji-picker-wrapper');
+            const chatInputBox = document.getElementById('chat-input');
+            const picker = document.querySelector('emoji-picker');
+
+            if (btnEmoji && emojiWrapper && picker && chatInputBox) {
+                // Abre e fecha o painel ao clicar na carinha
+                btnEmoji.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    emojiWrapper.classList.toggle('hidden');
+                });
+
+                // Adiciona o emoji ao campo de texto quando clicado
+                picker.addEventListener('emoji-click', event => {
+                    chatInputBox.value += event.detail.unicode;
+                    chatInputBox.focus(); // Mantém o foco no campo para continuar a digitar
+                });
+
+                // Fecha o painel de emojis se o utilizador clicar fora dele
+                document.addEventListener('click', (e) => {
+                    if (!emojiWrapper.contains(e.target) && e.target !== btnEmoji) {
+                        emojiWrapper.classList.add('hidden');
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>
