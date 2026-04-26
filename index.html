@@ -219,7 +219,7 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- ECRÃ DO PLAYER E CHAT (LADO-A-LADO DEFAULT)-->
+    <!-- ECRÃ DO PLAYER E CHAT (LADO-A-LADO / TELA CHEIA) -->
     <!-- ========================================== -->
     <div id="view-player" class="hidden absolute inset-0 z-50 bg-black flex-col md:flex-row w-full h-full overflow-hidden fade-in">
         
@@ -317,8 +317,9 @@
             </div>
         </div>
 
-        <!-- SEÇÃO INFERIOR: CHAT (LADO-A-LADO POR DEFAULT) -->
-        <div id="chat-sidebar" class="flex flex-col flex-1 w-full md:w-[350px] md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 border-l border-white/5 transition-all duration-300">
+        <!-- SEÇÃO INFERIOR: CHAT -->
+        <!-- NOTA IMPORTANTE: Tem md:shrink-0 e w-[350px] para empurrar o vídeo lado a lado em modo normal -->
+        <div id="chat-sidebar" class="flex flex-col w-full md:w-[350px] md:shrink-0 md:flex-none md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 border-l border-white/5 transition-all duration-300">
             
             <div class="px-4 py-3 flex justify-between items-start border-b border-white/10 shadow-sm z-20 shrink-0 chat-header">
                 <div class="flex flex-col drop-shadow-md">
@@ -907,6 +908,7 @@
             const viewPlayer = document.getElementById('view-player');
             if (viewPlayer) {
                 viewPlayer.classList.remove('hidden');
+                viewPlayer.classList.add('flex');
             }
 
             // Garante que o Chat abre automaticamente de lado no PC quando entra
@@ -930,6 +932,7 @@
             const viewPlayer = document.getElementById('view-player');
             if (viewPlayer) {
                 viewPlayer.classList.add('hidden');
+                viewPlayer.classList.remove('flex');
             }
             const viewHome = document.getElementById('view-home');
             if (viewHome) viewHome.classList.remove('hidden');
@@ -1215,12 +1218,11 @@
             }
         });
 
-        // === WEB SOCKETS (CHAT YT CLONE - OVERLAY) ===
+        // === WEB SOCKETS (CHAT) ===
         function toggleChat() {
             const sidebar = document.getElementById('chat-sidebar');
             if (!sidebar) return;
             
-            // Volta à Lógica Simples: Esconde ou Mostra o bloco.
             if(sidebar.classList.contains('hidden')) { 
                 sidebar.classList.remove('hidden'); 
                 sidebar.classList.add('flex'); 
