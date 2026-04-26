@@ -913,21 +913,19 @@
             if (!video) return;
 
             if (Hls.isSupported()) {
-                // MODIFICAÇÃO: Configurações otimizadas para forçar o vivo real
                 window.hlsPlayer = new Hls({ 
                     manifestLoadingMaxRetry: Infinity, 
                     fragLoadingMaxRetry: Infinity,
                     liveSyncDurationCount: 3, // Força a manter o buffer colado ao vivo
                     liveMaxLatencyDuration: 10 // Limita o atraso máximo permitido
                 });
-                
                 window.hlsPlayer.loadSource(src);
                 window.hlsPlayer.attachMedia(video);
                 
                 window.hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => { 
                     if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
                     
-                    // MODIFICAÇÃO: Assim que carregar o manifesto, pula para o final do vídeo
+                    // Assim que carregar o manifesto, pula para o final do vídeo
                     setTimeout(() => {
                         if (video.duration) {
                             video.currentTime = video.duration;
@@ -937,7 +935,7 @@
                     video.play().catch(e => { video.muted = true; video.play(); }); 
                 });
 
-                // MODIFICAÇÃO: Se a rede da pessoa cair ou pausar para carregar, ao retomar ele pula pro vivo
+                // Se a rede da pessoa cair ou pausar para carregar, ao retomar ele pula para o vivo
                 video.addEventListener('waiting', () => {
                     if (video.duration) {
                         video.currentTime = video.duration;
@@ -957,10 +955,11 @@
                 video.addEventListener('loadedmetadata', () => { 
                     if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
                     
-                    // MODIFICAÇÃO: Pula para o vivo também em iPhones / Safari nativo
+                    // Pula para o vivo também em iPhones / Safari nativo
                     if (video.duration) {
                         video.currentTime = video.duration;
                     }
+                    
                     video.play(); 
                 });
                 video.addEventListener('error', () => { setTimeout(iniciarPlayerDoVideo, 2000); });
