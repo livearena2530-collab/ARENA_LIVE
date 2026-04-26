@@ -5,7 +5,6 @@
     <!-- NOVO VIEWPORT: interative-widget=resizes-content força o teclado a encolher o chat e não empurrar a tela -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, interactive-widget=resizes-content">
     <title>ArenaLive - Transmissão Premium</title>
-    <link rel="icon" type="image/x-icon" href="log.ico">
     
     <!-- Bibliotecas Necessárias -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -209,7 +208,7 @@
                         <span id="ponto-ao-vivo" class="w-2 h-2 rounded-full bg-neutral-500 transition-colors"></span> Ao Vivo
                     </button>
                     <!-- BOTÃO CHAT -->
-                    <button onclick="toggleChat()" class="md:hidden text-white bg-black/40 px-2 py-1.5 rounded-full cursor-pointer transition-colors"><i data-lucide="message-square" class="w-4 h-4"></i></button>
+                    <button onclick="toggleChat()" title="Mostrar/Ocultar Chat" class="text-white bg-black/40 px-2 py-1.5 rounded-full cursor-pointer transition-colors hover:bg-white/10"><i data-lucide="message-square" class="w-4 h-4"></i></button>
                 </div>
             </div>
             
