@@ -324,7 +324,7 @@
             </div>
         </div>
 
-        <!-- SEÇÃO INFERIOR: CHAT -->
+        <!-- SEÇÃO INFERIOR: CHAT (LADO-A-LADO POR DEFAULT) -->
         <div id="chat-sidebar" class="flex flex-col w-full md:w-[350px] md:shrink-0 md:flex-none md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 border-l border-white/5 transition-all duration-300 relative">
             
             <div class="px-4 py-3 flex justify-between items-start border-b border-white/10 shadow-sm z-20 shrink-0 chat-header">
@@ -366,7 +366,7 @@
                     <div class="flex-1 bg-black/50 border border-white/10 rounded-full px-4 py-2 flex items-center group focus-within:bg-black/70 transition-colors focus-within:border-white/30 shadow-inner">
                         <input type="text" id="chat-input" placeholder="Conversar como inscrito..." class="bg-transparent text-white text-[14px] w-full outline-none placeholder-gray-400" autocomplete="off" onkeypress="if(event.key === 'Enter') enviarChat()">
                         <!-- Ícone de Emojis que ativa o painel -->
-                        <i data-lucide="smile" id="btn-emoji" class="w-5 h-5 text-gray-400 ml-2 cursor-pointer hover:text-white transition-colors shrink-0"></i>
+                        <i data-lucide="smile" id="btn-emoji" onclick="toggleEmojiPicker(event)" class="w-5 h-5 text-gray-400 ml-2 cursor-pointer hover:text-white transition-colors shrink-0"></i>
                     </div>
                     
                     <button onclick="enviarChat()" class="w-10 h-10 rounded-full hover:bg-white/20 text-[#3ea6ff] cursor-pointer transition-colors flex items-center justify-center shrink-0 shadow-md">
@@ -1409,32 +1409,36 @@
         // ==========================================
         // LÓGICA DO PAINEL DE EMOJIS (Lado do Cliente)
         // ==========================================
+        function toggleEmojiPicker(e) {
+            if(e) e.stopPropagation();
+            const wrapper = document.getElementById('emoji-picker-wrapper');
+            if (wrapper) {
+                wrapper.classList.toggle('hidden');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            const btnEmoji = document.getElementById('btn-emoji');
-            const emojiWrapper = document.getElementById('emoji-picker-wrapper');
-            const chatInputBox = document.getElementById('chat-input');
             const picker = document.querySelector('emoji-picker');
+            const chatInputBox = document.getElementById('chat-input');
 
-            if (btnEmoji && emojiWrapper && picker && chatInputBox) {
-                // Abre e fecha o painel ao clicar na carinha
-                btnEmoji.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    emojiWrapper.classList.toggle('hidden');
-                });
-
+            if (picker && chatInputBox) {
                 // Adiciona o emoji ao campo de texto quando clicado
                 picker.addEventListener('emoji-click', event => {
                     chatInputBox.value += event.detail.unicode;
                     chatInputBox.focus(); // Mantém o foco no campo para continuar a digitar
                 });
-
-                // Fecha o painel de emojis se o utilizador clicar fora dele
-                document.addEventListener('click', (e) => {
-                    if (!emojiWrapper.contains(e.target) && e.target !== btnEmoji) {
-                        emojiWrapper.classList.add('hidden');
-                    }
-                });
             }
+
+            // Fecha o painel de emojis se o utilizador clicar fora dele
+            document.addEventListener('click', (e) => {
+                const wrapper = document.getElementById('emoji-picker-wrapper');
+                if (wrapper && !wrapper.classList.contains('hidden')) {
+                    // Verifica se o clique foi fora do picker e fora do botão
+                    if (!wrapper.contains(e.target) && !e.target.closest('#btn-emoji')) {
+                        wrapper.classList.add('hidden');
+                    }
+                }
+            });
         });
     </script>
 </body>
