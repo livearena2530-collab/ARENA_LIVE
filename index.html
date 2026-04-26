@@ -237,8 +237,8 @@
                     <i data-lucide="chevron-down" class="w-4 h-4"></i> Voltar
                 </button>
                 <div class="flex gap-2 items-center">
-                    <!-- BOTÃO CHAT (Escondido em Mobile) -->
-                    <button id="btn-top-chat" onclick="event.stopPropagation(); toggleChat()" title="Mostrar/Ocultar Chat" class="hidden md:flex text-white bg-black/40 px-3 py-1.5 rounded-full cursor-pointer transition-colors hover:bg-white/20 shadow-md backdrop-blur-md items-center gap-2 text-xs md:text-sm font-medium border border-white/10">
+                    <!-- BOTÃO CHAT (Escondido por padrão, o JS controla quando mostrar no PC) -->
+                    <button id="btn-top-chat" onclick="event.stopPropagation(); toggleChat()" title="Mostrar/Ocultar Chat" class="hidden text-white bg-black/40 px-3 py-1.5 rounded-full cursor-pointer transition-colors hover:bg-white/20 shadow-md backdrop-blur-md items-center gap-2 text-xs md:text-sm font-medium border border-white/10">
                         <i data-lucide="message-square" class="w-4 h-4 md:w-5 md:h-5"></i> <span class="hidden sm:inline">Chat</span>
                     </button>
                 </div>
@@ -355,8 +355,8 @@
             <!-- Barra de digitação -->
             <div id="chat-input-container" class="relative p-2 sm:p-3 bg-[#0f0f0f] border-t border-white/10 z-20 shrink-0">
                 
-                <!-- PAINEL DE EMOJIS (Oculto por padrão, flutua acima da caixa de texto) -->
-                <div id="emoji-picker-wrapper" class="hidden absolute bottom-full right-2 md:right-4 mb-2 z-[100] w-[95%] sm:w-auto">
+                <!-- PAINEL DE EMOJIS: left-2 right-2 para não ultrapassar a largura do sidebar e ter scroll limpo -->
+                <div id="emoji-picker-wrapper" class="hidden absolute bottom-full left-2 right-2 mb-2 z-[100]">
                     <emoji-picker class="dark"></emoji-picker>
                 </div>
 
@@ -951,9 +951,15 @@
             }
 
             const sidebar = document.getElementById('chat-sidebar');
+            const btnChat = document.getElementById('btn-top-chat');
             if (sidebar) {
                 sidebar.classList.remove('hidden');
                 sidebar.classList.add('flex');
+            }
+            if (btnChat) {
+                // Chat abre automaticamente, botão de chat fica escondido na barra de vídeo
+                btnChat.classList.add('hidden');
+                btnChat.classList.remove('md:flex');
             }
 
             verificarEstadoTransmissao();
@@ -1308,14 +1314,23 @@
         // === WEB SOCKETS (CHAT) ===
         function toggleChat() {
             const sidebar = document.getElementById('chat-sidebar');
+            const btnChat = document.getElementById('btn-top-chat');
             if (!sidebar) return;
             
             if(sidebar.classList.contains('hidden')) { 
                 sidebar.classList.remove('hidden'); 
                 sidebar.classList.add('flex'); 
+                if (btnChat) {
+                    btnChat.classList.add('hidden');
+                    btnChat.classList.remove('md:flex');
+                }
             } else { 
                 sidebar.classList.add('hidden'); 
                 sidebar.classList.remove('flex'); 
+                if (btnChat) {
+                    btnChat.classList.remove('hidden');
+                    btnChat.classList.add('md:flex'); // Só reaparece em ecrãs de computador
+                }
             }
         }
 
