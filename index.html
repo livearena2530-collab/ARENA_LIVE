@@ -1303,10 +1303,15 @@
             });
 
             socket.on('force_logout', (data) => {
-                alert(data.msg || "Sessão encerrada por segurança.");
+                // 1. Desliga o vídeo, encerra a ligação e volta à home imediatamente
                 voltarHome();
                 logout();
-                location.reload();
+                
+                // 2. Aguarda um piscar de olhos para a tela fechar e depois exibe a mensagem
+                setTimeout(() => {
+                    alert(data.msg || "Sessão encerrada por segurança.");
+                    location.reload();
+                }, 100);
             });
             
             fetch(`${dominioCloudflare}/api/chat/history`, {
