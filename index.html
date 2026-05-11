@@ -98,7 +98,8 @@
         <div class="w-full flex-grow min-h-[100px] md:min-h-[120px] shrink-0"></div>
 
         <div class="relative z-10 w-full max-w-5xl px-4 flex flex-col items-center shrink-0">
-            <div class="mb-4 px-4 py-1.5 rounded-full border border-red-500/40 bg-gradient-to-r from-red-600/20 to-red-500/10 text-red-400 text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+            <!-- Badge Topo (Dinâmica) -->
+            <div id="badge-exclusiva" class="mb-4 px-4 py-1.5 rounded-full border border-red-500/40 bg-gradient-to-r from-red-600/20 to-red-500/10 text-red-400 text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
                 <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)]"></span> TRANSMISSÃO EXCLUSIVA
             </div>
 
@@ -123,7 +124,7 @@
                 </div>
             </div>
 
-            <!-- 🎤 LAYOUT 2: SHOW / EVENTO ÚNICO (BANNER) -->
+            <!-- 🎤 LAYOUT 2: SHOW / FREE (BANNER) -->
             <div id="layout-show" class="hidden flex-col items-center justify-center w-full mb-10 fade-in">
                 <div class="w-full max-w-3xl aspect-video rounded-3xl border-2 border-indigo-500/30 shadow-[0_0_40px_rgba(99,102,241,0.2)] overflow-hidden bg-neutral-900 relative group">
                     <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-20 pointer-events-none"></div>
@@ -133,10 +134,12 @@
 
             <!-- CAIXA DE COMPRA / INGRESSO -->
             <div class="glass rounded-[2rem] p-6 md:p-8 max-w-md w-full shadow-2xl relative group mt-4">
-                <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+                <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-500" id="box-glow"></div>
                 
                 <div class="relative flex flex-col items-center text-center w-full">
-                    <div class="flex items-center justify-between w-full mb-6 px-2 border-b border-white/10 pb-4">
+                    
+                    <!-- Preço e Restantes (Oculto no modo FREE) -->
+                    <div id="ticket-box-info" class="flex items-center justify-between w-full mb-6 px-2 border-b border-white/10 pb-4">
                         <div class="flex flex-col text-left">
                             <span class="text-xs text-neutral-400 font-bold uppercase tracking-wider mb-1">Ingresso VIP</span>
                             <span id="home-price-display" class="text-3xl md:text-4xl font-black text-white drop-shadow-md">R$ --,--</span>
@@ -148,6 +151,12 @@
                                 <span id="tickets-remaining-text" class="text-3xl md:text-4xl font-black text-indigo-400">--</span>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Input para Modo FREE -->
+                    <div id="free-name-area" class="hidden w-full mb-6">
+                        <label class="block text-[11px] text-neutral-400 font-bold uppercase tracking-wider mb-2 text-left px-1">Qual é o seu nome?</label>
+                        <input type="text" id="free-nome-input" placeholder="Digite o seu nome para o chat..." class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-center text-sm outline-none focus:border-emerald-500 transition-colors">
                     </div>
 
                     <div id="status-ingresso-salvo" class="hidden w-full bg-amber-500/20 border border-amber-500/40 text-amber-400 p-3 rounded-xl mb-4 text-sm font-bold animate-pulse">
@@ -204,7 +213,7 @@
                     <h4 id="valor-ingresso" class="text-3xl font-black mb-1 text-white">R$ --,--</h4>
                     <p class="text-xs text-neutral-400 mb-4">Pague via PIX para libertar o vídeo. A liberação é automática após o pagamento.</p>
                     
-                    <!-- NOVO: EXIBIÇÃO DO CÓDIGO VIP -->
+                    <!-- NOVO: EXIBIÇÃO DO CÓDIGO VIP PARA CÓPIA -->
                     <div class="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-3 mb-4">
                         <span class="block text-[10px] text-indigo-400 font-bold uppercase tracking-widest mb-1.5">O seu Código VIP</span>
                         <div class="flex items-center bg-black border border-white/10 rounded-lg overflow-hidden p-1 mx-auto max-w-[220px]">
@@ -337,7 +346,7 @@
         </div>
 
         <!-- SEÇÃO INFERIOR: CHAT -->
-        <div id="chat-sidebar" class="flex flex-col flex-1 w-full md:w-[500px] md:shrink-0 md:flex-none md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 border-l border-white/5 transition-all duration-300 relative">
+        <div id="chat-sidebar" class="flex flex-col flex-1 w-full md:w-[350px] md:shrink-0 md:flex-none md:h-full bg-[#0f0f0f] z-10 yt-font min-h-0 border-l border-white/5 transition-all duration-300 relative">
             <div class="px-4 py-3 flex justify-between items-start border-b border-white/10 shadow-sm z-20 shrink-0 chat-header">
                 <div class="flex flex-col drop-shadow-md">
                     <h3 class="text-white font-medium text-[15px] leading-tight">Chat ao vivo</h3>
@@ -424,7 +433,7 @@
                     const titleDisplay = document.getElementById('event-title-display');
                     if (titleDisplay) titleDisplay.innerText = data.titulo_evento || '---';
                     
-                    // 🎤 ALTERNAR ENTRE LAYOUT ESPORTES E SHOW NA TELA INICIAL E SALA DE ESPERA
+                    // 🎤 ALTERNAR ENTRE LAYOUTS (ESPORTES vs SHOW vs FREE)
                     const tipoEvento = data.tipo_evento || 'esportes';
                     const layoutEsportes = document.getElementById('layout-esportes');
                     const layoutShow = document.getElementById('layout-show');
@@ -433,8 +442,7 @@
                     const viewHomeImg = document.querySelector('#view-home > div.fixed > img');
                     const waitingRoom = document.getElementById('waiting-room');
 
-                    if(tipoEvento === 'show') {
-                        // Modo Show / Palestra
+                    if(tipoEvento === 'show' || tipoEvento === 'free') {
                         if(layoutEsportes) { layoutEsportes.classList.add('hidden'); layoutEsportes.classList.remove('flex'); }
                         if(layoutShow) { layoutShow.classList.remove('hidden'); layoutShow.classList.add('flex'); }
                         
@@ -443,13 +451,11 @@
                             bannerDisplay.src = data.banner_evento || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070&auto=format&fit=crop';
                         }
                         
-                        // Atualiza o fundo da Home e da Sala de Espera para o Banner do Evento
                         if (data.banner_evento) {
                             if(viewHomeImg) viewHomeImg.src = data.banner_evento;
                             if(waitingRoom) waitingRoom.style.backgroundImage = `url('${data.banner_evento}')`;
                         }
                     } else {
-                        // Modo Esportes
                         if(layoutShow) { layoutShow.classList.add('hidden'); layoutShow.classList.remove('flex'); }
                         if(layoutEsportes) { layoutEsportes.classList.remove('hidden'); layoutEsportes.classList.add('flex'); }
 
@@ -465,7 +471,6 @@
                         const imgB = document.getElementById('team-b-img-display');
                         if (imgB && data.time_b_img) imgB.src = data.time_b_img;
                         
-                        // Restaura o fundo padrão do estádio
                         const defaultBg = "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000&auto=format&fit=crop";
                         if(viewHomeImg) viewHomeImg.src = defaultBg;
                         if(waitingRoom) waitingRoom.style.backgroundImage = `url('${defaultBg}')`;
@@ -477,6 +482,80 @@
                     const ticketsRemaining = document.getElementById('tickets-remaining-text');
                     if (ticketsRemaining) ticketsRemaining.innerText = data.ingressos_restantes;
 
+                    // MUDANÇA DE CAIXA DE INGRESSO PARA O MODO FREE (GRATUITO)
+                    const badgeExclusiva = document.getElementById('badge-exclusiva');
+                    const ticketBoxInfo = document.getElementById('ticket-box-info');
+                    const areaRecuperacao = document.getElementById('area-recuperacao');
+                    const freeNameArea = document.getElementById('free-name-area');
+                    const btnPrincipal = document.getElementById('btn-principal');
+                    const txtBtn = document.getElementById('texto-btn');
+                    const iconBtn = document.getElementById('icon-btn');
+                    const iconRestantes = document.getElementById('icon-restantes');
+                    const boxGlow = document.getElementById('box-glow');
+
+                    if (tipoEvento === 'free') {
+                        // Estilo Verde / Livre
+                        if(badgeExclusiva) {
+                            badgeExclusiva.innerHTML = '<span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]"></span> TRANSMISSÃO ABERTA';
+                            badgeExclusiva.className = "mb-4 px-4 py-1.5 rounded-full border border-emerald-500/40 bg-gradient-to-r from-emerald-600/20 to-emerald-500/10 text-emerald-400 text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.2)]";
+                        }
+                        if(boxGlow) { boxGlow.classList.replace('from-indigo-500', 'from-emerald-500'); boxGlow.classList.replace('to-purple-600', 'to-teal-600'); }
+
+                        if(ticketBoxInfo) ticketBoxInfo.classList.add('hidden');
+                        if(areaRecuperacao) areaRecuperacao.classList.add('hidden');
+                        if(freeNameArea && !codigoAtual) freeNameArea.classList.remove('hidden');
+
+                        if (!codigoAtual) {
+                            txtBtn.innerText = 'ENTRAR NA TRANSMISSÃO';
+                            iconBtn.setAttribute('data-lucide', 'play');
+                            btnPrincipal.onclick = entrarModoFree;
+                            btnPrincipal.className = "w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black py-5 px-8 rounded-xl transition-all active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.5)] flex items-center justify-center gap-3 text-lg md:text-xl mb-6 cursor-pointer";
+                            btnPrincipal.disabled = false;
+                        } else if (codigoAtual === 'FREE') {
+                            if(freeNameArea) freeNameArea.classList.add('hidden');
+                            txtBtn.innerText = 'ASSISTIR EVENTO AGORA';
+                            iconBtn.setAttribute('data-lucide', 'play-circle');
+                            btnPrincipal.onclick = abrirVideo;
+                            btnPrincipal.className = "w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black py-5 px-8 rounded-xl transition-all active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.5)] flex items-center justify-center gap-3 text-lg md:text-xl mb-6 cursor-pointer";
+                            btnPrincipal.disabled = false;
+                        }
+
+                    } else {
+                        // Estilo Original Vermelho / Exclusivo (Modos VIP)
+                        if (codigoAtual === 'FREE') {
+                            logout(); // Se era free e o admin mudou para VIP, expulsa para comprar.
+                        }
+
+                        if(badgeExclusiva) {
+                            badgeExclusiva.innerHTML = '<span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)]"></span> TRANSMISSÃO EXCLUSIVA';
+                            badgeExclusiva.className = "mb-4 px-4 py-1.5 rounded-full border border-red-500/40 bg-gradient-to-r from-red-600/20 to-red-500/10 text-red-400 text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.2)]";
+                        }
+                        if(boxGlow) { boxGlow.classList.replace('from-emerald-500', 'from-indigo-500'); boxGlow.classList.replace('to-teal-600', 'to-purple-600'); }
+
+                        if(ticketBoxInfo) ticketBoxInfo.classList.remove('hidden');
+                        if(freeNameArea) freeNameArea.classList.add('hidden');
+                        if(areaRecuperacao && !codigoAtual) areaRecuperacao.classList.remove('hidden');
+
+                        if(data.ingressos_restantes <= 0 && !codigoAtual) {
+                            txtBtn.innerText = 'ESGOTADO';
+                            iconBtn.setAttribute('data-lucide', 'lock');
+                            btnPrincipal.disabled = true;
+                            btnPrincipal.className = "w-full bg-gradient-to-r from-neutral-700 to-neutral-800 text-white font-black py-5 px-8 rounded-xl transition-all flex items-center justify-center gap-3 text-lg md:text-xl mb-6 cursor-not-allowed opacity-80 shadow-[0_0_20px_rgba(0,0,0,0.5)]";
+                            if(ticketsRemaining) ticketsRemaining.className = "text-3xl md:text-4xl font-black text-red-500";
+                            if(iconRestantes) { iconRestantes.classList.remove('animate-bounce'); iconRestantes.setAttribute('data-lucide', 'x-circle'); }
+                        } else if (!codigoAtual) {
+                            btnPrincipal.disabled = false;
+                            txtBtn.innerText = 'COMPRAR INGRESSO VIP';
+                            iconBtn.setAttribute('data-lucide', 'ticket');
+                            btnPrincipal.onclick = abrirCheckout;
+                            btnPrincipal.className = "w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black py-5 px-8 rounded-xl transition-all active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.5)] flex items-center justify-center gap-3 text-lg md:text-xl mb-6 cursor-pointer";
+                            if(ticketsRemaining) ticketsRemaining.className = "text-3xl md:text-4xl font-black text-indigo-400";
+                            if(iconRestantes) { iconRestantes.classList.add('animate-bounce'); iconRestantes.setAttribute('data-lucide', 'flame'); }
+                        }
+                    }
+                    lucide.createIcons();
+
+                    // Temporizador
                     if(data.data_hora && data.data_hora.trim() !== "") {
                         let p = data.data_hora.split(/[- :]/);
                         if(p.length >= 5) {
@@ -491,45 +570,34 @@
 
                     verificarEstadoTransmissao();
 
-                    const btnPrincipal = document.getElementById('btn-principal');
-                    const txtBtn = document.getElementById('texto-btn');
-                    const iconBtn = document.getElementById('icon-btn');
-                    const iconRestantes = document.getElementById('icon-restantes');
-                    
-                    if (btnPrincipal && txtBtn && iconBtn && iconRestantes) {
-                        if(data.ingressos_restantes <= 0 && !codigoAtual) {
-                            txtBtn.innerText = 'ESGOTADO';
-                            iconBtn.setAttribute('data-lucide', 'lock');
-                            btnPrincipal.disabled = true;
-                            btnPrincipal.classList.replace('from-indigo-600', 'from-neutral-700');
-                            btnPrincipal.classList.replace('to-purple-600', 'to-neutral-800');
-                            btnPrincipal.classList.add('cursor-not-allowed', 'opacity-80');
-                            ticketsRemaining.classList.replace('text-indigo-400', 'text-red-500');
-                            iconRestantes.classList.remove('animate-bounce');
-                            iconRestantes.setAttribute('data-lucide', 'x-circle');
-                        } else if (!codigoAtual) {
-                            btnPrincipal.disabled = false;
-                            txtBtn.innerText = 'COMPRAR INGRESSO VIP';
-                            iconBtn.setAttribute('data-lucide', 'ticket');
-                            btnPrincipal.classList.replace('from-neutral-700', 'from-indigo-600');
-                            btnPrincipal.classList.replace('to-neutral-800', 'to-purple-600');
-                            btnPrincipal.classList.remove('cursor-not-allowed', 'opacity-80');
-                            ticketsRemaining.classList.replace('text-red-500', 'text-indigo-400');
-                            iconRestantes.classList.add('animate-bounce');
-                            iconRestantes.setAttribute('data-lucide', 'flame');
-                        }
-                        lucide.createIcons();
-                    }
-
                     // Atualiza o Avatar
                     const avatarInput = document.getElementById('user-avatar-input');
                     if (avatarInput && nomeAtual !== "Anónimo") {
-                        avatarInput.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nomeAtual)}&background=3ea6ff&color=fff&rounded=true&size=64`;
+                        const cor = tipoEvento === 'free' ? '10b981' : '3ea6ff';
+                        avatarInput.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nomeAtual)}&background=${cor}&color=fff&rounded=true&size=64`;
                     }
                 }
             } catch(error) {
                 console.error("Erro ao buscar detalhes do evento:", error);
             }
+        }
+
+        function entrarModoFree() {
+            const inputNome = document.getElementById('free-nome-input');
+            let nome = inputNome ? inputNome.value.trim() : "";
+            
+            if(!nome) nome = "Convidado";
+            
+            nomeAtual = nome;
+            codigoAtual = "FREE";
+            
+            localStorage.setItem('nome_vip', nomeAtual);
+            localStorage.setItem('ingresso_vip', codigoAtual);
+            
+            const btnLogout = document.getElementById('btn-logout');
+            if (btnLogout) btnLogout.classList.remove('hidden');
+
+            abrirVideo();
         }
 
         // --------------------------------------------------------------------
@@ -565,11 +633,14 @@
             setInterval(fetchEventDetails, 10000); 
             
             if (codigoAtual) {
-                const areaRecuperacao = document.getElementById('area-recuperacao');
-                if (areaRecuperacao) areaRecuperacao.classList.add('hidden');
-                
                 const autoAbrirPlayer = (localStorage.getItem('view_state') === 'player');
-                verificarStatusAPI(autoAbrirPlayer); 
+                if (codigoAtual === 'FREE') {
+                    if(autoAbrirPlayer) abrirVideo();
+                } else {
+                    const areaRecuperacao = document.getElementById('area-recuperacao');
+                    if (areaRecuperacao) areaRecuperacao.classList.add('hidden');
+                    verificarStatusAPI(autoAbrirPlayer); 
+                }
             }
         });
 
@@ -633,7 +704,7 @@
         }
 
         // --------------------------------------------------------------------
-        // GESTÃO DE ESTADOS (UI)
+        // GESTÃO DE ESTADOS (UI VIP)
         // --------------------------------------------------------------------
         function setUIAprovado() {
             const btnLogout = document.getElementById('btn-logout');
@@ -691,6 +762,9 @@
             const statusDiv = document.getElementById('status-ingresso-salvo');
             if (statusDiv) statusDiv.classList.add('hidden');
             
+            const freeNameInput = document.getElementById('free-nome-input');
+            if(freeNameInput) freeNameInput.value = '';
+
             const textoBtn = document.getElementById('texto-btn');
             if (textoBtn) textoBtn.innerText = 'COMPRAR INGRESSO VIP';
             
@@ -704,7 +778,7 @@
         // CHECKOUT E PAGAMENTO PIX
         // --------------------------------------------------------------------
         async function abrirCheckout() {
-            if(codigoAtual) { 
+            if(codigoAtual && codigoAtual !== 'FREE') { 
                 const btn = document.getElementById('btn-principal');
                 let oldText = "";
                 
@@ -901,9 +975,6 @@
             const pixCopyInput = document.getElementById('pix-copy-input');
             if (pixCopyInput) pixCopyInput.value = chave;
             
-            const codigoVip = document.getElementById('codigo-vip');
-            if (codigoVip) codigoVip.innerText = codigo;
-            
             const codigoVipInput = document.getElementById('codigo-vip-input');
             if (codigoVipInput) codigoVipInput.value = codigo;
             
@@ -959,7 +1030,7 @@
         }
 
         async function verificarStatusAPI(autoAbrirPlayer = false) {
-            if(!codigoAtual) return;
+            if(!codigoAtual || codigoAtual === 'FREE') return;
             try {
                 const res = await fetch(`${dominioCloudflare}/api/ingresso/${codigoAtual}?t=${new Date().getTime()}`, {
                     method: 'GET',
@@ -1377,7 +1448,7 @@
         });
 
         // --------------------------------------------------------------------
-        // WEB SOCKETS (CHAT)
+        // WEB SOCKETS (CHAT E SEGURANÇA)
         // --------------------------------------------------------------------
         function toggleChat() {
             const sidebar = document.getElementById('chat-sidebar');
@@ -1406,11 +1477,14 @@
             socket = io(dominioCloudflare);
 
             socket.on('connect', () => {
-                if(codigoAtual) socket.emit('join_stream', { codigo: codigoAtual });
+                // Não precisa de registar a sala VIP no Websocket se o evento for Grátis (FREE)
+                if(codigoAtual && codigoAtual !== 'FREE') {
+                    socket.emit('join_stream', { codigo: codigoAtual });
+                }
             });
 
             socket.on('force_logout', (data) => {
-                // 1. Interrompe imediatamente o vídeo e liberta a rede
+                // 1. Interrompe imediatamente o vídeo
                 if(window.hlsPlayer) { window.hlsPlayer.destroy(); window.hlsPlayer = null; }
                 const videoPlayer = document.getElementById('video-player');
                 if(videoPlayer) { videoPlayer.pause(); videoPlayer.removeAttribute('src'); videoPlayer.load(); }
