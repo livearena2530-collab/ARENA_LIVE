@@ -586,7 +586,12 @@
             const inputNome = document.getElementById('free-nome-input');
             let nome = inputNome ? inputNome.value.trim() : "";
             
-            if(!nome) nome = "Convidado";
+            // VERIFICAÇÃO ADICIONADA: Força o utilizador a digitar um nome
+            if(!nome) {
+                alert("Por favor, digite o seu nome para poder entrar na transmissão.");
+                if(inputNome) inputNome.focus(); // Coloca o cursor de volta no campo
+                return; // Cancela a entrada e para o código aqui
+            }
             
             nomeAtual = nome;
             codigoAtual = "FREE";
