@@ -213,7 +213,7 @@
                     <h4 id="valor-ingresso" class="text-3xl font-black mb-1 text-white">R$ --,--</h4>
                     <p class="text-xs text-neutral-400 mb-4">Pague via PIX para libertar o vídeo. A liberação é automática após o pagamento.</p>
                     
-                    <!-- NOVO: EXIBIÇÃO DO CÓDIGO VIP PARA CÓPIA -->
+                    <!-- EXIBIÇÃO DO CÓDIGO VIP -->
                     <div class="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-3 mb-4">
                         <span class="block text-[10px] text-indigo-400 font-bold uppercase tracking-widest mb-1.5">O seu Código VIP</span>
                         <div class="flex items-center bg-black border border-white/10 rounded-lg overflow-hidden p-1 mx-auto max-w-[220px]">
@@ -260,7 +260,14 @@
                 <button onclick="event.stopPropagation(); voltarHome()" class="text-white flex items-center gap-1 hover:text-gray-300 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md text-xs md:text-sm font-medium cursor-pointer transition-colors">
                     <i data-lucide="chevron-down" class="w-4 h-4"></i> Voltar
                 </button>
+                
                 <div class="flex gap-2 items-center">
+                    <!-- 👁️ NOVO: CONTADOR DE VIEWERS (AO VIVO NA TELA) -->
+                    <div id="viewers-badge" class="hidden text-white bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md items-center gap-1.5 text-xs md:text-sm font-bold border border-white/10 shadow-md">
+                        <i data-lucide="eye" class="w-4 h-4 text-red-500 animate-pulse"></i>
+                        <span id="viewers-count-display">0</span>
+                    </div>
+
                     <button id="btn-top-chat" onclick="event.stopPropagation(); toggleChat()" title="Mostrar/Ocultar Chat" class="hidden text-white bg-black/40 px-3 py-1.5 rounded-full cursor-pointer transition-colors hover:bg-white/20 shadow-md backdrop-blur-md items-center gap-2 text-xs md:text-sm font-medium border border-white/10">
                         <i data-lucide="message-square" class="w-4 h-4 md:w-5 md:h-5"></i> <span class="hidden sm:inline">Chat</span>
                     </button>
@@ -354,7 +361,8 @@
                         <span class="text-[12px] text-gray-200">Mensagens principais</span>
                         <span class="w-1 h-1 rounded-full bg-gray-300"></span>
                         <i data-lucide="users" class="w-3 h-3 text-gray-300"></i>
-                        <span class="text-[12px] text-gray-200">VIP</span>
+                        <!-- 👁️ NOVO: CONTADOR DE VIEWERS NO CHAT -->
+                        <span id="chat-viewers-count" class="text-[12px] text-gray-200 font-bold">0 assistindo</span>
                     </div>
                 </div>
                 <div class="flex items-center gap-4 text-white mt-1">
@@ -586,11 +594,10 @@
             const inputNome = document.getElementById('free-nome-input');
             let nome = inputNome ? inputNome.value.trim() : "";
             
-            // VERIFICAÇÃO ADICIONADA: Força o utilizador a digitar um nome
             if(!nome) {
                 alert("Por favor, digite o seu nome para poder entrar na transmissão.");
-                if(inputNome) inputNome.focus(); // Coloca o cursor de volta no campo
-                return; // Cancela a entrada e para o código aqui
+                if(inputNome) inputNome.focus();
+                return; 
             }
             
             nomeAtual = nome;
@@ -1317,14 +1324,13 @@
         }
 
         // --------------------------------------------------------------------
-        // INICIAÇÃO DO VÍDEO (A MÁGICA DA NUVEM ACONTECE AQUI)
+        // INICIAÇÃO DO VÍDEO E MÁGICA DA NUVEM
         // --------------------------------------------------------------------
         function iniciarPlayerDoVideo() {
             const video = document.getElementById('video-player');
             const overlay = document.getElementById('loading-overlay');
             if(overlay) { overlay.style.display = 'flex'; overlay.classList.remove('hidden'); }
             
-            // ☁️ LÓGICA INTELIGENTE: Escolhe a origem do vídeo
             let videoSrc = "";
             if (linkNuvem && linkNuvem.trim() !== "") {
                 const baseNuvem = linkNuvem.endsWith('/') ? linkNuvem.slice(0, -1) : linkNuvem;
@@ -1453,7 +1459,7 @@
         });
 
         // --------------------------------------------------------------------
-        // WEB SOCKETS (CHAT E SEGURANÇA)
+        // WEB SOCKETS (CHAT E SEGURANÇA E CONTADOR DE VIEWERS)
         // --------------------------------------------------------------------
         function toggleChat() {
             const sidebar = document.getElementById('chat-sidebar');
@@ -1482,9 +1488,29 @@
             socket = io(dominioCloudflare);
 
             socket.on('connect', () => {
-                // Não precisa de registar a sala VIP no Websocket se o evento for Grátis (FREE)
                 if(codigoAtual && codigoAtual !== 'FREE') {
                     socket.emit('join_stream', { codigo: codigoAtual });
+                }
+            });
+
+            // 👁️ RECEBER ATUALIZAÇÃO DOS VIEWERS DO SERVIDOR PYTHON
+            socket.on('atualizar_viewers', (data) => {
+                const count = data.count || 0;
+                
+                // Atualiza o contador na barra do vídeo
+                const viewersDisplay = document.getElementById('viewers-count-display');
+                const viewersBadge = document.getElementById('viewers-badge');
+                if (viewersDisplay) viewersDisplay.innerText = count;
+                if (viewersBadge) {
+                    viewersBadge.classList.remove('hidden');
+                    viewersBadge.classList.add('flex');
+                }
+
+                // Atualiza no topo do Chat ("250 VIP assistindo" ou "250 assistindo")
+                const chatViewersCount = document.getElementById('chat-viewers-count');
+                if (chatViewersCount) {
+                    const complemento = codigoAtual === 'FREE' ? 'assistindo' : 'VIP assistindo';
+                    chatViewersCount.innerText = `${count} ${complemento}`;
                 }
             });
 
@@ -1495,7 +1521,7 @@
                 if(videoPlayer) { videoPlayer.pause(); videoPlayer.removeAttribute('src'); videoPlayer.load(); }
                 if(socket) { socket.disconnect(); socket = null; }
                 
-                // 2. Avisa o utilizador antigo que alguém entrou
+                // 2. Avisa o utilizador antigo
                 alert(data.msg || "Sessão encerrada. Este ingresso foi acedido noutro dispositivo.");
                 
                 // 3. Limpa a conta localmente e leva direto para a página inicial
